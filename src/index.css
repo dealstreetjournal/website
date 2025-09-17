@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+@import 'sweetalert2/dist/sweetalert2.min.css';
+
+@font-face {
+  font-family: 'Aptos';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/aptos-light.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Aptos';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/aptos.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Aptos';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/aptos-semibold.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Aptos';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/aptos-bold.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Aptos';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/aptos-extrabold.ttf') format('truetype');
+}
+
+/* Base font family */
+.font-aptos {
+  font-family: 'Aptos', Arial, sans-serif;
+}
+
+/* Custom utility classes for specific weights */
+.font-aptos-light {
+  font-family: 'Aptos', Arial, sans-serif;
+  font-weight: 300;
+}
+
+.font-aptos-regular {
+  font-family: 'Aptos', Arial, sans-serif;
+  font-weight: 400;
+}
+
+.font-aptos-semibold {
+  font-family: 'Aptos', Arial, sans-serif;
+  font-weight: 600;
+}
+
+.font-aptos-bold {
+  font-family: 'Aptos', Arial, sans-serif;
+  font-weight: 700;
+}
+
+.font-aptos-extrabold {
+  font-family: 'Aptos', Arial, sans-serif;
+  font-weight: 800;
+}
