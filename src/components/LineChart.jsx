@@ -246,7 +246,7 @@ const LineChart = ({
           color: '#374151',
           padding: 8,
           callback: function (value) {
-            return '₹' + parseFloat(value).toLocaleString('en-IN') + 'M'
+            return parseFloat(value).toLocaleString('en-IN')
           },
         },
         title: {
@@ -291,7 +291,7 @@ const LineChart = ({
       <div className="bg-slate-200 border-b border-gray-200 px-8 py-6">
         <div className="">
           <div>
-            <h2 className='text-center font-aptos'>{title}</h2>
+            <h2 className="text-center font-aptos">{title}</h2>
             <h2 className="text-lg font-aptos-extrabold text-gray-800 mb-1">
               Financial Performance Analysis
             </h2>

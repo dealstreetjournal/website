@@ -46,7 +46,7 @@ const LatestDeal = () => {
       setPage(1)
     }, time || 2000)
     return () => clearTimeout(handler)
-  }, [search, time])
+  }, [search])
 
   const { isPending, isError, data, error } = useQuery({
     queryKey: ['latestdeal', page, debounceSearch],
