@@ -151,7 +151,7 @@ const Footer = () => {
       // console.log('Enhanced payload:', payload)
 
       // send data
-      await axios.post('http://localhost:8081/dsj/collect', payload)
+      await axios.post('https://web.dealstreetjournal.com/dsj/collect', payload)
 
       return payload
     } catch (err) {
