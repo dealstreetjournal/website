@@ -25,7 +25,7 @@ const CompanyProfileSection = ({
         <img
           src={companyLogoUrl}
           alt="Blinkit Logo"
-          className="w-15 h-15 rounded object-contain"
+          className="w-15 h-15 rounded object-cover object-center"
         />
         <h2 className="text-[#ff7010] text-xl md:text-base lg:text-xl whitespace-nowrap font-aptos-bold">
           {brandName}

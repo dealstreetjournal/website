@@ -6,7 +6,7 @@ import spinner from '../assets/spinner.png'
 import { fetchFinancialCompany } from '../api/dsjApi'
 
 const FinancialInsight = () => {
-  document.title = 'Financial Insight'
+  document.title = 'Financial Insight | DealStreetJournal'
 
   const { isPending, isError, data, error } = useQuery({
     queryKey: ['financialCompany'],

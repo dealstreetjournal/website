@@ -6,7 +6,7 @@ import spinner from '../assets/spinner.png'
 import { useQuery } from '@tanstack/react-query'
 
 const Funding365 = () => {
-  document.title = 'Funding 365'
+  document.title = 'Funding 365 | DealStreetJournal'
 
   const { isPending, isError, data, error } = useQuery({
     queryKey: ['funding'],

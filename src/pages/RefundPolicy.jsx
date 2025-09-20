@@ -2,7 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 
 const RefundPolicy = () => {
-  document.title = 'Refund Policy'
+  document.title = 'Refund Policy | DealStreetJournal'
   return (
     <>
       <div className="w-full bg-slate-50">

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { FaAngleLeft, FaAngleRight } from 'react-icons/fa'
+import { memo } from 'react'
 
 const Pagination = ({ page, setPage, totalPages }) => {
   return (
@@ -27,4 +28,4 @@ const Pagination = ({ page, setPage, totalPages }) => {
   )
 }
 
-export default Pagination
+export default memo(Pagination)

@@ -89,6 +89,7 @@ const CompanyCard = ({ content, url, title }) => {
     >
       <Link
         to={`/${url}/${content.id}`}
+        state={{ companyName: content.companyName }}
         className="relative w-full h-full block"
         style={{
           transformStyle: 'preserve-3d',

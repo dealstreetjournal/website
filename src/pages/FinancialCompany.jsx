@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-// import FinancialCompanyCard from '../components/FinancialCompanyCard'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
 import { fetchFinancial } from '../api/dsjApi'
@@ -8,7 +7,10 @@ import FinancialCompanyCard from '../components/FinancialCompanyCard'
 import Popup from '../components/Popup'
 
 const FinancialCompany = () => {
-  document.title = 'Financial Company'
+  const location = useLocation()
+  const { companyName } = location.state || {}
+  document.title = `${companyName} | DealStreetJournal`
+
   const [year, setYear] = useState('')
   const { id } = useParams()
   const [showPopup, setShowPopup] = useState(false)

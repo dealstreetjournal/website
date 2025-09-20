@@ -2,7 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 
 const PrivacyPolicy = () => {
-  document.title = 'Privacy Policy'
+  document.title = 'Privacy Policy | DealStreetJournal'
   return (
     <>
       <div className="w-full bg-slate-50">

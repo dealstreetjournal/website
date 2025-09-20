@@ -148,7 +148,7 @@ const Footer = () => {
         consent: true,
       }
 
-      console.log('Enhanced payload:', payload)
+      // console.log('Enhanced payload:', payload)
 
       // send data
       await axios.post('http://localhost:8081/dsj/collect', payload)

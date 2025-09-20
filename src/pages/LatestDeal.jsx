@@ -14,7 +14,7 @@ import 'tippy.js/dist/tippy.css'
 import Popup from '../components/Popup'
 
 const LatestDeal = () => {
-  document.title = 'latest deal'
+  document.title = 'Latest deal | DealStreetJournal'
 
   const [showPopup, setShowPopup] = useState(false)
 

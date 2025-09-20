@@ -5,6 +5,8 @@ import funding from '../assets/funding.svg'
 import financial from '../assets/financial.svg'
 
 const DsjInsight = () => {
+  document.title = 'DSJ Insight | DealStreetJournal'
+
   return (
     <>
       <div className="bg-slate-100">

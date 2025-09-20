@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import CartCard from '../components/CartCard'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -50,22 +50,25 @@ const Cart = () => {
     },
   })
 
-  const handleRemove = (productId, title) => {
-    Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to remove this item from cart?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ff7010',
-      cancelButtonColor: '#5b93cb',
-      confirmButtonText: 'Yes, remove it!',
-      cancelButtonText: 'Cancel',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        removeMutation.mutate({ productId, title })
-      }
-    })
-  }
+  const handleRemove = useCallback(
+    (productId, title) => {
+      Swal.fire({
+        title: 'Are you sure?',
+        text: 'Do you want to remove this item from cart?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ff7010',
+        cancelButtonColor: '#5b93cb',
+        confirmButtonText: 'Yes, remove it!',
+        cancelButtonText: 'Cancel',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          removeMutation.mutate({ productId, title })
+        }
+      })
+    },
+    [removeMutation]
+  )
 
   // Calculate total price
   const totalPrice = useMemo(() => {

@@ -2,7 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 
 const TermsOfServices = () => {
-  document.title = 'Terms of Services'
+  document.title = 'Terms of Services |DealStreetJournal'
   return (
     <>
       <div className="w-full bg-slate-50">

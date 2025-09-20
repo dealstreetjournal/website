@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { FaShoppingCart } from 'react-icons/fa'
 import pdf from '../assets/pdf.svg'
 import Pagination from '../components/Pagination'
@@ -14,6 +14,10 @@ import 'tippy.js/dist/tippy.css'
 import Popup from '../components/Popup'
 
 const Funding365Company = () => {
+  const location = useLocation()
+  const { companyName } = location.state || {}
+  document.title = `${companyName} | DealStreetJournal`
+
   const { id } = useParams()
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)

@@ -27,6 +27,8 @@ const LineChart = ({
   grossRevenueData,
   grossYear,
   grossExpensesData,
+  revenueColor,
+  expensesColor,
 }) => {
   // Enhanced data validation function
   const validateAndProcessData = () => {
@@ -102,15 +104,15 @@ const LineChart = ({
         label: 'Gross Revenue',
         data: revenue,
         fill: false,
-        borderColor: '#ff7010',
+        borderColor: revenueColor,
         backgroundColor: 'rgba(255, 112, 16, 0.1)',
         borderWidth: 3,
-        pointBackgroundColor: '#ff7010',
+        pointBackgroundColor: revenueColor,
         pointBorderColor: '#ffffff',
         pointBorderWidth: 2,
         pointRadius: 5,
         pointHoverRadius: 7,
-        pointHoverBackgroundColor: '#ff7010',
+        pointHoverBackgroundColor: revenueColor,
         pointHoverBorderColor: '#ffffff',
         pointHoverBorderWidth: 3,
         tension: 0.4,
@@ -123,15 +125,15 @@ const LineChart = ({
         label: 'Gross Expenses',
         data: expenses,
         fill: false,
-        borderColor: '#6366f1',
+        borderColor: expensesColor,
         backgroundColor: 'rgba(99, 102, 241, 0.1)',
         borderWidth: 3,
-        pointBackgroundColor: '#6366f1',
+        pointBackgroundColor: expensesColor,
         pointBorderColor: '#ffffff',
         pointBorderWidth: 2,
         pointRadius: 5,
         pointHoverRadius: 7,
-        pointHoverBackgroundColor: '#6366f1',
+        pointHoverBackgroundColor: expensesColor,
         pointHoverBorderColor: '#ffffff',
         pointHoverBorderWidth: 3,
         tension: 0.4,
@@ -286,43 +288,33 @@ const LineChart = ({
   }
 
   return (
-    <div className="my-8 bg-slate-100 rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-      {/* Enhanced Header */}
-      <div className="bg-slate-200 border-b border-gray-200 px-8 py-6">
-        <div className="">
-          <div>
-            <h2 className="text-center font-aptos">{title}</h2>
-            <h2 className="text-lg font-aptos-extrabold text-gray-800 mb-1">
-              Financial Performance Analysis
-            </h2>
-            <p className="text-gray-600 text-sm text-center font-aptos-semibold">
-              Revenue vs Expenses Overview
-            </p>
+    <>
+      <div className="bg-slate-100 rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+        {/* Enhanced Header */}
+        <div className="bg-slate-200 border-b border-gray-200 px-8 py-6">
+          <div className="">
+            <div>
+              <h2 className="text-center font-aptos">{title}</h2>
+              <h2 className="text-lg font-aptos-extrabold text-gray-800 mb-1">
+                Financial Performance Analysis
+              </h2>
+              <p className="text-gray-600 text-sm text-center font-aptos-semibold">
+                Revenue vs Expenses Overview
+              </p>
+            </div>
           </div>
-          {/* <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-[#ff7010]"></div>
-              <span className="text-sm text-gray-600 font-aptos-semibold">
-                Revenue
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded-full bg-[#6366f1]"></div>
-              <span className="text-sm text-gray-600 font-aptos-semibold">
-                Expenses
-              </span>
-            </div>
-          </div> */}
         </div>
-      </div>
 
-      {/* Chart Container */}
-      <div className="pl-1 pb-2">
-        <div className="h-96 relative">
-          <Line data={lineData} options={chartOptions} />
+        {/* Chart Container */}
+        <div className="pl-1 pb-2">
+          <div className="h-96 relative">
+            <Line data={lineData} options={chartOptions} />
+          </div>
         </div>
+        {/* <hr className="text-[#ff7010] my-5 border-2" /> */}
       </div>
-    </div>
+      <hr className="text-[#ff7010] my-5 border-2" />
+    </>
   )
 }
 

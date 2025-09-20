@@ -8,7 +8,7 @@ import { contactMail } from '../api/userApi'
 import Swal from 'sweetalert2'
 
 const ContactUs = () => {
-  document.title = 'Contact Us'
+  document.title = 'Contact Us | DealStreetJournal'
 
   const {
     register,

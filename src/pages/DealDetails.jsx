@@ -274,6 +274,20 @@ const DealDetails = () => {
                     grossRevenueData={deal?.grossRevenueData}
                     grossYear={deal?.grossYear}
                     grossExpensesData={deal?.grossExpensesData}
+                    revenueColor="#ff7010"
+                    expensesColor="#6366f1"
+                  />
+                )}
+
+                {/* competitor line chart */}
+                {!deal?.hideCompetitorGraph && (
+                  <LineChart
+                    title={deal?.competitorBrandName}
+                    grossRevenueData={deal?.grossCompetitorRevenueData}
+                    grossYear={deal?.grossYear}
+                    grossExpensesData={deal?.grossCompetitorExpensesData}
+                    revenueColor="red"
+                    expensesColor="blue"
                   />
                 )}
 

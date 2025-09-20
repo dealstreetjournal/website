@@ -2,7 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 
 const AboutUs = () => {
-  document.title = 'About Us'
+  document.title = 'About Us | DealStreetJournal'
   return (
     <>
       <div className="w-full bg-slate-50">
