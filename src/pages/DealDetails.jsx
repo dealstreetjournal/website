@@ -184,7 +184,7 @@ const DealDetails = () => {
                     by {deal?.writtenBy || 'Team DSJ'}
                   </p>
                   <p className="font-aptos-regular text-sm">
-                    {handleDate(deal.createdAt)}
+                    {handleDate(deal.articleDate)}
                   </p>
                 </div>
                 <div className="flex gap-4 text-xl mr-2">
@@ -284,7 +284,7 @@ const DealDetails = () => {
                   <LineChart
                     title={deal?.competitorBrandName}
                     grossRevenueData={deal?.grossCompetitorRevenueData}
-                    grossYear={deal?.grossYear}
+                    grossYear={deal?.grossCompetitorYear}
                     grossExpensesData={deal?.grossCompetitorExpensesData}
                     revenueColor="red"
                     expensesColor="blue"
@@ -299,7 +299,7 @@ const DealDetails = () => {
                     url={`/${content.deals}/${content.id}`}
                     image={content.imageUrl}
                     heading={content.title}
-                    date={content.createdAt}
+                    date={content.articleDate}
                   />
                 ))}
               </div>

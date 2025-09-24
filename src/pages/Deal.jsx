@@ -81,7 +81,7 @@ const Deal = () => {
                   image={content.imageUrl}
                   heading={content.title}
                   desc={content.description}
-                  date={content.createdAt}
+                  date={content.articleDate}
                   writtenBy={content?.writtenBy || 'Team DSJ'}
                 />
               ))}
@@ -103,7 +103,7 @@ const Deal = () => {
                   deal={dealTitle}
                   image={content.imageUrl}
                   heading={content.title}
-                  date={content.createdAt}
+                  date={content.articleDate}
                 />
               ))}
             </div>
