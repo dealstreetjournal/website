@@ -30,12 +30,12 @@ const HomeDsjSlider = ({ data }) => {
                     : `funding/${data.id}`
                 }
                 state={{ query: data.title, time: 500 }}
-                className="whitespace-nowrap flex items-center animate-[marquee_60s_linear_infinite] hover:[animation-play-state:paused]"
+                className="whitespace-nowrap flex items-center animate-[marquee_20s_linear_infinite] hover:[animation-play-state:paused]"
               >
                 <h3 className="font-aptos-bold text-orange-500 inline">
                   {data.title}
                 </h3>
-                <span className="mx-2">:-</span>
+                <p className="mx-2">:-</p>
                 <p className="font-aptos-regular inline">{data.desc}</p>
               </Link>
             </div>

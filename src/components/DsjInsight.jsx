@@ -14,7 +14,11 @@ const DsjInsight = () => {
             to="/latest"
             className="flex md:flex-col lg:flex-row gap-8 p-2 mb-4 justify-start md:justify-center lg:justify-start items-center border border-gray-300 rounded-md bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
           >
-            <img src={deal} alt="image" className="w-25 h-25 object-contain" />
+            <img
+              src={deal}
+              alt="latestdeal"
+              className="w-25 h-25 object-contain"
+            />
             <div className="md:text-center lg:text-left">
               <h5 className="bg-[#ff7010] w-fit md:mx-auto lg:mx-0 px-2 py-1 text-sm rounded font-aptos-semibold text-white animate-[move_01s_ease-in-out_infinite] hover:[animation-play-state:paused]">
                 Latest Deal
@@ -33,11 +37,11 @@ const DsjInsight = () => {
           >
             <img
               src={funding}
-              alt="image"
+              alt="funding365"
               className="w-25 h-25 object-contain"
             />
             <div className="md:text-center lg:text-left">
-              <h5 className="bg-[#ff7010] w-fit md:mx-auto lg:mx-0 px-2 py-1 text-sm rounded font-aptos-semibold text-white animate-[move_01s_ease-in-out_infinite] hover:[animation-play-state:paused]">
+              <h5 className="bg-[#ff7010] w-fit md:mx-auto lg:mx-0 px-2 py-1 text-sm rounded font-aptos-semibold text-white animate-[demove_01s_ease-in-out_infinite] hover:[animation-play-state:paused]">
                 Funding 365
               </h5>
               <h2 className="font-aptos-semibold mt-1">
@@ -54,7 +58,7 @@ const DsjInsight = () => {
           >
             <img
               src={financial}
-              alt="image"
+              alt="financial"
               className="w-25 h-25 object-contain"
             />
             <div className="md:text-center lg:text-left">

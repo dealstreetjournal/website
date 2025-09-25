@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { handleDate } from '../handleDate'
 import DOMPurify from 'dompurify'
+import { FaUserCircle } from 'react-icons/fa'
 
 const DealsCard = ({
   deal,
@@ -43,8 +44,8 @@ const DealsCard = ({
             className="font-aptos-regular line-clamp-3 text-sm text-gray-700"
             dangerouslySetInnerHTML={{ __html: cleanHTML }}
           ></p>
-          <span className="font-aptos-regular text-sm text-gray-500">
-            • by {writtenBy}
+          <span className="flex justify-start items-center gap-1 font-aptos-semibold text-sm text-gray-500">
+            <FaUserCircle /> {writtenBy}
           </span>
         </div>
       </Link>

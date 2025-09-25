@@ -18,6 +18,7 @@ import DOMPurify from 'dompurify'
 import { handleDate } from '../handleDate'
 import { Helmet } from 'react-helmet-async'
 import LineChart from '../components/LineChart'
+import { FaCalendarAlt, FaUserCircle } from 'react-icons/fa'
 
 const DealDetails = () => {
   const location = useLocation()
@@ -65,7 +66,45 @@ const DealDetails = () => {
   const shareImage = deal?.imageUrl || ''
 
   const sanitizeDesc = (desc) => {
-    return DOMPurify.sanitize(desc)
+    if (!desc) {
+      return ''
+    }
+
+    // 1. Sanitize the description using DOMPurify
+    const sanitized = DOMPurify.sanitize(desc)
+
+    // 2. Create a temporary element to parse the HTML string
+    const tempElement = document.createElement('div')
+    tempElement.innerHTML = sanitized
+
+    // 3. Find the first span tag within the parsed HTML
+    const firstSpan = tempElement.querySelector('p')
+
+    if (firstSpan) {
+      // 4. Get the first letter of the span's text content
+      const originalText = firstSpan.textContent
+      const firstLetter = originalText.charAt(0)
+
+      // 5. Check if the first character is a letter
+      if (/[a-zA-Z]/.test(firstLetter)) {
+        // 6. Create a new span for the styled first letter
+        const styledLetter = document.createElement('span')
+        styledLetter.style.fontSize = '3.3em'
+        styledLetter.style.fontWeight = 'bold'
+        styledLetter.style.color = '#ff7010'
+        styledLetter.style.float = 'left'
+        styledLetter.style.lineHeight = '1'
+        styledLetter.style.paddingRight = '10px'
+        styledLetter.textContent = firstLetter
+
+        // 7. Replace the original first letter with the styled one
+        const remainingText = originalText.slice(1)
+        firstSpan.innerHTML = styledLetter.outerHTML + remainingText
+      }
+    }
+
+    // 8. Return the modified HTML string
+    return tempElement.innerHTML
   }
 
   // Social sharing handlers
@@ -172,18 +211,21 @@ const DealDetails = () => {
               <div className="mt-2 w-full h-[450px]">
                 <img
                   src={deal?.imageUrl}
-                  alt="image"
+                  alt={deal?.brandName}
                   className="w-full h-full object-cover object-center rounded"
                 />
               </div>
 
+              <hr className="border-orange-400 border mt-5" />
+
               {/* social share */}
               <div className="flex justify-between items-center mt-2">
                 <div>
-                  <p className="font-aptos-regular text-sm">
-                    by {deal?.writtenBy || 'Team DSJ'}
+                  <p className="flex justify-center items-center gap-1 font-aptos-semibold text-regular text-gray-800">
+                    <FaUserCircle /> {deal?.writtenBy || 'Team DSJ'}
                   </p>
-                  <p className="font-aptos-regular text-sm">
+                  <p className="flex justify-start items-center gap-1 font-aptos-semibold text-sm text-gray-500">
+                    <FaCalendarAlt />
                     {handleDate(deal.articleDate)}
                   </p>
                 </div>
@@ -194,7 +236,10 @@ const DealDetails = () => {
                     aria-label="Share on WhatsApp"
                     className="hover:scale-110 transition-transform duration-200"
                   >
-                    <FaWhatsapp className="text-[#25D366] hover:text-[#ff7010] transition-all duration-300" />
+                    <FaWhatsapp
+                      size={22}
+                      className="text-[#25D366] hover:text-[#ff7010] transition-all duration-300"
+                    />
                   </button>
 
                   {/* Facebook */}
@@ -230,7 +275,7 @@ const DealDetails = () => {
               <hr className="border-orange-400 border mt-2" />
 
               <p
-                className="font-aptos-regular text-lg mt-2"
+                className="font-aptos-regular text-lg mt-7 text-left"
                 dangerouslySetInnerHTML={{
                   __html: sanitizeDesc(deal?.description),
                 }}
@@ -274,8 +319,8 @@ const DealDetails = () => {
                     grossRevenueData={deal?.grossRevenueData}
                     grossYear={deal?.grossYear}
                     grossExpensesData={deal?.grossExpensesData}
-                    revenueColor="#ff7010"
-                    expensesColor="#6366f1"
+                    revenueColor="#6366f1"
+                    expensesColor="#ff7010"
                   />
                 )}
 
@@ -286,8 +331,8 @@ const DealDetails = () => {
                     grossRevenueData={deal?.grossCompetitorRevenueData}
                     grossYear={deal?.grossCompetitorYear}
                     grossExpensesData={deal?.grossCompetitorExpensesData}
-                    revenueColor="red"
-                    expensesColor="blue"
+                    revenueColor="blue"
+                    expensesColor="red"
                   />
                 )}
 
