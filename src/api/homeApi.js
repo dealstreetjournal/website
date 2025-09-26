@@ -13,7 +13,7 @@ export const home = async () => {
 
 export const fetchSearch = async (query) => {
   try {
-    console.log('Fetching search results for query:', query)
+    console.log('Fetching search results for query:', query.trim())
     const response = await axios.get(`/dsj/search?q=${query}`)
     console.log('Fetched search results:', response.data)
     return response.data

@@ -78,11 +78,11 @@ const DealDetails = () => {
     tempElement.innerHTML = sanitized
 
     // 3. Find the first span tag within the parsed HTML
-    const firstSpan = tempElement.querySelector('p')
+    const firstPara = tempElement.querySelector('p')
 
-    if (firstSpan) {
+    if (firstPara) {
       // 4. Get the first letter of the span's text content
-      const originalText = firstSpan.textContent
+      const originalText = firstPara.textContent
       const firstLetter = originalText.charAt(0)
 
       // 5. Check if the first character is a letter
@@ -98,8 +98,9 @@ const DealDetails = () => {
         styledLetter.textContent = firstLetter
 
         // 7. Replace the original first letter with the styled one
+
         const remainingText = originalText.slice(1)
-        firstSpan.innerHTML = styledLetter.outerHTML + remainingText
+        firstPara.innerHTML = styledLetter.outerHTML + remainingText
       }
     }
 
@@ -192,16 +193,20 @@ const DealDetails = () => {
         </div>
 
         <div className="max-w-6xl w-[90%] lg:w-[90%] mx-auto py-5">
-          <div className="flex justify-start items-start text-[15px]">
-            <Link to={`/${path}`} className="font-aptos-bold whitespace-nowrap">
-              {dealTitle}
-            </Link>
-            <FaArrowRight className="border-l-2 text-[#ff7010] mx-1 mt-1" />
-            <p className="font-aptos-regular">{deal?.title}</p>
-          </div>
           <div className="md:grid md:grid-cols-[70%_30%] md:gap-6">
-            <div className="mt-6">
-              <h3 className="font-aptos-semibold text-[15px] text-white bg-gray-500 w-fit px-2 py-1 rounded">
+            <div className="">
+              <div className="flex justify-start items-start text-[15px]">
+                <Link
+                  to={`/${path}`}
+                  className="font-aptos-bold whitespace-nowrap"
+                >
+                  {dealTitle}
+                </Link>
+                <FaArrowRight className="border-l-2 text-[#ff7010] mx-1 mt-1" />
+                <p className="font-aptos-regular">{deal?.title}</p>
+              </div>
+
+              <h3 className="font-aptos-semibold text-[15px] text-white bg-gray-500 w-fit mt-6 px-2 py-1 rounded">
                 {deal?.brandName}
               </h3>
               <h1 className="font-aptos-bold text-3xl mt-2 text-[#ff7010]">

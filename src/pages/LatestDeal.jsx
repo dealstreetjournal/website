@@ -35,8 +35,11 @@ const LatestDeal = () => {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    setSearch(query)
-  }, [query])
+    if (query) {
+      setSearch(query)
+      setDebounceSearch(query)
+    }
+  }, [])
 
   const { incrementCartCount } = useCart()
 

@@ -35,7 +35,7 @@ const HomeDsjSlider = ({ data }) => {
                 <h3 className="font-aptos-bold text-orange-500 inline">
                   {data.title}
                 </h3>
-                <p className="mx-2">:-</p>
+                <p className="mx-2 mt-[-5px]">:</p>
                 <p className="font-aptos-regular inline">{data.desc}</p>
               </Link>
             </div>

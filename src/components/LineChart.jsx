@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -30,6 +30,43 @@ const LineChart = ({
   revenueColor,
   expensesColor,
 }) => {
+  // State to track if the chart is visible
+  const [isVisible, setIsVisible] = useState(false)
+  // Ref to the chart container div
+  const chartRef = useRef(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // entries is an array of observed elements
+        const [entry] = entries
+        // If the element is intersecting the viewport, set isVisible to true
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          // Stop observing once the chart is visible to avoid unnecessary checks
+          observer.unobserve(entry.target)
+        }
+      },
+      {
+        root: null, // use the viewport as the root
+        rootMargin: '0px',
+        threshold: 0.8, // trigger when 10% of the component is visible
+      }
+    )
+
+    // Start observing the chart container if it exists
+    if (chartRef.current) {
+      observer.observe(chartRef.current)
+    }
+
+    // Cleanup function
+    return () => {
+      if (chartRef.current) {
+        observer.unobserve(chartRef.current)
+      }
+    }
+  }, [])
+
   // Enhanced data validation function
   const validateAndProcessData = () => {
     // Check if any required data is missing or invalid
@@ -101,7 +138,7 @@ const LineChart = ({
     labels: years,
     datasets: [
       {
-        label: 'Gross Revenue',
+        label: 'Gross Operational Revenue',
         data: revenue,
         fill: false,
         borderColor: revenueColor,
@@ -145,6 +182,7 @@ const LineChart = ({
     ],
   }
 
+  // Conditionally disable animation if not visible
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -277,10 +315,12 @@ const LineChart = ({
         hoverRadius: 7,
       },
     },
-    animation: {
-      duration: 1500,
-      easing: 'easeInOutCubic',
-    },
+    animation: isVisible
+      ? {
+          duration: 1500,
+          easing: 'easeInOutCubic',
+        }
+      : false, // Disable animation if not visible
     onHover: (event, activeElements) => {
       event.native.target.style.cursor =
         activeElements.length > 0 ? 'pointer' : 'default'
@@ -289,7 +329,10 @@ const LineChart = ({
 
   return (
     <>
-      <div className="bg-slate-100 rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+      <div
+        className="bg-slate-100 rounded-lg shadow-lg border border-gray-200 overflow-hidden"
+        ref={chartRef} // Attach the ref to the container
+      >
         {/* Enhanced Header */}
         <div className="bg-slate-200 border-b border-gray-200 px-8 py-6">
           <div className="">
@@ -308,10 +351,10 @@ const LineChart = ({
         {/* Chart Container */}
         <div className="pl-1 pb-2">
           <div className="h-96 relative">
-            <Line data={lineData} options={chartOptions} />
+            {/* Conditionally render the chart */}
+            {isVisible && <Line data={lineData} options={chartOptions} />}
           </div>
         </div>
-        {/* <hr className="text-[#ff7010] my-5 border-2" /> */}
       </div>
       <hr className="text-[#ff7010] my-5 border-2" />
     </>
