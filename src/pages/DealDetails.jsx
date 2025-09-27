@@ -336,8 +336,9 @@ const DealDetails = () => {
                     grossRevenueData={deal?.grossCompetitorRevenueData}
                     grossYear={deal?.grossCompetitorYear}
                     grossExpensesData={deal?.grossCompetitorExpensesData}
-                    revenueColor="blue"
-                    expensesColor="red"
+                    revenueColor="#6366f1"
+                    expensesColor="#ff7010"
+                    competitor={true}
                   />
                 )}
 

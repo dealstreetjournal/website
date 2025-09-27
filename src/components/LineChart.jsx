@@ -29,6 +29,7 @@ const LineChart = ({
   grossExpensesData,
   revenueColor,
   expensesColor,
+  competitor = false,
 }) => {
   // State to track if the chart is visible
   const [isVisible, setIsVisible] = useState(false)
@@ -330,28 +331,39 @@ const LineChart = ({
   return (
     <>
       <div
-        className="bg-slate-100 rounded-lg shadow-lg border border-gray-200 overflow-hidden"
-        ref={chartRef} // Attach the ref to the container
+        className={`rounded-lg shadow-lg overflow-hidden ${
+          competitor
+            ? 'bg-red-50 border-2 border-red-300'
+            : 'bg-slate-100 border border-gray-200'
+        }`}
+        ref={chartRef}
       >
-        {/* Enhanced Header */}
-        <div className="bg-slate-200 border-b border-gray-200 px-8 py-6">
-          <div className="">
-            <div>
-              <h2 className="text-center font-aptos">{title}</h2>
-              <h2 className="text-lg font-aptos-extrabold text-gray-800 mb-1">
-                Financial Performance Analysis
-              </h2>
-              <p className="text-gray-600 text-sm text-center font-aptos-semibold">
-                Revenue vs Expenses Overview
-              </p>
-            </div>
-          </div>
+        {/* Header */}
+        <div
+          className={`px-8 py-6 ${
+            competitor
+              ? 'bg-red-100 border-b border-red-300'
+              : 'bg-slate-200 border-b border-gray-200'
+          }`}
+        >
+          <h2 className="text-center font-aptos">
+            {title}
+            {competitor && (
+              <span className="ml-2 px-2 py-1 text-xs rounded bg-red-500 text-white">
+                Competitor
+              </span>
+            )}
+          </h2>
+          <h2 className="text-lg font-aptos-extrabold text-gray-800 mb-1">
+            Financial Performance Analysis
+          </h2>
+          <p className="text-gray-600 text-sm text-center font-aptos-semibold">
+            Revenue vs Expenses Overview
+          </p>
         </div>
-
-        {/* Chart Container */}
+        {/* Chart */}
         <div className="pl-1 pb-2">
           <div className="h-96 relative">
-            {/* Conditionally render the chart */}
             {isVisible && <Line data={lineData} options={chartOptions} />}
           </div>
         </div>
