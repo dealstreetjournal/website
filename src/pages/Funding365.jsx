@@ -40,7 +40,7 @@ const Funding365 = () => {
           {/* breadcrumb */}
           <div className="font-aptos-semibold flex justify-start">
             <Link
-              to="/dsj"
+              to="/dsj-insight"
               className="text-black hover:text-slate-700 transition-all duration-300"
             >
               DSJ
