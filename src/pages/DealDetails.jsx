@@ -59,6 +59,10 @@ const DealDetails = () => {
   const deal = contents?.deals?.[0]
   const deals = contents?.deals.slice(1) || []
 
+  const dealSorted = deals.sort(
+    (a, b) => new Date(b.articleDate) - new Date(a.articleDate)
+  )
+
   // Prepare share data
   const shareTitle = deal?.title || 'Check this out!'
   const shareDescription =
@@ -213,11 +217,11 @@ const DealDetails = () => {
                 {deal?.title}
               </h1>
 
-              <div className="mt-2 w-full h-[450px]">
+              <div className="flex justify-center items-center mt-2 w-full h-[450px] bg-slate-200 border-2 border-slate-300 rounded-md">
                 <img
                   src={deal?.imageUrl}
                   alt={deal?.brandName}
-                  className="w-full h-full object-cover object-center rounded"
+                  className="w-xl h-[350px] object-contain object-center"
                 />
               </div>
 
@@ -342,7 +346,7 @@ const DealDetails = () => {
                   />
                 )}
 
-                {deals.map((content) => (
+                {dealSorted.map((content) => (
                   <DealsSubCard
                     key={content.id}
                     deal={dealTitle}

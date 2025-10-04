@@ -1,10 +1,19 @@
-import React, { useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { fetchCart, removeFromCart } from '../api/cartApi'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import spinner from '../assets/spinner.png'
+import Swal from 'sweetalert2'
+import { useCart } from '../hooks/useCart'
 
 const Checkout = () => {
   document.title = 'Checkout | Dealstreetjournal'
   const [country, setCountry] = useState('')
   const [state, setState] = useState('')
+
+  const queryClient = useQueryClient()
+
+  const { decrementCartCount } = useCart()
 
   const indianStates = [
     'Andhra Pradesh',
@@ -45,18 +54,76 @@ const Checkout = () => {
     'Lakshadweep',
   ]
 
-  const cartItems = [
-    {
-      id: 1,
-      name: 'Astrotalk',
-      price: 699,
+  const {
+    isPending,
+    isError,
+    data: cartData,
+    error,
+  } = useQuery({
+    queryKey: ['cart'],
+    queryFn: fetchCart,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+
+  // Mutation for removing items from cart
+  const removeMutation = useMutation({
+    mutationFn: ({ productId, title }) => removeFromCart(productId, title),
+    onSuccess: () => {
+      // Refetch cart data after successful removal
+      queryClient.invalidateQueries({ queryKey: ['cart'] })
+      decrementCartCount()
+      Swal.fire({
+        title: 'Removed!',
+        text: 'Item removed from cart successfully',
+        icon: 'success',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#ff7010',
+        timer: 3000,
+      })
     },
-    {
-      id: 2,
-      name: 'Zomato',
-      price: 699,
+    onError: (error) => {
+      console.error('Remove from cart error:', error)
+
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to remove item from cart',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#ff7010',
+      })
     },
-  ]
+  })
+
+  const handleRemove = useCallback(
+    (productId, title) => {
+      Swal.fire({
+        title: 'Are you sure?',
+        text: 'Do you want to remove this item from cart?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ff7010',
+        cancelButtonColor: '#5b93cb',
+        confirmButtonText: 'Yes, remove it!',
+        cancelButtonText: 'Cancel',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          removeMutation.mutate({ productId, title })
+        }
+      })
+    },
+    [removeMutation]
+  )
+
+  // Calculate total price
+  const total = useMemo(() => {
+    if (!cartData || !Array.isArray(cartData)) return 0
+    return cartData.reduce((total, item) => total + (item.pdfPrice || 0), 0)
+  }, [cartData])
+
+  // const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0)
+  // const igst = Math.round(subtotal * 0.18)
+  // const total = subtotal + igst
 
   const {
     register,
@@ -85,9 +152,30 @@ const Checkout = () => {
     alert('Order Placed Successfully!')
   }
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0)
-  const igst = Math.round(subtotal * 0.18)
-  const total = subtotal + igst
+  if (isPending) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <img
+          src={spinner}
+          alt="Loading"
+          className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+        />
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center">
+          <p className="text-red-500 text-lg">Error loading cart</p>
+          <p className="text-gray-600">
+            {error?.message || 'Something went wrong'}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     // <div className="min-h-screen bg-gray-50">
@@ -272,46 +360,50 @@ const Checkout = () => {
                   Your cart
                 </h3>
                 <div className="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-aptos-semibold">
-                  {cartItems.length}
+                  {cartData.length}
                 </div>
               </div>
 
               {/* Cart Items */}
               <div className="space-y-4 mb-6">
-                {cartItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-around py-1.5 bg-white rounded-lg shadow-[0_0_5px_rgba(0,0,0,0.2)]"
-                  >
-                    <p className="text-orange-500 font-semibold">
-                      Financial Insight
-                    </p>
-
-                    <div className="flex flex-col items-center">
-                      <h4 className="font-aptos-bold text-gray-800">
-                        {item.name}
-                      </h4>{' '}
-                      <p className="font-aptos-regular text-gray-600">
-                        ₹{item.price}/-
+                {cartData.length > 0 &&
+                  cartData.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-around py-1.5 bg-white rounded-lg shadow-[0_0_5px_rgba(0,0,0,0.2)]"
+                    >
+                      <p className="text-orange-500 font-semibold">
+                        {item.title}
                       </p>
-                    </div>
-                    <button className="text-red-500 hover:text-red-700">
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+
+                      <div className="flex flex-col items-center">
+                        <h4 className="font-aptos-bold text-gray-800">
+                          {item.companyName}
+                        </h4>{' '}
+                        <p className="font-aptos-regular text-gray-600">
+                          ₹{item.pdfPrice}/-
+                        </p>
+                      </div>
+                      <button
+                        className="text-red-500 hover:text-red-700 cursor-pointer"
+                        onClick={() => handleRemove(item.id, item.title)}
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        ></path>
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          ></path>
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
               </div>
 
               {/* Divider */}

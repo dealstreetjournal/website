@@ -124,7 +124,7 @@ const NavbarDesktop = () => {
     const hasResults =
       data &&
       ((data.deals && data.deals.length > 0) ||
-        data.latest ||
+        (data.latest && data.latest.length > 0) ||
         data.company ||
         data.fundingCompany)
 
@@ -225,28 +225,50 @@ const NavbarDesktop = () => {
           )}
 
           {/* Latest Results */}
-          {data.latest && (
+          {data.latest && data.latest.length > 0 && (
             <div>
               <div className="flex items-center mb-3">
                 <div className="w-1 h-5 bg-blue-500 rounded-full mr-3"></div>
                 <h4 className="font-aptos-semibold text-gray-700 text-base">
-                  Latest Deal
+                  Latest Deal&nbsp;
                 </h4>
+                <span className="text-sm text-gray-500 font-aptos-normal">
+                  ({data.latest.length} found)
+                </span>
               </div>
-              <div className="ml-4">
+              {/* <div className="ml-4">
                 <Link
                   to="/latest"
                   state={{ query: debouncedSearch, time: 500 }}
                   className="block p-4 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 cursor-pointer group"
                 >
                   <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-blue-600 transition-colors duration-200 mb-1">
-                    {data.latest.companyName || 'Untitled'}
+                    {data.latest[0].companyName || 'Untitled'}
                   </h5>
                   <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-                    {data.latest.fundingDetails ||
+                    {data.latest[0].fundingDetails ||
                       'Latest funding insights and updates'}
                   </p>
                 </Link>
+              </div> */}
+
+              <div className="space-y-2 ml-4">
+                {data.latest.map((lat) => (
+                  <Link
+                    to="/latest"
+                    state={{ query: debouncedSearch, time: 500 }}
+                    key={lat.id}
+                    className="block p-4 border border-gray-100 rounded-lg hover:border-[#ff7010] hover:bg-orange-50 transition-all duration-200 cursor-pointer group"
+                  >
+                    <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-blue-600 transition-colors duration-200 mb-1">
+                      {lat.companyName || 'Untitled'}
+                    </h5>
+                    <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                      {lat.fundingDetails ||
+                        'Latest funding insights and updates'}
+                    </p>
+                  </Link>
+                ))}
               </div>
             </div>
           )}

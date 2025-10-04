@@ -6,11 +6,11 @@ const DealsSubCard = ({ deal, url, image, heading, date }) => {
   return (
     <>
       <Link to={url} className="lg:grid lg:grid-cols-[30%_70%] lg:gap-5 mb-5">
-        <div className="lg:w-24 lg:h-22 xl:w-28 xl:h-24">
+        <div className="lg:w-24 lg:h-22 xl:w-28 xl:h-24 bg-salte-100 border-2 border-slate-200 rounded-sm">
           <img
             src={image}
             alt="deal image"
-            className="w-full object-cover h-full my-auto rounded"
+            className="w-full object-contain h-full my-auto rounded"
           />
         </div>
         <div className="lg:mr-5 xl:mr-6">
