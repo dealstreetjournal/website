@@ -17,14 +17,15 @@ import { fetchDealById } from '../api/dealApi'
 import DOMPurify from 'dompurify'
 import { handleDate } from '../handleDate'
 import { Helmet } from 'react-helmet-async'
-import LineChart from '../components/LineChart'
 import { FaCalendarAlt, FaUserCircle } from 'react-icons/fa'
+import FundRaiseChart from '../components/FundRaiseChart'
+import FinancialChart from '../components/FinancialChart'
 
 const DealDetails = () => {
   const location = useLocation()
   const { id } = useParams()
   const [currentUrl, setCurrentUrl] = useState('')
-
+  const [graph, setGraph] = useState()
   const path = location.pathname.split('/')[1].toLowerCase()
 
   // Get current URL after component mounts
@@ -56,12 +57,29 @@ const DealDetails = () => {
     refetchOnReconnect: false,
   })
 
-  const deal = contents?.deals?.[0]
-  const deals = contents?.deals.slice(1) || []
+  const deal = contents?.singleDeal
+  const deals = contents?.deals
 
-  const dealSorted = deals.sort(
+  const dealSorted = deals?.sort(
     (a, b) => new Date(b.articleDate) - new Date(a.articleDate)
   )
+
+  const handleGraph = (brandName) => {
+    const selected = deal?.competitorGrossGraph?.find(
+      (compe) => compe.brandName === brandName
+    )
+    setGraph(selected)
+  }
+
+  useEffect(() => {
+    if (deal?.competitorGrossGraph?.length > 0) {
+      handleGraph(deal.competitorGrossGraph[0].brandName)
+    } else {
+      setGraph(null) // Reset when no graph data
+    }
+  }, [deal])
+
+  console.log('competitorGraph', graph)
 
   // Prepare share data
   const shareTitle = deal?.title || 'Check this out!'
@@ -289,75 +307,182 @@ const DealDetails = () => {
                   __html: sanitizeDesc(deal?.description),
                 }}
               ></p>
+
+              <div className="w-full my-8 border-t-3 border-[#ff7010]"></div>
             </div>
 
             <div className="mt-10 sm:mt-0">
-              <div className="sticky top-10">
-                <div className="flex flex-col justify-center items-center">
-                  <hr className="w-[80%]" />
-                  <h4 className="font-aptos-bold text-2xl text-[#ff7010]">
-                    Unlock Insights
-                  </h4>
-                  <hr className="w-[80%]" />
-                  <FaCaretDown />
-                </div>
-
-                {/* dsj-insight */}
-                <DsjInsight />
-                <hr className="text-[#ff7010] mt-2 mb-4" />
-                {!deal?.hideInfoBox && (
-                  <>
-                    <CompanyProfileSection
-                      brandName={deal?.brandName}
-                      companyLogoUrl={deal?.companyLogoUrl}
-                      companyName={deal?.companyName}
-                      ebitda={deal?.ebitda}
-                      grossRevenue={deal?.grossRevenue}
-                      industry={deal?.industry}
-                      netProfitLoss={deal?.netProfitLoss}
-                      yearIncorporation={deal?.yearIncorporation}
-                    />
-
-                    <hr className="text-[#ff7010] my-5" />
-                  </>
-                )}
-                {/* line chart */}
-                {!deal?.hideGraph && (
-                  <LineChart
-                    title={deal?.brandName}
-                    grossRevenueData={deal?.grossRevenueData}
-                    grossYear={deal?.grossYear}
-                    grossExpensesData={deal?.grossExpensesData}
-                    revenueColor="#6366f1"
-                    expensesColor="#ff7010"
-                  />
-                )}
-
-                {/* competitor line chart */}
-                {!deal?.hideCompetitorGraph && (
-                  <LineChart
-                    title={deal?.competitorBrandName}
-                    grossRevenueData={deal?.grossCompetitorRevenueData}
-                    grossYear={deal?.grossCompetitorYear}
-                    grossExpensesData={deal?.grossCompetitorExpensesData}
-                    revenueColor="#6366f1"
-                    expensesColor="#ff7010"
-                    competitor={true}
-                  />
-                )}
-
-                {dealSorted.map((content) => (
-                  <DealsSubCard
-                    key={content.id}
-                    deal={dealTitle}
-                    id={content.id}
-                    url={`/${content.deals}/${content.id}`}
-                    image={content.imageUrl}
-                    heading={content.title}
-                    date={content.articleDate}
-                  />
-                ))}
+              {/* <div className=""> */}
+              <div className="flex flex-col justify-center items-center">
+                <hr className="w-[80%]" />
+                <h4 className="font-aptos-bold text-2xl text-[#ff7010]">
+                  Unlock Insights
+                </h4>
+                <hr className="w-[80%]" />
+                <FaCaretDown />
               </div>
+
+              {/* dsj-insight */}
+              <DsjInsight />
+              <hr className="text-[#ff7010] mt-2 mb-4" />
+              {deal?.companyInfoBox && (
+                <>
+                  <CompanyProfileSection
+                    brandName={deal.companyInfo?.brandName}
+                    companyLogoUrl={deal?.imageUrl}
+                    companyName={deal.companyInfo?.companyName}
+                    ebitda={deal.companyInfo?.ebitda}
+                    grossRevenue={deal.companyInfo?.grossRevenue}
+                    industry={deal.companyInfo?.industry}
+                    netProfitLoss={deal.companyInfo?.netProfitLoss}
+                    yearIncorporation={deal.companyInfo?.yearIncorporation}
+                  />
+
+                  <hr className="text-[#ff7010] my-5" />
+                </>
+              )}
+
+              {deal?.grossGraphBox && (
+                <>
+                  <FinancialChart
+                    title={deal.grossGraph?.brandName}
+                    heading="Financial Performance Analysis"
+                    subHeading="Revenue vs Expenses vs Income Overview"
+                    labels={deal.grossGraph?.grossYear
+                      ?.split(',')
+                      .map((y) => y.trim())}
+                    datasets={[
+                      {
+                        label: 'Gross Operational Revenue',
+                        data: deal.grossGraph?.grossRevenueData
+                          ?.split(',')
+                          .map((v) => parseFloat(v) || 0),
+                        borderColor: '#ff7010',
+                        backgroundColor: 'rgba(255,112,16)',
+                        tension: 0.3,
+                      },
+                      {
+                        label: 'Gross Expenses',
+                        data: deal.grossGraph?.grossExpensesData
+                          ?.split(',')
+                          .map((v) => parseFloat(v) || 0),
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99,102,241)',
+                        tension: 0.3,
+                      },
+                      {
+                        label: 'Other Income',
+                        data: deal.grossGraph?.otherIncome
+                          ?.split(',')
+                          .map((v) => parseFloat(v) || 0),
+                        borderColor: '#0D9488',
+                        backgroundColor: 'rgba(13,148,136)',
+                        tension: 0.3,
+                      },
+                    ]}
+                  />
+                  <hr className="text-[#ff7010] my-5" />
+                </>
+              )}
+
+              {deal?.competitorGrossGraph &&
+                deal.competitorGrossGraph.length > 0 &&
+                deal.competitorGrossGraph.map((compe) => (
+                  <>
+                    <h5 className="text-gray-700 font-aptos-bold text-center mb-1">
+                      Compare Financial Performance{' '}
+                    </h5>
+                    <div
+                      key={compe?.brandName}
+                      onClick={() => handleGraph(compe?.brandName)}
+                      className="px-2 py-1 rounded-xl bg-orange-200 w-fit cursor-pointer"
+                    >
+                      {compe?.brandName}
+                    </div>
+                  </>
+                ))}
+
+              <br></br>
+
+              {graph && (
+                <>
+                  <FinancialChart
+                    competitor="true"
+                    title={graph?.brandName}
+                    heading="Financial Performance Analysis"
+                    subHeading="Revenue vs Expenses vs Income Overview"
+                    labels={graph?.grossYear?.split(',').map((y) => y.trim())}
+                    datasets={[
+                      {
+                        label: 'Gross Operational Revenue',
+                        data: graph?.grossRevenueData
+                          ?.split(',')
+                          .map((v) => parseFloat(v) || 0),
+                        borderColor: '#ff7010',
+                        backgroundColor: 'rgba(255,112,16)',
+                        tension: 0.3,
+                      },
+                      {
+                        label: 'Gross Expenses',
+                        data: graph?.grossExpensesData
+                          ?.split(',')
+                          .map((v) => parseFloat(v) || 0),
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99,102,241)',
+                        tension: 0.3,
+                      },
+                      {
+                        label: 'Other Income',
+                        data: graph?.otherIncome
+                          ?.split(',')
+                          .map((v) => parseFloat(v) || 0),
+                        borderColor: '#0D9488',
+                        backgroundColor: 'rgba(13,148,136)',
+                        tension: 0.3,
+                      },
+                    ]}
+                  />
+                </>
+              )}
+
+              {/* fundRasie chart */}
+              {deal?.fundRaiseBox && (
+                <>
+                  <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
+                  <FundRaiseChart
+                    title={`${deal.fundRaise?.brandName}`}
+                    heading="Overview of Fund Raising"
+                    labels={deal.fundRaise?.fundRaiseYear
+                      ?.split(',')
+                      .map((y) => y.trim())}
+                    datasets={[
+                      {
+                        label: 'Fund Raise Amount',
+                        data: deal.fundRaise?.fundRaiseAmount
+                          ?.split(',')
+                          .map((v) => parseFloat(v) || 0),
+                        borderColor: '#ff7010',
+                        backgroundColor: 'rgba(255,112,16)',
+                        tension: 0.3,
+                      },
+                    ]}
+                    fundRaiseRound={deal.fundRaise?.fundRaiseRound}
+                  />
+                  <hr className="text-[#ff7010] my-5" />
+                </>
+              )}
+              {/* </div> */}
+              {dealSorted.map((content) => (
+                <DealsSubCard
+                  key={content.id}
+                  deal={dealTitle}
+                  id={content.id}
+                  url={`/${content.deals}/${content.id}`}
+                  image={content.imageUrl}
+                  heading={content.title}
+                  date={content.articleDate}
+                />
+              ))}
             </div>
           </div>
         </div>
