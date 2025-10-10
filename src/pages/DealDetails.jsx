@@ -313,7 +313,7 @@ const DealDetails = () => {
                 }}
               ></p>
 
-              <div className="w-full my-8 border-t-3 border-[#ff7010]"></div>
+              <div className="w-full my-8 border-t-2 border-[#ff7010]"></div>
               {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
                 <div className="flex justify-start items-center mb-5 gap-4">
                   <h4 className="font-aptos-bold text-gray-800 text-xl">
@@ -562,8 +562,6 @@ const DealDetails = () => {
                   )}
                 </>
               )}
-
-              <hr className="border-2 text-[#ff7010] my-5" />
 
               {/* </div> */}
               {!deal?.grossGraphBox && !deal?.fundRaiseBox && (

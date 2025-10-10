@@ -6,9 +6,8 @@ const DealsSubCard = ({ deal, url, image, heading, date }) => {
   return (
     <>
       <Link to={url}>
-        <div className="aspect-square bg-slate-200 p-2 rounded">
-        
-          <div className="flex justify-center xl:w-[190px] md:w-[150px] md:h-24 lg:h-24 xl:h-28 bg-slate-100 border-2 border-slate-300 rounded-sm shadow-lg">
+        <div className="aspect-square bg-slate-200 p-1.5 rounded border-2 border-slate-300">
+          <div className="flex justify-center xl:w-[190px] md:w-[150px] md:h-24 lg:h-24 xl:h-28 bg-slate-100 border-2 border-slate-300 rounded-sm shadow-lg shadow-slate-400 mb-4">
             <img
               src={image}
               alt={heading}

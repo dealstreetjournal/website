@@ -189,7 +189,7 @@ const Funding365Company = () => {
                   </td>
                   <td className="p-3 flex justify-center items-center">
                     <div className="w-22 h-20">
-                      <img src={pdf} alt="pdf-image" />
+                      <img src={pdf} alt="sample pdf" />
                     </div>
                   </td>
                   <td className="p-3 text-center font-aptos-semibold xl:font-aptos-bold">
@@ -231,7 +231,7 @@ const Funding365Company = () => {
               <div className="min-h-[100px]">
                 <img
                   src={pdf}
-                  alt="logo"
+                  alt="sample pdf"
                   className="w-24 h-24 mr-2 object-contain rounded-md float-left flex-shrink-0"
                 />
                 <p className="text-gray-800 font-aptos-semibold text-sm">

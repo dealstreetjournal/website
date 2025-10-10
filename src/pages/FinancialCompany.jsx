@@ -83,7 +83,11 @@ const FinancialCompany = () => {
         {/* search and sample report */}
         <div className="mt-5 flex justify-between items-center">
           <div className="flex-col md:flex-row md:gap-2 items-end">
-            <img src={companyInfo.image} className="w-15 h-15 rounded-md" />
+            <img
+              src={companyInfo.image}
+              alt={companyInfo.company}
+              className="w-15 h-15 rounded-md"
+            />
             <h3 className="font-aptos-bold text-xl">{companyInfo.company}</h3>
           </div>
 
