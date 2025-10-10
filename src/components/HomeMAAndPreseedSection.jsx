@@ -24,7 +24,8 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
               <Link to={`ma/${mas[0].id}`} className="mb-5">
                 <img
                   src={mas[0]?.imageUrl}
-                  alt="image"
+                  alt={mas[0]?.title}
+                  loading="lazy"
                   className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover mb-3"
                 />
 
@@ -53,11 +54,14 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                     key={content.id}
                     className="border-b border-[#ff7010] pb-3 mb-4.5 md:pb-1 md:mb-3 xl:pb-3 xl:mb-4.5"
                   >
-                    <img
-                      src={content.imageUrl}
-                      alt="image"
-                      className="w-full object-cover h-38 rounded-md mb-2"
-                    />
+                    <div className="flex justify-center items-center w-full h-[170px] border-2 bg-slate-300 border-slate-400 rounded">
+                      <img
+                        src={content.imageUrl}
+                        alt={content.title}
+                        loading="lazy"
+                        className="w-[130px] h-[130px] object-contain object-center rounded-md"
+                      />
+                    </div>
                     <p
                       className="font-aptos-regular line-clamp-4"
                       dangerouslySetInnerHTML={{

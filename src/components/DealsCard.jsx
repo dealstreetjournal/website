@@ -18,11 +18,12 @@ const DealsCard = ({
   return (
     <>
       <Link to={url} className="lg:grid lg:grid-cols-[30%_70%] lg:gap-4">
-        <div className="flex justify-center items-center w-full h-38 bg-slate-100 border-2 border-slate-200 rounded-md">
+        <div className="flex justify-center items-center w-full h-40 bg-slate-100 border-2 border-slate-300 rounded-md">
           <img
             src={image}
-            alt="preseed image"
-            className="w-full object-contain h-full my-auto rounded"
+            alt={heading}
+            loading="lazy"
+            className="h-30 object-contain my-auto rounded mix-blend-multiply"
           />
         </div>
         <div className="md:mr-6">

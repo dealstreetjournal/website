@@ -52,7 +52,7 @@ export default function HomeSlider({ data }) {
                     <img
                       src={slide.imageUrl}
                       alt={slide.title}
-                      className="object-cover w-full h-full lazyload"
+                      className="aspect-[3/2] object-center lazyload"
                     />
                   </div>
 

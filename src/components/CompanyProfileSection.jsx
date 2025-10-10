@@ -25,7 +25,8 @@ const CompanyProfileSection = ({
         <img
           src={companyLogoUrl}
           alt={brandName}
-          className="w-15 h-15 rounded object-cover object-center"
+          loading="lazy"
+          className="w-15 aspect-square object-contain object-center rounded border-2 border-slate-300"
         />
         <h2 className="text-[#ff7010] text-xl md:text-base lg:text-xl whitespace-nowrap font-aptos-bold">
           {brandName}

@@ -23,18 +23,24 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
             {Seeds && Seeds.length > 0 && (
               <>
                 <Link to={`seed/${Seeds[0].id}`} className="relative mb-5">
-                  <img
-                    src={Seeds[0].imageUrl}
-                    alt="image"
-                    className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover"
-                  />
-                  <div className="absolute bottom-0 left-0 w-full h-34 bg-gradient-to-t from-black/100 to-transparent rounded-b-md"></div>
+                  <div className="w-full rounded-md bg-white">
+                    <img
+                      src={Seeds[0].imageUrl}
+                      alt={Seeds[0].title}
+                      loading="lazy"
+                      // className="rounded-md w-full h-58 md:h-68 xl:h-78"
+                      className="rounded-md w-full h-auto md:h-68 xl:h-78 object-contain object-center mix-blend-multiply"
+                    />
+                  </div>
+                  <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-slate-500/100 to-transparent rounded-b-md"></div>
                   <p
                     className="absolute bottom-1 text-white font-aptos-regular line-clamp-2 px-2 z-10"
-                    dangerouslySetInnerHTML={{
-                      __html: sanitizeDescription(Seeds[0]?.description),
-                    }}
-                  ></p>
+                    // dangerouslySetInnerHTML={{
+                    //   __html: sanitizeDescription(Seeds[0]?.description),
+                    // }}
+                  >
+                    {Seeds[0]?.title}
+                  </p>
                 </Link>
                 <hr className="text-[#ff7010] mb-7 " />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-3 lg:gap-5">
@@ -47,13 +53,16 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                           key={content.id}
                           className="border-b border-[#ff7010] pb-3 mb-4.5"
                         >
-                          <img
-                            src={content.imageUrl}
-                            alt="image"
-                            className="w-full object-cover h-38 rounded-md mb-2"
-                          />
+                          <div className="flex justify-center items-center w-full h-[170px] border-2 bg-slate-300 border-slate-400 rounded">
+                            <img
+                              src={content.imageUrl}
+                              alt={content.title}
+                              loading="lazy"
+                              className="w-[130px] h-[130px] object-contain object-center rounded-md"
+                            />
+                          </div>
                           <p
-                            className="font-aptos-regular line-clamp-4"
+                            className="font-aptos-regular line-clamp-4 mt-1.5 w-[250px]"
                             dangerouslySetInnerHTML={{
                               __html: sanitizeDescription(content?.description),
                             }}
@@ -74,18 +83,23 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
             {growths && growths.length > 0 && (
               <>
                 <Link to={`growth/${growths[0].id}`} className="relative mb-5">
-                  <img
-                    src={growths[0].imageUrl}
-                    alt="image"
-                    className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover"
-                  />
-                  <div className="absolute bottom-0 left-0 w-full h-34 bg-gradient-to-t from-black/100 to-transparent rounded-b-md"></div>
+                  <div className="w-full rounded-md bg-white">
+                    <img
+                      src={growths[0].imageUrl}
+                      alt={growths[0].title}
+                      loading="lazy"
+                      className="rounded-md w-full h-auto md:h-68 xl:h-78 object-contain object-center mix-blend-multiply"
+                    />
+                  </div>
+                  <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-gray-500/100 to-transparent rounded-b-md"></div>
                   <p
                     className="absolute bottom-1 text-white font-aptos-regular line-clamp-2 px-2 z-10"
-                    dangerouslySetInnerHTML={{
-                      __html: sanitizeDescription(growths[0]?.description),
-                    }}
-                  ></p>
+                    // dangerouslySetInnerHTML={{
+                    //   __html: sanitizeDescription(growths[0]?.description),
+                    // }}
+                  >
+                    {growths[0]?.title}
+                  </p>
                 </Link>
                 <hr className="text-[#ff7010] mb-7 " />
                 <div className="">
@@ -100,11 +114,14 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                             index >= 3 ? 'md:hidden' : ''
                           }`}
                         >
-                          <img
-                            src={content.imageUrl}
-                            alt="image"
-                            className="w-full sm:w-[230px] object-cover h-38 rounded-md mb-2"
-                          />
+                          <div className="flex justify-center items-center w-[170px] h-[170px] border-2 bg-slate-300 border-slate-400 rounded">
+                            <img
+                              src={content.imageUrl}
+                              alt={content.title}
+                              loading="lazy"
+                              className="w-[130px] h-[130px] object-contain object-center rounded-md"
+                            />
+                          </div>
                           <div className="flex-1">
                             <p
                               className="font-aptos-regular line-clamp-4 sm:line-clamp-6"

@@ -93,6 +93,18 @@
   }
 }
 
+@keyframes glowBorder {
+  0%,
+  100% {
+    box-shadow: 0 0 5px #ff7010, 0 0 8px #ff7010, inset 0 0 5px #ff7010;
+    border-color: #ff7010;
+  }
+  50% {
+    box-shadow: 0 0 10px #ffa94d, 0 0 15px #ff7010, inset 0 0 5px #ff7010;
+    border-color: #ffa94d;
+  }
+}
+
 .swal2-popup {
   border: 2px solid #ff7010 !important;
   background-color: #f8f9fa !important;

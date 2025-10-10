@@ -227,8 +227,9 @@ const LatestDeal = () => {
                       <td className="p-3">
                         <img
                           src={row.companyLogoUrl}
-                          alt="logo"
-                          className="w-22 h-20 object-cover"
+                          alt={row.companyName}
+                          loading="lazy"
+                          className="w-22 h-20 object-contain"
                         />
                       </td>
                       <td className="p-3 w-[50%] text-gray-800 font-aptos-semibold xl:font-aptos-bold">

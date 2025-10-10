@@ -6,11 +6,12 @@ const DealsSubCard = ({ deal, url, image, heading, date }) => {
   return (
     <>
       <Link to={url} className="lg:grid lg:grid-cols-[30%_70%] lg:gap-5 mb-5">
-        <div className="lg:w-24 lg:h-22 xl:w-28 xl:h-24 bg-salte-100 border-2 border-slate-200 rounded-sm">
+        <div className="flex justify-center lg:w-24 lg:h-22 xl:w-28 xl:h-24 bg-slate-100 border-2 border-slate-300 rounded-sm">
           <img
             src={image}
-            alt="deal image"
-            className="w-full object-contain h-full my-auto rounded"
+            alt={heading}
+            loading="lazy"
+            className="w-20 h-20 object-contain my-auto rounded mix-blend-multiply"
           />
         </div>
         <div className="lg:mr-5 xl:mr-6">

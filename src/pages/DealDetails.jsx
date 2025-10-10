@@ -26,6 +26,7 @@ const DealDetails = () => {
   const { id } = useParams()
   const [currentUrl, setCurrentUrl] = useState('')
   const [graph, setGraph] = useState()
+  const [showGraph, setShowGraph] = useState(true)
   const path = location.pathname.split('/')[1].toLowerCase()
 
   // Get current URL after component mounts
@@ -58,11 +59,11 @@ const DealDetails = () => {
   })
 
   const deal = contents?.singleDeal
-  const deals = contents?.deals
+  // const deals = contents?.deals
 
-  const dealSorted = deals?.sort(
-    (a, b) => new Date(b.articleDate) - new Date(a.articleDate)
-  )
+  // const dealSorted = deals?.sort(
+  //   (a, b) => new Date(b.articleDate) - new Date(a.articleDate)
+  // )
 
   const handleGraph = (brandName) => {
     const selected = deal?.competitorGrossGraph?.find(
@@ -239,7 +240,8 @@ const DealDetails = () => {
                 <img
                   src={deal?.imageUrl}
                   alt={deal?.brandName}
-                  className="w-xl h-[350px] object-contain object-center"
+                  loading="lazy"
+                  className="w-xl h-[350px] object-contain object-center mix-blend-multiply"
                 />
               </div>
 
@@ -248,7 +250,7 @@ const DealDetails = () => {
               {/* social share */}
               <div className="flex justify-between items-center mt-2">
                 <div>
-                  <p className="flex justify-center items-center gap-1 font-aptos-semibold text-regular text-gray-800">
+                  <p className="flex justify-start items-center gap-1 font-aptos-semibold text-regular text-gray-800">
                     <FaUserCircle /> {deal?.writtenBy || 'Team DSJ'}
                   </p>
                   <p className="flex justify-start items-center gap-1 font-aptos-semibold text-sm text-gray-500">
@@ -338,141 +340,174 @@ const DealDetails = () => {
                     yearIncorporation={deal.companyInfo?.yearIncorporation}
                   />
 
-                  <hr className="text-[#ff7010] my-5" />
+                  {/* <hr className="text-[#ff7010] my-5" /> */}
                 </>
               )}
 
-              {deal?.grossGraphBox && (
+              <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
+
+              <div className="text-center">
+                {/* <h5 className="text-gray-700 font-aptos-bold text-center mb-1">
+                  View
+                </h5> */}
+                <div
+                  onClick={() => setShowGraph(!showGraph)}
+                  className={`font-aptos-regular px-3 py-1 rounded-lg w-fit mx-auto cursor-pointer
+      text-orange-800 bg-gray-300 relative border-2 border-orange-500
+     animate-[glowBorder_4s_ease-in-out_infinite] hover:scale-105 transition-transform duration-300`}
+                >
+                  {showGraph === true ? 'Fund Raise' : 'Financial Performance'}
+                </div>
+              </div>
+              <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
+
+              {showGraph && (
                 <>
-                  <FinancialChart
-                    title={deal.grossGraph?.brandName}
-                    heading="Financial Performance Analysis"
-                    subHeading="Revenue vs Expenses vs Income Overview"
-                    labels={deal.grossGraph?.grossYear
-                      ?.split(',')
-                      .map((y) => y.trim())}
-                    datasets={[
-                      {
-                        label: 'Gross Operational Revenue',
-                        data: deal.grossGraph?.grossRevenueData
+                  {deal?.grossGraphBox && (
+                    <>
+                      {/* <div className="w-full my-5 border-t-3 border-[#ff7010]"></div> */}
+                      <FinancialChart
+                        title={deal.grossGraph?.brandName}
+                        heading="Financial Performance Analysis"
+                        // subHeading="Revenue vs Expenses vs Income Overview"
+                        labels={deal.grossGraph?.grossYear
                           ?.split(',')
-                          .map((v) => parseFloat(v) || 0),
-                        borderColor: '#ff7010',
-                        backgroundColor: 'rgba(255,112,16)',
-                        tension: 0.3,
-                      },
-                      {
-                        label: 'Gross Expenses',
-                        data: deal.grossGraph?.grossExpensesData
+                          .map((y) => y.trim())}
+                        datasets={[
+                          {
+                            label: 'Gross Operational Revenue',
+                            data: deal.grossGraph?.grossRevenueData
+                              ?.split(',')
+                              .map((v) => parseFloat(v) || 0),
+                            borderColor: '#ff7010',
+                            backgroundColor: 'rgba(255,112,16)',
+                            tension: 0.3,
+                          },
+                          {
+                            label: 'Gross Expenses',
+                            data: deal.grossGraph?.grossExpensesData
+                              ?.split(',')
+                              .map((v) => parseFloat(v) || 0),
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99,102,241)',
+                            tension: 0.3,
+                          },
+                          {
+                            label: 'Other Income',
+                            data: deal.grossGraph?.otherIncome
+                              ?.split(',')
+                              .map((v) => parseFloat(v) || 0),
+                            borderColor: 'gray',
+                            backgroundColor: 'gray',
+                            tension: 0.3,
+                          },
+                        ]}
+                      />
+                      <hr className="text-[#ff7010] my-5" />
+                    </>
+                  )}
+                  <h5 className="text-gray-700 font-aptos-bold text-center mb-1">
+                    Compare Financial Performance{' '}
+                  </h5>
+                  <div className="flex justify-start items-center flex-wrap gap-2">
+                    {deal?.competitorGrossGraph &&
+                      deal.competitorGrossGraph.length > 0 &&
+                      deal.competitorGrossGraph.map((compe) => (
+                        <p
+                          key={compe?.brandName}
+                          onClick={() => handleGraph(compe?.brandName)}
+                          className={`px-2 py-1 rounded-lg  font-aptos-semibold  w-fit cursor-pointer ${
+                            graph?.brandName == compe?.brandName
+                              ? 'text-orange-800 bg-orange-200 border border-orange-800'
+                              : 'text-gray-500 bg-slate-300'
+                          }`}
+                        >
+                          {compe?.brandName}
+                        </p>
+                      ))}
+                  </div>
+                  <br></br>
+                  {/* competitor */}
+                  {graph && (
+                    <>
+                      <FinancialChart
+                        competitor="true"
+                        title={graph?.brandName}
+                        heading="Financial Performance Analysis"
+                        // subHeading="Revenue vs Expenses vs Income Overview"
+                        labels={graph?.grossYear
                           ?.split(',')
-                          .map((v) => parseFloat(v) || 0),
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99,102,241)',
-                        tension: 0.3,
-                      },
-                      {
-                        label: 'Other Income',
-                        data: deal.grossGraph?.otherIncome
-                          ?.split(',')
-                          .map((v) => parseFloat(v) || 0),
-                        borderColor: '#0D9488',
-                        backgroundColor: 'rgba(13,148,136)',
-                        tension: 0.3,
-                      },
-                    ]}
-                  />
-                  <hr className="text-[#ff7010] my-5" />
-                </>
-              )}
-
-              {deal?.competitorGrossGraph &&
-                deal.competitorGrossGraph.length > 0 &&
-                deal.competitorGrossGraph.map((compe) => (
-                  <>
-                    <h5 className="text-gray-700 font-aptos-bold text-center mb-1">
-                      Compare Financial Performance{' '}
-                    </h5>
-                    <div
-                      key={compe?.brandName}
-                      onClick={() => handleGraph(compe?.brandName)}
-                      className="px-2 py-1 rounded-xl bg-orange-200 w-fit cursor-pointer"
-                    >
-                      {compe?.brandName}
-                    </div>
-                  </>
-                ))}
-
-              <br></br>
-
-              {graph && (
-                <>
-                  <FinancialChart
-                    competitor="true"
-                    title={graph?.brandName}
-                    heading="Financial Performance Analysis"
-                    subHeading="Revenue vs Expenses vs Income Overview"
-                    labels={graph?.grossYear?.split(',').map((y) => y.trim())}
-                    datasets={[
-                      {
-                        label: 'Gross Operational Revenue',
-                        data: graph?.grossRevenueData
-                          ?.split(',')
-                          .map((v) => parseFloat(v) || 0),
-                        borderColor: '#ff7010',
-                        backgroundColor: 'rgba(255,112,16)',
-                        tension: 0.3,
-                      },
-                      {
-                        label: 'Gross Expenses',
-                        data: graph?.grossExpensesData
-                          ?.split(',')
-                          .map((v) => parseFloat(v) || 0),
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99,102,241)',
-                        tension: 0.3,
-                      },
-                      {
-                        label: 'Other Income',
-                        data: graph?.otherIncome
-                          ?.split(',')
-                          .map((v) => parseFloat(v) || 0),
-                        borderColor: '#0D9488',
-                        backgroundColor: 'rgba(13,148,136)',
-                        tension: 0.3,
-                      },
-                    ]}
-                  />
+                          .map((y) => y.trim())}
+                        datasets={[
+                          {
+                            label: 'Gross Operational Revenue',
+                            data: graph?.grossRevenueData
+                              ?.split(',')
+                              .map((v) => parseFloat(v) || 0),
+                            borderColor: '#ff7010',
+                            backgroundColor: 'rgba(255,112,16)',
+                            tension: 0.3,
+                          },
+                          {
+                            label: 'Gross Expenses',
+                            data: graph?.grossExpensesData
+                              ?.split(',')
+                              .map((v) => parseFloat(v) || 0),
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99,102,241)',
+                            tension: 0.3,
+                          },
+                          {
+                            label: 'Other Income',
+                            data: graph?.otherIncome
+                              ?.split(',')
+                              .map((v) => parseFloat(v) || 0),
+                            // borderColor: '#0D9488',
+                            // backgroundColor: 'rgba(13,148,136)',
+                            borderColor: 'gray',
+                            backgroundColor: 'gray',
+                            tension: 0.3,
+                          },
+                        ]}
+                      />
+                    </>
+                  )}
                 </>
               )}
 
               {/* fundRasie chart */}
-              {deal?.fundRaiseBox && (
+              {!showGraph && (
                 <>
-                  <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
-                  <FundRaiseChart
-                    title={`${deal.fundRaise?.brandName}`}
-                    heading="Overview of Fund Raising"
-                    labels={deal.fundRaise?.fundRaiseYear
-                      ?.split(',')
-                      .map((y) => y.trim())}
-                    datasets={[
-                      {
-                        label: 'Fund Raise Amount',
-                        data: deal.fundRaise?.fundRaiseAmount
+                  {deal?.fundRaiseBox && (
+                    <>
+                      {/* <div className="w-full my-5 border-t-3 border-[#ff7010]"></div> */}
+                      <FundRaiseChart
+                        title={`${deal.fundRaise?.brandName}`}
+                        heading="Overview of Fund Raising"
+                        labels={deal.fundRaise?.fundRaiseYear
                           ?.split(',')
-                          .map((v) => parseFloat(v) || 0),
-                        borderColor: '#ff7010',
-                        backgroundColor: 'rgba(255,112,16)',
-                        tension: 0.3,
-                      },
-                    ]}
-                    fundRaiseRound={deal.fundRaise?.fundRaiseRound}
-                  />
-                  <hr className="text-[#ff7010] my-5" />
+                          .map((y) => y.trim())}
+                        datasets={[
+                          {
+                            label: 'Fund Raise Amount',
+                            data: deal.fundRaise?.fundRaiseAmount
+                              ?.split(',')
+                              .map((v) => parseFloat(v) || 0),
+                            borderColor: '#ff7010',
+                            backgroundColor: 'rgba(255,112,16)',
+                            tension: 0.3,
+                          },
+                        ]}
+                        fundRaiseRound={deal.fundRaise?.fundRaiseRound}
+                      />
+                    </>
+                  )}
                 </>
               )}
+              <hr className="text-[#ff7010] my-5" />
+
               {/* </div> */}
-              {dealSorted.map((content) => (
+              {/* {dealSorted.map((content) => (
                 <DealsSubCard
                   key={content.id}
                   deal={dealTitle}
@@ -482,7 +517,7 @@ const DealDetails = () => {
                   heading={content.title}
                   date={content.articleDate}
                 />
-              ))}
+              ))} */}
             </div>
           </div>
         </div>
