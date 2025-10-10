@@ -20,6 +20,7 @@ import { Helmet } from 'react-helmet-async'
 import { FaCalendarAlt, FaUserCircle } from 'react-icons/fa'
 import FundRaiseChart from '../components/FundRaiseChart'
 import FinancialChart from '../components/FinancialChart'
+import DetailsDealsSubCard from '../components/DetailsDealsSubCard'
 
 const DealDetails = () => {
   const location = useLocation()
@@ -59,11 +60,13 @@ const DealDetails = () => {
   })
 
   const deal = contents?.singleDeal
-  // const deals = contents?.deals
+  const deals = contents?.deals
 
-  // const dealSorted = deals?.sort(
-  //   (a, b) => new Date(b.articleDate) - new Date(a.articleDate)
-  // )
+  const dealSorted = deals?.sort(
+    (a, b) => new Date(b.articleDate) - new Date(a.articleDate)
+  )
+
+  const deal4Article = dealSorted?.slice(0, 4)
 
   const handleGraph = (brandName) => {
     const selected = deal?.competitorGrossGraph?.find(
@@ -311,6 +314,36 @@ const DealDetails = () => {
               ></p>
 
               <div className="w-full my-8 border-t-3 border-[#ff7010]"></div>
+              {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
+                <div className="flex justify-start items-center mb-5 gap-4">
+                  <h4 className="font-aptos-bold text-gray-800 text-xl">
+                    Recommended Articles for You
+                  </h4>
+                  <hr className="md:w-20 lg:w-30 border-t-2 border-gray-800" />
+                </div>
+              )}
+
+              {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
+                <div
+                  className={`grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 rounded ${
+                    (deal?.grossGraphBox || deal?.fundRaiseBox) &&
+                    'hidden md:grid lg:grid'
+                  }`}
+                >
+                  {deal4Article.map((content) => (
+                    <DetailsDealsSubCard
+                      key={content.id}
+                      deal={dealTitle}
+                      id={content.id}
+                      url={`/${content.deals}/${content.id}`}
+                      image={content.imageUrl}
+                      heading={content.title}
+                      date={content.articleDate}
+                      hide={true}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="mt-10 sm:mt-0">
@@ -344,22 +377,44 @@ const DealDetails = () => {
                 </>
               )}
 
-              <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
+              {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
+                <>
+                  <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
 
-              <div className="text-center">
-                {/* <h5 className="text-gray-700 font-aptos-bold text-center mb-1">
-                  View
-                </h5> */}
-                <div
-                  onClick={() => setShowGraph(!showGraph)}
-                  className={`font-aptos-regular px-3 py-1 rounded-lg w-fit mx-auto cursor-pointer
-      text-orange-800 bg-gray-300 relative border-2 border-orange-500
-     animate-[glowBorder_4s_ease-in-out_infinite] hover:scale-105 transition-transform duration-300`}
-                >
-                  {showGraph === true ? 'Fund Raise' : 'Financial Performance'}
-                </div>
-              </div>
-              <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
+                  <div className="flex justify-start items-center flex-wrap gap-y-3 gap-x-0">
+                    {deal?.grossGraphBox && (
+                      <div
+                        onClick={() => setShowGraph(true)}
+                        className={`font-aptos-regular px-3 py-1 rounded-lg w-fit mx-auto cursor-pointer
+       relative border-2   ${
+         showGraph
+           ? 'text-orange-800 border-orange-500 bg-gray-300 animate-[glowBorder_4s_ease-in-out_infinite]'
+           : 'border-gray-500 bg-slate-300 text-slate-700 hover:scale-105 transition-transform duration-300'
+       }
+     `}
+                      >
+                        Financial Performance
+                      </div>
+                    )}
+
+                    {deal?.fundRaiseBox && (
+                      <div
+                        onClick={() => setShowGraph(false)}
+                        className={`font-aptos-regular px-3 py-1 rounded-lg w-fit mx-auto cursor-pointer
+                  relative border-2 ${
+                    !showGraph
+                      ? 'text-orange-800 border-orange-500 bg-gray-300 animate-[glowBorder_4s_ease-in-out_infinite]'
+                      : 'border-gray-500 bg-slate-300 text-slate-700 hover:scale-105 transition-transform duration-300'
+                  }
+     `}
+                      >
+                        Fund Raise
+                      </div>
+                    )}
+                  </div>
+                  <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
+                </>
+              )}
 
               {showGraph && (
                 <>
@@ -406,9 +461,12 @@ const DealDetails = () => {
                       <hr className="text-[#ff7010] my-5" />
                     </>
                   )}
-                  <h5 className="text-gray-700 font-aptos-bold text-center mb-1">
-                    Compare Financial Performance{' '}
-                  </h5>
+                  {deal?.competitorGrossGraph?.length > 0 && (
+                    <h5 className="text-gray-700 font-aptos-bold text-center mb-1">
+                      Compare Financial Performance
+                    </h5>
+                  )}
+
                   <div className="flex justify-start items-center flex-wrap gap-2">
                     {deal?.competitorGrossGraph &&
                       deal.competitorGrossGraph.length > 0 &&
@@ -504,20 +562,26 @@ const DealDetails = () => {
                   )}
                 </>
               )}
-              <hr className="text-[#ff7010] my-5" />
+
+              <hr className="border-2 text-[#ff7010] my-5" />
 
               {/* </div> */}
-              {/* {dealSorted.map((content) => (
-                <DealsSubCard
-                  key={content.id}
-                  deal={dealTitle}
-                  id={content.id}
-                  url={`/${content.deals}/${content.id}`}
-                  image={content.imageUrl}
-                  heading={content.title}
-                  date={content.articleDate}
-                />
-              ))} */}
+              {!deal?.grossGraphBox && !deal?.fundRaiseBox && (
+                <div>
+                  {dealSorted.map((content) => (
+                    <DealsSubCard
+                      key={content.id}
+                      deal={dealTitle}
+                      id={content.id}
+                      url={`/${content.deals}/${content.id}`}
+                      image={content.imageUrl}
+                      heading={content.title}
+                      date={content.articleDate}
+                      hide={true}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
