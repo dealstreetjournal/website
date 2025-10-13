@@ -25,13 +25,38 @@
   }
 }
 
-@keyframes marquee {
+/* @keyframes marquee {
   0% {
-    transform: translateX(100%);
+    transform: translateX(0);
   }
   100% {
-    transform: translateX(-100%);
+    transform: translateX(-50%);
   }
+} */
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.333%);
+  }
+}
+
+.marquee-container {
+  overflow: hidden;
+}
+
+.marquee-content {
+  animation: marquee 60s linear infinite;
+}
+
+.marquee-content-fast {
+  animation: marquee 20s linear infinite;
+}
+
+.marquee-content:hover {
+  animation-play-state: paused;
 }
 
 @keyframes move {

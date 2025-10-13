@@ -2,37 +2,35 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { handleDate } from '../handleDate'
 
-const DealsSubCard = ({ deal, url, image, heading, date }) => {
+const DetailsDealsSubCard = ({ deal, url, image, heading, date }) => {
   return (
-    <>
-      <Link to={url}>
-        <div className="aspect-square bg-slate-200 p-1.5 rounded border-2 border-slate-300">
-          <div className="flex justify-center xl:w-[190px] md:w-[150px] md:h-24 lg:h-24 xl:h-28 bg-slate-100 border-2 border-slate-300 rounded-sm shadow-lg shadow-slate-400 mb-4">
-            <img
-              src={image}
-              alt={heading}
-              loading="lazy"
-              className="w-full h-full object-contain my-auto rounded mix-blend-multiply"
-            />
-          </div>
-          <div className="">
-            <div className="flex justify-between items-center mt-2">
-              <p className="font-aptos-regular text-[10px] text-white bg-gray-500 w-fit rounded px-2 py-1">
-                {deal}
-              </p>
-              <p className="font-aptos-regular text-[13px] text-gray-700">
-                {handleDate(date)}
-              </p>
-            </div>
+    <Link
+      to={url}
+      className="group bg-white border border-gray-200 rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden hover:-translate-y-1"
+    >
+      <div className="w-full h-40 bg-slate-200 flex items-center justify-center">
+        <img
+          src={image}
+          alt={heading}
+          loading="lazy"
+          className="w-32 h-24 object-contain mix-blend-multiply transition-transform duration-300 group-hover:scale-105"
+        />
+      </div>
 
-            <h1 className="font-aptos-semibold line-clamp-3 lg:text-sm xl:text-base mt-2 leading-snug">
-              {heading}
-            </h1>
-          </div>
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-[11px] uppercase tracking-wide text-white bg-gray-700 px-2 py-1 rounded-md font-aptos-medium">
+            {deal}
+          </span>
+          <span className="text-sm text-gray-600">{handleDate(date)}</span>
         </div>
-      </Link>
-    </>
+
+        <h2 className="font-aptos-semibold text-gray-900 text-base line-clamp-3 group-hover:text-orange-600 transition-colors duration-300">
+          {heading}
+        </h2>
+      </div>
+    </Link>
   )
 }
 
-export default DealsSubCard
+export default DetailsDealsSubCard

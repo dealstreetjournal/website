@@ -315,33 +315,33 @@ const DealDetails = () => {
 
               <div className="w-full my-8 border-t-2 border-[#ff7010]"></div>
               {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
-                <div className="flex justify-start items-center mb-5 gap-4">
-                  <h4 className="font-aptos-bold text-gray-800 text-xl">
-                    Recommended Articles for You
-                  </h4>
-                  <hr className="md:w-20 lg:w-30 border-t-2 border-gray-800" />
-                </div>
-              )}
+                <div className="mb-6">
+                  <div className="flex items-center mb-5 gap-3">
+                    <h4 className="font-aptos-bold text-gray-800 text-2xl tracking-wide">
+                      Recommended Articles for You
+                    </h4>
+                    <div className="flex-1 h-[2px] bg-gradient-to-r from-gray-800 to-gray-300"></div>
+                  </div>
 
-              {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
-                <div
-                  className={`grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 rounded ${
-                    (deal?.grossGraphBox || deal?.fundRaiseBox) &&
-                    'hidden md:grid lg:grid'
-                  }`}
-                >
-                  {deal4Article.map((content) => (
-                    <DetailsDealsSubCard
-                      key={content.id}
-                      deal={dealTitle}
-                      id={content.id}
-                      url={`/${content.deals}/${content.id}`}
-                      image={content.imageUrl}
-                      heading={content.title}
-                      date={content.articleDate}
-                      hide={true}
-                    />
-                  ))}
+                  <div
+                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 ${
+                      (deal?.grossGraphBox || deal?.fundRaiseBox) &&
+                      'hidden md:grid lg:grid'
+                    }`}
+                  >
+                    {deal4Article.map((content) => (
+                      <DetailsDealsSubCard
+                        key={content.id}
+                        deal={dealTitle}
+                        id={content.id}
+                        url={`/${content.deals}/${content.id}`}
+                        image={content.imageUrl}
+                        heading={content.title}
+                        date={content.articleDate}
+                        hide={true}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
