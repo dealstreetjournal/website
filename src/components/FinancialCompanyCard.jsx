@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { addToCart } from '../api/cartApi'
 import { useCart } from '../hooks/useCart'
@@ -7,7 +7,8 @@ import Swal from 'sweetalert2'
 import Tippy from '@tippyjs/react'
 import 'tippy.js/dist/tippy.css'
 
-const FinancialCompanyCard = ({ report }) => {
+const FinancialCompanyCard = ({ report, samplePdf }) => {
+  const [open, setOpen] = useState(false)
   const { incrementCartCount } = useCart()
 
   const mutation = useMutation({
@@ -39,6 +40,27 @@ const FinancialCompanyCard = ({ report }) => {
 
   return (
     <>
+      {open && (
+        <div className="fixed inset-0  flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-11/12 md:w-3/4 lg:w-2/3 relative">
+            {/* Close Button (only tab/element) */}
+            <button
+              onClick={() => setOpen(false)}
+              className="absolute top-11 cursor-pointer right-5 border-2 border-red-700 bg-white px-2 text-red-700 rounded-full hover:text-red-800 text-lg font-aptos-bold"
+            >
+              ✕
+            </button>
+
+            {/* PDF Viewer */}
+            <embed
+              src={samplePdf}
+              type="application/pdf"
+              width="100%"
+              height="600"
+            />
+          </div>
+        </div>
+      )}
       <div className="flex flex-col justify-between bg-white shadow-md rounded-lg p-5 mt-10 text-center hover:border border-black hover:-translate-y-2 transition-transform duration-300 h-[250px]">
         <h4 className="font-aptos-bold text-lg">{report.reportTitle}</h4>
         <p className="text-gray-500 font-aptos-regular">{report.reportDesc}</p>
@@ -63,9 +85,14 @@ const FinancialCompanyCard = ({ report }) => {
               Add to Cart
             </button>
           </Tippy>
-          <Link className="border-2 border-[#ff7010] px-4 py-1.5 rounded font-aptos-regular">
-            Sample
-          </Link>
+          {samplePdf && (
+            <div
+              onClick={() => setOpen(true)}
+              className="border-2 cursor-pointer border-[#ff7010] px-4 py-1.5 rounded font-aptos-regular"
+            >
+              Sample
+            </div>
+          )}
         </div>
       </div>
     </>

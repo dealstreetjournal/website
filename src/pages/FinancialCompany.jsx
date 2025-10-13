@@ -9,6 +9,7 @@ import Popup from '../components/Popup'
 const FinancialCompany = () => {
   const location = useLocation()
   const { companyName } = location.state || {}
+
   document.title = `${companyName} | DealStreetJournal`
 
   const [year, setYear] = useState('')
@@ -48,10 +49,10 @@ const FinancialCompany = () => {
     return <span>Error: {error.message}</span>
   }
 
-  const financialData = data.data // Array of financial reports
-  const availableYears = data.availableYears || [] // Array of available years
+  const financialData = data?.data // Array of financial reports
+  const availableYears = data?.availableYears || [] // Array of available years
   const companyInfo = financialData[0] // Get company info from first record
-  // const sample = data.samplePdf
+  const samples = data?.samplePdf || []
 
   return (
     <div className=" bg-slate-50 pb-5 w-full mx-auto">
@@ -110,9 +111,18 @@ const FinancialCompany = () => {
         </div>
         {/* company card */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {financialData.map((report) => (
-            <FinancialCompanyCard key={report.id} report={report} />
-          ))}
+          {financialData.map((report) => {
+            const pdf = samples.find(
+              (sample) => sample.title === report.reportTitle.toLowerCase()
+            )?.pdf
+            return (
+              <FinancialCompanyCard
+                key={report.id}
+                report={report}
+                samplePdf={pdf}
+              />
+            )
+          })}
         </div>
       </div>
     </div>
