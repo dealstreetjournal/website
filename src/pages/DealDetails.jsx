@@ -192,9 +192,7 @@ const DealDetails = () => {
   return (
     <>
       <Helmet>
-        <title>
-          {deal?.title} | {dealTitle} Company
-        </title>
+        <title>{deal?.brandName} Article</title>
         <meta name="description" content={shareDescription} />
 
         {/* Open Graph tags */}
