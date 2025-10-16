@@ -244,6 +244,9 @@ const DealDetails = () => {
                   loading="lazy"
                   className="w-xl h-[350px] object-contain object-center mix-blend-multiply"
                 />
+                <p className="italic font-aptos-regular text-sm text-gray-300">
+                  {deal?.pcCredit}
+                </p>
               </div>
 
               <hr className="border-orange-400 border mt-5" />
@@ -357,12 +360,14 @@ const DealDetails = () => {
 
               {/* dsj-insight */}
               <DsjInsight />
+
               <hr className="text-[#ff7010] mt-2 mb-4" />
+
               {deal?.companyInfoBox && (
                 <>
                   <CompanyProfileSection
                     brandName={deal.companyInfo?.brandName}
-                    companyLogoUrl={deal?.imageUrl}
+                    companyLogoUrl={deal.companyInfo?.imageUrl}
                     companyName={deal.companyInfo?.companyName}
                     ebitda={deal.companyInfo?.ebitda}
                     grossRevenue={deal.companyInfo?.grossRevenue}
