@@ -17,13 +17,13 @@ const DealsCard = ({
   const cleanHTML = DOMPurify.sanitize(desc)
   return (
     <>
-      <Link to={url} className="lg:grid lg:grid-cols-[30%_70%] lg:gap-4">
-        <div className="flex justify-center items-center w-full h-40 bg-slate-100 border-2 border-slate-300 rounded-md">
+      <Link to={url} className="lg:grid lg:grid-cols-[35%_65%] lg:gap-4">
+        <div className="flex justify-center items-center w-full h-40 bg-slate-100 rounded-md overflow-hidden">
           <img
             src={image}
             alt={heading}
             loading="lazy"
-            className="h-30 object-contain my-auto rounded mix-blend-multiply"
+            className="w-full h-full object-cover object-center my-auto rounded"
           />
         </div>
         <div className="md:mr-6">

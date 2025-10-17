@@ -30,7 +30,7 @@ export default function HomeSlider({ data }) {
   return (
     <div className="w-full py-5 flex flex-col items-center justify-end bg-gray-100">
       <div
-        className="max-w-6xl w-[90%] md:w-[90%] mx-auto relative"
+        className="max-w-6xl w-[90%] md:w-[90%] lg:w-[80%] xl:w-[60%] mx-auto relative"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
       >
@@ -52,7 +52,7 @@ export default function HomeSlider({ data }) {
                     <img
                       src={slide.imageUrl}
                       alt={slide.title}
-                      className="aspect-[3/2] object-center lazyload"
+                      className="w-full h-full object-cover object-center lazyload"
                     />
                   </div>
 
@@ -70,16 +70,16 @@ export default function HomeSlider({ data }) {
             </div>
 
             {/* Navigation Buttons */}
-            <div className="flex gap-4 justify-center absolute left-[50%] right-[50%] bottom-10">
+            <div className="flex gap-4 justify-center absolute left-[50%] right-[50%] bottom-9 sm:bottom-7">
               <button
                 onClick={prevSlide}
-                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-black rounded transition-colors cursor-pointer"
+                className="p-2 bg-orange-700/80 hover:bg-orange-500 text-white rounded-full transition-colors cursor-pointer"
               >
                 <AiOutlineLeft />
               </button>
               <button
                 onClick={nextSlide}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-700 text-white rounded transition-colors cursor-pointer"
+                className="p-2 bg-orange-700/80 hover:bg-orange-500 text-white rounded-full transition-colors cursor-pointer"
               >
                 <AiOutlineRight />
               </button>

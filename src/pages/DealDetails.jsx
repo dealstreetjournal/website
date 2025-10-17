@@ -21,6 +21,7 @@ import { FaCalendarAlt, FaUserCircle } from 'react-icons/fa'
 import FundRaiseChart from '../components/FundRaiseChart'
 import FinancialChart from '../components/FinancialChart'
 import DetailsDealsSubCard from '../components/DetailsDealsSubCard'
+import SmartImage from '../components/SmartImage'
 
 const DealDetails = () => {
   const location = useLocation()
@@ -237,17 +238,20 @@ const DealDetails = () => {
                 {deal?.title}
               </h1>
 
-              <div className="flex justify-center items-center mt-2 w-full h-[450px] bg-slate-200 border-2 border-slate-300 rounded-md">
+              {/* <div className="flex justify-center items-center mt-2 w-full h-[450px] bg-slate-200 border-2 border-slate-400 rounded-md overflow-hidden">
                 <img
                   src={deal?.imageUrl}
-                  alt={deal?.brandName}
+                  alt={deal?.brandName || 'Deal Image'}
                   loading="lazy"
-                  className="w-xl h-[350px] object-contain object-center mix-blend-multiply"
+                  className="w-full h-full object-contain object-center"
                 />
-                <p className="italic font-aptos-regular text-sm text-gray-300">
-                  {deal?.pcCredit}
-                </p>
-              </div>
+              </div> */}
+
+              <SmartImage src={deal?.imageUrl} alt={deal?.brandName} />
+
+              <p className="italic font-aptos-regular text-sm text-gray-400">
+                Image Credit: {deal?.imageCredit || 'Deal Street Journal'}
+              </p>
 
               <hr className="border-orange-400 border mt-5" />
 

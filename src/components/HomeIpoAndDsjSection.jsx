@@ -41,7 +41,7 @@ const HomeIpoAndDsjSection = ({ data }) => {
           {/* dsj-section */}
           <div className="">
             <h1 className="text-4xl font-aptos-bold mb-8 pb-3 border-b border-[#ff7010]">
-              Dsj Insights
+              DSJ Insights
             </h1>
             <DsjInsight />
           </div>

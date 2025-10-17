@@ -1,15 +1,16 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import DOMPurify from 'dompurify'
+import { handleDate } from '../handleDate'
 
 const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
   const Seeds = seedData || []
   const growths = growthData || []
 
-  const sanitizeDescription = (desc) => {
-    const sanitizeDesc = DOMPurify.sanitize(desc)
-    return sanitizeDesc
-  }
+  // const sanitizeDescription = (desc) => {
+  //   const sanitizeDesc = DOMPurify.sanitize(desc)
+  //   return sanitizeDesc
+  // }
 
   return (
     <>
@@ -51,22 +52,32 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                         <Link
                           to={`seed/${content.id}`}
                           key={content.id}
-                          className="border-b border-[#ff7010] pb-3 mb-4.5"
+                          className="border-b border-[#ff7010] pb-3 mb-6"
                         >
-                          <div className="flex justify-center items-center w-full h-[170px] border-2 bg-slate-300 border-slate-400 rounded">
+                          <div className="flex justify-center items-center w-full h-[150px] bg-gray-300 rounded overflow-hidden">
                             <img
                               src={content.imageUrl}
                               alt={content.title}
                               loading="lazy"
-                              className="w-[130px] h-[130px] object-contain object-center rounded-md"
+                              className="w-full h-full object-cover object-center rounded-md"
                             />
                           </div>
+                          <div className="flex justify-between items-top mt-2 font-aptos-regular text-sm text-gray-700">
+                            <p className="text-orange-700 font-aptos-semibold">
+                              {content.brandName}
+                            </p>
+                            <p className="whitespace-nowrap">
+                              {handleDate(content.articleDate)}
+                            </p>
+                          </div>
                           <p
-                            className="font-aptos-regular line-clamp-4 mt-1.5 w-[250px]"
-                            dangerouslySetInnerHTML={{
-                              __html: sanitizeDescription(content?.description),
-                            }}
-                          ></p>
+                            className="font-aptos-regular line-clamp-3 mt-1.5 w-full"
+                            // dangerouslySetInnerHTML={{
+                            //   __html: sanitizeDescription(content?.description),
+                            // }}
+                          >
+                            {content.title}
+                          </p>
                         </Link>
                       )
                     })}
@@ -92,49 +103,56 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                     />
                   </div>
                   <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-gray-500/100 to-transparent rounded-b-md"></div>
-                  <p
-                    className="absolute bottom-1 text-white font-aptos-regular line-clamp-2 px-2 z-10"
-                    // dangerouslySetInnerHTML={{
-                    //   __html: sanitizeDescription(growths[0]?.description),
-                    // }}
-                  >
+                  <p className="absolute bottom-1 text-white font-aptos-regular line-clamp-2 px-2 z-10">
                     {growths[0]?.title}
                   </p>
                 </Link>
                 <hr className="text-[#ff7010] mb-7 " />
-                <div className="">
-                  {growths &&
-                    growths.length > 0 &&
-                    growths.slice(1).map((content, index) => {
-                      return (
-                        <Link
-                          to={`growth/${content.id}`}
+                <div>
+                  {growths && growths.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-2">
+                      {growths.slice(1).map((content) => (
+                        <div
                           key={content.id}
-                          className={`flex flex-col sm:flex-row sm:gap-4 border-b border-[#ff7010] pb-2.5 mb-7 md:pb-3 md:mb-6 lg:pb-3.5 lg:mb-6.5 ${
-                            index >= 3 ? 'md:hidden' : ''
-                          }`}
+                          className="flex justify-left items-start gap-2 pb-2 mb-7.5 border-b border-[#ff7010]"
                         >
-                          <div className="flex justify-center items-center w-[170px] h-[170px] border-2 bg-slate-300 border-slate-400 rounded">
-                            <img
-                              src={content.imageUrl}
-                              alt={content.title}
-                              loading="lazy"
-                              className="w-[130px] h-[130px] object-contain object-center rounded-md"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <p
-                              className="font-aptos-regular line-clamp-4 sm:line-clamp-6"
-                              dangerouslySetInnerHTML={{
-                                __html: sanitizeDescription(
-                                  content?.description
-                                ),
-                              }}
-                            ></p>
-                          </div>
-                        </Link>
-                      )
-                    })}
+                          <Link
+                            to={`growth/${content.id}`}
+                            className="flex gap-2 w-full"
+                          >
+                            <div className="">
+                              <div className="flex justify-center items-center w-[100px] h-[80px] bg-slate-300 rounded overflow-hidden">
+                                <img
+                                  src={content.imageUrl}
+                                  alt={content.title}
+                                  loading="lazy"
+                                  className="w-full h-full object-cover object-center rounded-t-md"
+                                />
+                              </div>
+                              <p className="whitespace-nowrap flex justify-center items-center text-[12px] font-aptos text-gray-700">
+                                {handleDate(content.articleDate)}
+                              </p>
+                            </div>
+
+                            <div className="flex-1">
+                              {/* Uncomment if you want brand/date info */}
+                              <div className="flex justify-between items-start font-aptos-regular text-sm text-gray-700">
+                                <p className="text-orange-700 font-aptos-semibold">
+                                  {content.brandName}
+                                </p>
+                                {/* <p className="whitespace-nowrap">
+                                  {handleDate(content.articleDate)}
+                                </p> */}
+                              </div>
+                              <p className="font-aptos-regular line-clamp-3 w-full mt-2">
+                                {content.title}
+                              </p>
+                            </div>
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
