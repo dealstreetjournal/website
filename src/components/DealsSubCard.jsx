@@ -12,7 +12,7 @@ const DealsSubCard = ({ deal, url, image, heading, date }) => {
               src={image}
               alt={heading}
               loading="lazy"
-              className="w-full h-full object-fill object-center my-auto rounded"
+              className="w-full h-full object-cover object-center my-auto rounded"
             />
           </div>
           <div className="lg:mr-5 xl:mr-6">

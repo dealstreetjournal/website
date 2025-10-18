@@ -60,7 +60,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                         src={content.imageUrl}
                         alt={content.title}
                         loading="lazy"
-                        className="w-full h-full object-cover object-center rounded-md"
+                        className="aspect-[2/3] object-contain object-center rounded-md"
                       />
                     </div>
                     <div className="flex justify-between items-top mt-2 font-aptos-regular text-sm text-gray-700">

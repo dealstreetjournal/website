@@ -13,7 +13,7 @@ const DetailsDealsSubCard = ({ deal, url, image, heading, date }) => {
           src={image}
           alt={heading}
           loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="aspect-[2/3] object-contain transition-transform duration-300 group-hover:scale-105"
         />
       </div>
 

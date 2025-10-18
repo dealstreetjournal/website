@@ -1,16 +1,30 @@
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DOMPurify from 'dompurify'
 import { handleDate } from '../handleDate'
 
 const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
   const Seeds = seedData || []
-  const growths = growthData || []
+  const growths = useMemo(() => growthData || [], [growthData])
 
-  // const sanitizeDescription = (desc) => {
-  //   const sanitizeDesc = DOMPurify.sanitize(desc)
-  //   return sanitizeDesc
-  // }
+  const [visibleItems, setVisibleItems] = useState(growths.slice(1))
+
+  useEffect(() => {
+    const updateVisibleItems = () => {
+      const width = window.innerWidth
+      if (width >= 768 && width < 1024) {
+        // tablet (md to lg)
+        setVisibleItems(growths.slice(1, 6)) // show 5 items
+      } else {
+        // mobile or desktop
+        setVisibleItems(growths.slice(1))
+      }
+    }
+
+    updateVisibleItems() // run once
+    window.addEventListener('resize', updateVisibleItems)
+    return () => window.removeEventListener('resize', updateVisibleItems)
+  }, [growths])
 
   return (
     <>
@@ -24,13 +38,13 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
             {Seeds && Seeds.length > 0 && (
               <>
                 <Link to={`seed/${Seeds[0].id}`} className="relative mb-5">
-                  <div className="w-full rounded-md bg-white">
+                  <div className="w-full rounded-md bg-white overflow-hidden">
                     <img
                       src={Seeds[0].imageUrl}
                       alt={Seeds[0].title}
                       loading="lazy"
                       // className="rounded-md w-full h-58 md:h-68 xl:h-78"
-                      className="rounded-md w-full h-auto md:h-68 xl:h-78 object-contain object-center mix-blend-multiply"
+                      className="rounded-md w-full h-65 md:h-68 xl:h-78 object-cover object-center"
                     />
                   </div>
                   <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-slate-500/100 to-transparent rounded-b-md"></div>
@@ -59,7 +73,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                               src={content.imageUrl}
                               alt={content.title}
                               loading="lazy"
-                              className="w-full h-full object-cover object-center rounded-md"
+                              className="aspect-[2/3] object-contain object-center rounded-md"
                             />
                           </div>
                           <div className="flex justify-between items-top mt-2 font-aptos-regular text-sm text-gray-700">
@@ -99,7 +113,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                       src={growths[0].imageUrl}
                       alt={growths[0].title}
                       loading="lazy"
-                      className="rounded-md w-full h-auto md:h-68 xl:h-78 object-contain object-center mix-blend-multiply"
+                      className="rounded-md w-full h-60 md:h-68 xl:h-78 object-cover object-center"
                     />
                   </div>
                   <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-gray-500/100 to-transparent rounded-b-md"></div>
@@ -109,18 +123,18 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                 </Link>
                 <hr className="text-[#ff7010] mb-7 " />
                 <div>
-                  {growths && growths.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-2">
-                      {growths.slice(1).map((content) => (
+                  {visibleItems && visibleItems.length > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-2">
+                      {visibleItems.map((content) => (
                         <div
                           key={content.id}
-                          className="flex justify-left items-start gap-2 pb-2 mb-7.5 border-b border-[#ff7010]"
+                          className="flex justify-left items-start gap-2 pb-2 mb-3"
                         >
                           <Link
                             to={`growth/${content.id}`}
                             className="flex gap-2 w-full"
                           >
-                            <div className="">
+                            <div>
                               <div className="flex justify-center items-center w-[100px] h-[80px] bg-slate-300 rounded overflow-hidden">
                                 <img
                                   src={content.imageUrl}
@@ -129,20 +143,16 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                                   className="w-full h-full object-cover object-center rounded-t-md"
                                 />
                               </div>
-                              <p className="whitespace-nowrap flex justify-center items-center text-[12px] font-aptos text-gray-700">
+                              <p className="whitespace-nowrap flex justify-center mt-1 items-center text-[12px] font-aptos text-gray-700">
                                 {handleDate(content.articleDate)}
                               </p>
                             </div>
 
                             <div className="flex-1">
-                              {/* Uncomment if you want brand/date info */}
                               <div className="flex justify-between items-start font-aptos-regular text-sm text-gray-700">
-                                <p className="text-orange-700 font-aptos-semibold">
+                                <p className="text-orange-700 font-aptos-semibold whitespace-nowrap">
                                   {content.brandName}
                                 </p>
-                                {/* <p className="whitespace-nowrap">
-                                  {handleDate(content.articleDate)}
-                                </p> */}
                               </div>
                               <p className="font-aptos-regular line-clamp-3 w-full mt-2">
                                 {content.title}
