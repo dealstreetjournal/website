@@ -250,7 +250,7 @@ const DealDetails = () => {
               <SmartImage src={deal?.imageUrl} alt={deal?.brandName} />
 
               <p className="italic font-aptos-regular text-sm text-gray-400">
-                Image Credit: {deal?.imageCredit || 'Deal Street Journal'}
+                Image Credit: {deal?.pcCredit || 'Deal Street Journal'}
               </p>
 
               <hr className="border-orange-400 border mt-5" />
