@@ -37,7 +37,10 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
             </h1>
             {Seeds && Seeds.length > 0 && (
               <>
-                <Link to={`seed/${Seeds[0].id}`} className="relative mb-5">
+                <Link
+                  to={`seed/${Seeds[0].id}`}
+                  className="relative block mb-5"
+                >
                   <div className="w-full rounded-md bg-white overflow-hidden">
                     <img
                       src={Seeds[0].imageUrl}
@@ -47,7 +50,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                     />
                   </div>
                   <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-slate-500/100 to-transparent rounded-b-md"></div>
-                  <p className="absolute bottom-1 text-white font-aptos-regular line-clamp-2 px-2 z-10">
+                  <p className="absolute bottom-1 left-0 right-0 text-white font-aptos-regular line-clamp-2 px-2 z-10">
                     {Seeds[0]?.title}
                   </p>
                 </Link>
