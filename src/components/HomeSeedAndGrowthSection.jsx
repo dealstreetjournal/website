@@ -43,17 +43,11 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                       src={Seeds[0].imageUrl}
                       alt={Seeds[0].title}
                       loading="lazy"
-                      // className="rounded-md w-full h-58 md:h-68 xl:h-78"
                       className="rounded-md w-full h-65 md:h-68 xl:h-78 object-cover object-center"
                     />
                   </div>
                   <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-slate-500/100 to-transparent rounded-b-md"></div>
-                  <p
-                    className="absolute bottom-1 text-white font-aptos-regular line-clamp-2 px-2 z-10"
-                    // dangerouslySetInnerHTML={{
-                    //   __html: sanitizeDescription(Seeds[0]?.description),
-                    // }}
-                  >
+                  <p className="absolute bottom-1 left-0 w-full text-white font-aptos-regular line-clamp-2 px-2 z-10">
                     {Seeds[0]?.title}
                   </p>
                 </Link>
@@ -117,7 +111,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                     />
                   </div>
                   <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-gray-500/100 to-transparent rounded-b-md"></div>
-                  <p className="absolute bottom-1 text-white font-aptos-regular line-clamp-2 px-2 z-10">
+                  <p className="absolute bottom-1 left-0 w-full text-white font-aptos-regular line-clamp-2 px-2 z-10">
                     {growths[0]?.title}
                   </p>
                 </Link>
@@ -140,7 +134,8 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                                   src={content.imageUrl}
                                   alt={content.title}
                                   loading="lazy"
-                                  className="w-full h-full object-cover object-center rounded-t-md"
+                                  // className="w-full h-full object-cover object-center rounded-t-md"
+                                  className="aspect-[5/4] object-contain object-center rounded-t-md"
                                 />
                               </div>
                               <p className="whitespace-nowrap flex justify-center mt-1 items-center text-[12px] font-aptos text-gray-700">

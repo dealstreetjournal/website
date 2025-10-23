@@ -459,8 +459,8 @@ const DealDetails = () => {
                             data: deal.grossGraph?.otherIncome
                               ?.split(',')
                               .map((v) => parseFloat(v) || 0),
-                            borderColor: 'gray',
-                            backgroundColor: 'gray',
+                            borderColor: '#0D9488',
+                            backgroundColor: '#0D9488',
                             tension: 0.3,
                           },
                         ]}
@@ -529,8 +529,8 @@ const DealDetails = () => {
                               .map((v) => parseFloat(v) || 0),
                             // borderColor: '#0D9488',
                             // backgroundColor: 'rgba(13,148,136)',
-                            borderColor: 'gray',
-                            backgroundColor: 'gray',
+                            borderColor: '#0D9488',
+                            backgroundColor: '#0D9488',
                             tension: 0.3,
                           },
                         ]}

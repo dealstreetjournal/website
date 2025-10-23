@@ -48,16 +48,16 @@ export default function HomeSlider({ data }) {
                   }}
                 >
                   {/* Left - Image */}
-                  <div className="sm:w-1/2 sm:h-[250px] lg:h-[300px] w-full h-[200px]">
+                  <div className="sm:w-1/2 sm:h-[240px] lg:h-[280px] w-full h-[200px] bg-amber-300">
                     <img
                       src={slide.imageUrl}
                       alt={slide.title}
-                      className="w-full h-full object-cover object-center lazyload"
+                      className="w-full h-full lg:object-fill object-center lazyload bg-amber-800"
                     />
                   </div>
 
                   {/* Right - Content */}
-                  <div className="sm:w-1/2 sm:h-[250px] lg:h-[300px] w-full h-[200px] pt-5 px-3 md:px-5 flex flex-col justify-start items-start bg-slate-200">
+                  <div className="sm:w-1/2 sm:h-[240px] lg:h-[280px] w-full h-[200px] pt-5 px-3 md:px-5 flex flex-col justify-start items-start bg-slate-200">
                     <h2 className="text-xl md:text-2xl font-aptos-bold text-gray-800 mb-1 pb-1 md:mb-3 sm:line-clamp-2 line-clamp-1">
                       {slide.title}
                     </h2>
