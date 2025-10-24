@@ -24,13 +24,15 @@ const HomeIpoAndDsjSection = ({ data }) => {
               <Link to={`ipo/${ipo[0].id}`} className="mb-5">
                 <p
                   className="font-aptos-semibold line-clamp-3 md:line-clamp-5 xl:line-clamp-4 mb-1 md:mb-4 xl:mb-1"
+                  title={ipo[0]?.title}
                   dangerouslySetInnerHTML={{
                     __html: sanitizeDescription(ipo[0]?.description),
                   }}
                 ></p>
                 <img
                   src={ipo[0].imageUrl}
-                  alt="image"
+                  alt={ipo[0]?.title}
+                  loading="lazy"
                   className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover"
                 />
               </Link>

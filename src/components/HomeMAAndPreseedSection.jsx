@@ -32,6 +32,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
 
                 <p
                   className="font-aptos-regular line-clamp-10 mb-2.5"
+                  title={mas[0]?.title}
                   dangerouslySetInnerHTML={{
                     __html: sanitizeDescription(mas[0]?.description),
                   }}
@@ -73,9 +74,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                     </div>
                     <p
                       className="font-aptos-regular line-clamp-2 mt-1.5 w-full"
-                      // dangerouslySetInnerHTML={{
-                      //   __html: sanitizeDescription(content?.description),
-                      // }}
+                      title={content.title}
                     >
                       {content.title}
                     </p>

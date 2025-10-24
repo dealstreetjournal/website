@@ -45,9 +45,7 @@ const HomeWorldSection = ({ data }) => {
 
                     <p
                       className="font-aptos-regular line-clamp-2"
-                      // dangerouslySetInnerHTML={{
-                      //   __html: sanitizeDescription(world?.description),
-                      // }}
+                      title={world.title}
                     >
                       {world?.title}
                     </p>
