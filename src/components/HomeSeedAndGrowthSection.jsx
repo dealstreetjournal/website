@@ -49,8 +49,8 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                       className="rounded-md w-full h-65 md:h-68 xl:h-78 object-cover object-center"
                     />
                   </div>
-                  <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-slate-500/100 to-transparent rounded-b-md"></div>
-                  <p className="absolute bottom-1 left-0 right-0 text-white font-aptos-regular line-clamp-1 px-2 z-10">
+                  <div className="absolute bottom-0 left-0 w-full h-20 bg-gradient-to-t from-red-600/80 to-transparent rounded-b-md"></div>
+                  <p className="absolute bottom-1 left-0 right-0 text-white font-aptos-semibold line-clamp-1 px-2 z-10">
                     {Seeds[0]?.title}
                   </p>
                 </Link>
@@ -116,7 +116,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                       className="rounded-md w-full h-60 md:h-68 xl:h-78 object-cover object-center"
                     />
                   </div>
-                  <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-gray-500/100 to-transparent rounded-b-md"></div>
+                  <div className="absolute bottom-0 left-0 w-full h-20 bg-gradient-to-t from-black/80 to-transparent rounded-b-md"></div>
                   <p className="absolute bottom-1 left-0 right-0 text-white font-aptos-regular line-clamp-1 px-2 z-10">
                     {growths[0]?.title}
                   </p>
