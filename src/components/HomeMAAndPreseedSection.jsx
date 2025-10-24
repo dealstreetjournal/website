@@ -63,7 +63,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                         className="aspect-[2/3] object-contain object-center rounded-md"
                       />
                     </div>
-                    <div className="flex justify-between items-top mt-2 font-aptos-regular text-sm text-gray-700">
+                    <div className="flex justify-between items-top mt-2.5 font-aptos-regular text-sm text-gray-700">
                       <p className="text-orange-700 font-aptos-semibold">
                         {content.brandName}
                       </p>
@@ -72,7 +72,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                       </p>
                     </div>
                     <p
-                      className="font-aptos-regular line-clamp-3 mt-1.5 w-full"
+                      className="font-aptos-regular line-clamp-2 mt-1.5 w-full"
                       // dangerouslySetInnerHTML={{
                       //   __html: sanitizeDescription(content?.description),
                       // }}

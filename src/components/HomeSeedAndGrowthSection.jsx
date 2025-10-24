@@ -50,7 +50,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                     />
                   </div>
                   <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-slate-500/100 to-transparent rounded-b-md"></div>
-                  <p className="absolute bottom-1 left-0 right-0 text-white font-aptos-regular line-clamp-2 px-2 z-10">
+                  <p className="absolute bottom-1 left-0 right-0 text-white font-aptos-regular line-clamp-1 px-2 z-10">
                     {Seeds[0]?.title}
                   </p>
                 </Link>
@@ -73,7 +73,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                               className="aspect-[2/3] object-contain object-center rounded-md"
                             />
                           </div>
-                          <div className="flex justify-between items-top mt-2 font-aptos-regular text-sm text-gray-700">
+                          <div className="flex justify-between items-top mt-3 font-aptos-regular text-sm text-gray-700">
                             <p className="text-orange-700 font-aptos-semibold">
                               {content.brandName}
                             </p>
@@ -82,7 +82,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                             </p>
                           </div>
                           <p
-                            className="font-aptos-regular line-clamp-3 mt-1.5 w-full"
+                            className="font-aptos-regular line-clamp-2 mt-1.5 w-full"
                             // dangerouslySetInnerHTML={{
                             //   __html: sanitizeDescription(content?.description),
                             // }}
@@ -117,7 +117,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                     />
                   </div>
                   <div className="absolute bottom-0 left-0 w-full h-22 bg-gradient-to-t from-gray-500/100 to-transparent rounded-b-md"></div>
-                  <p className="absolute bottom-1 left-0 right-0 text-white font-aptos-regular line-clamp-2 px-2 z-10">
+                  <p className="absolute bottom-1 left-0 right-0 text-white font-aptos-regular line-clamp-1 px-2 z-10">
                     {growths[0]?.title}
                   </p>
                 </Link>
@@ -144,9 +144,9 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                                   className="w-full h-full object-cover object-center rounded-t-md"
                                 />
                               </div>
-                              <p className="whitespace-nowrap flex justify-center mt-1 items-center text-[12px] font-aptos text-gray-700">
+                              {/* <p className="whitespace-nowrap flex justify-center mt-1 items-center text-[12px] font-aptos text-gray-700">
                                 {handleDate(content.articleDate)}
-                              </p>
+                              </p> */}
                             </div>
 
                             <div className="flex-1">
@@ -155,8 +155,11 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                                   {content.brandName}
                                 </p>
                               </div>
-                              <p className="font-aptos-regular line-clamp-3 w-full mt-2">
+                              <p className="font-aptos-regular line-clamp-2 w-full mt-2">
                                 {content.title}
+                              </p>
+                              <p className="whitespace-nowrap flex justify-end items-center text-[12px] font-aptos text-gray-700">
+                                {handleDate(content.articleDate)}
                               </p>
                             </div>
                           </Link>

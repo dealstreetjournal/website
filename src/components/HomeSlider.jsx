@@ -61,7 +61,7 @@ export default function HomeSlider({ data }) {
                     <h2 className="text-xl md:text-2xl font-aptos-bold text-gray-800 mb-1 pb-1 md:mb-3 sm:line-clamp-2 line-clamp-1">
                       {slide.title}
                     </h2>
-                    <p className="text-gray-800 font-aptos-regular text-base md:text-lg mb-5 sm:line-clamp-6 line-clamp-4">
+                    <p className="text-gray-800 font-aptos-regular text-base md:text-lg mb-5 lg:line-clamp-5 line-clamp-4">
                       {slide.description}
                     </p>
                   </div>
