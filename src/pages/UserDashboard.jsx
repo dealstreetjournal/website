@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { FaUser } from 'react-icons/fa'
 import { FaFileInvoice, FaIdCard } from 'react-icons/fa6'
 import { MdExitToApp } from 'react-icons/md'
@@ -7,13 +7,21 @@ import Invoice from '../components/Invoice'
 import Report from '../components/Report'
 import { useMutation } from '@tanstack/react-query'
 import { logout as logoutApi } from '../api/authApi'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import Swal from 'sweetalert2'
 
 const UserDashboard = () => {
+  const location = useLocation()
   const [button, setButton] = useState('profile')
+  const { query } = location.state || {}
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (query === 'report') {
+      setButton('report')
+    }
+  }, [query])
 
   const { logout } = useAuth()
 

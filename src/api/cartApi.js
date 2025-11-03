@@ -2,6 +2,7 @@ import axios from './axiosInstance'
 
 export const addToCart = async (data) => {
   try {
+    console.log('Adding to cart:', data)
     const response = await axios.post('/dsj/cart', data)
     // console.log('Fetched cart:', response.data)
     return response.data
@@ -41,3 +42,26 @@ export const cartCountApi = async () => {
     throw error
   }
 }
+
+export const initiatePayment = async (formData) => {
+  const payload = {
+    userName: formData.fullName,
+    userPhone: formData.mobile,
+    country: formData.country,
+    state: formData.state || formData.customCountry,
+  }
+
+  console.log('Initiating payment with data:', payload)
+
+  try {
+    const response = await axios.post('/dsj/payment/initiate', payload, {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    return response.data
+  } catch (error) {
+    console.error('Error initiating payment:', error)
+    throw error
+  }
+}
+
+

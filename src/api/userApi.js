@@ -50,3 +50,27 @@ export const contactMail = async (data) => {
     )
   }
 }
+
+export const getInvoice = async () => {
+  try {
+    const response = await axios.get('/dsj/report/invoice')
+    console.log('invoice res:', response.data)
+    return response.data
+  } catch (error) {
+    throw new Error(
+      error.response?.data || error.message || 'Failed to load Invoice'
+    )
+  }
+}
+
+export const getReport = async () => {
+  try {
+    const response = await axios.get('/dsj/report')
+    console.log('report res:', response.data)
+    return response.data
+  } catch (error) {
+    throw new Error(
+      error.response?.data || error.message || 'Failed to load Report'
+    )
+  }
+}

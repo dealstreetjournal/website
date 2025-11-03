@@ -1,17 +1,21 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { fetchCart, removeFromCart } from '../api/cartApi'
+import { fetchCart, initiatePayment, removeFromCart } from '../api/cartApi'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
 import Swal from 'sweetalert2'
 import { useCart } from '../hooks/useCart'
-import { useNavigate } from 'react-router-dom'
+import { redirect, useNavigate } from 'react-router-dom'
+import logo from '../assets/spinner.png'
+import { useAuth } from '../hooks/useAuth'
 
 const Checkout = () => {
   document.title = 'Checkout | Dealstreetjournal'
   const [country, setCountry] = useState('')
   const [state, setState] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const queryClient = useQueryClient()
 
@@ -127,7 +131,7 @@ const Checkout = () => {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
+    // reset,
     setValue,
   } = useForm()
 
@@ -143,11 +147,243 @@ const Checkout = () => {
     setState(seletedState)
   }
 
+  const mutation = useMutation({
+    mutationFn: (formData) => initiatePayment(formData),
+
+    onSuccess: async (data) => {
+      console.log('✅ Payment initiated successfully:', data)
+
+      const config = {
+        root: '',
+        flow: 'DEFAULT',
+        data: {
+          orderId: data.orderId,
+          token: data.txnToken,
+          tokenType: 'TXN_TOKEN',
+          amount: data.amount,
+        },
+        merchant: {
+          mid: data.mid,
+          name: 'Deal Street Journal',
+          logo: logo,
+        },
+        handler: {
+          transactionStatus: (response) => {
+            console.log('💳 Transaction Status Response:', response)
+          },
+          notifyMerchant: (eventName, data) => {
+            console.log('📢 Event:', eventName, data)
+
+            if (eventName === 'APP_CLOSED') {
+              setLoading(false)
+              Swal.fire({
+                title: 'Payment Cancelled',
+                text: 'You have cancelled the payment process.',
+                icon: 'warning',
+                confirmButtonColor: '#ff7010',
+              })
+            }
+          },
+        },
+      }
+
+      if (window.Paytm && window.Paytm.CheckoutJS) {
+        try {
+          await window.Paytm.CheckoutJS.init(config)
+
+          window.Paytm.CheckoutJS.invoke()
+        } catch (err) {
+          console.error('⚠️ Paytm Init Error:', err)
+          Swal.fire({
+            title: 'Error',
+            text: 'Something went wrong while loading Paytm Checkout.',
+            icon: 'error',
+            confirmButtonColor: '#ff7010',
+          })
+          setLoading(false)
+        }
+      } else {
+        Swal.fire({
+          title: 'Error',
+          text: 'Paytm SDK not loaded. Please refresh the page.',
+          icon: 'error',
+          confirmButtonColor: '#ff7010',
+        })
+        setLoading(false)
+      }
+    },
+
+    onError: (error) => {
+      console.error('❌ Error initiating payment:', error)
+      setLoading(false)
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to initiate payment. Please try again.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#ff7010',
+      })
+    },
+  })
+
+  // const mutation = useMutation({
+  //   mutationFn: (formData) => initiatePayment(formData),
+
+  //   onSuccess: async (data) => {
+  //     console.log('✅ Payment initiated successfully:', data)
+
+  //     const config = {
+  //       root: '',
+  //       flow: 'DEFAULT',
+  //       data: {
+  //         orderId: data.orderId,
+  //         token: data.txnToken,
+  //         tokenType: 'TXN_TOKEN',
+  //         amount: data.amount,
+  //       },
+  //       merchant: {
+  //         mid: data.mid,
+  //         name: 'Deal Street Journal',
+  //         logo: logo,
+  //       },
+  //       handler: {
+  //         transactionStatus: async (response) => {
+  //           console.log('💳 Transaction Status Response:', response)
+
+  //           setLoading(true)
+
+  //           // Call backend to verify status from Paytm
+  //           try {
+  //             const statusResponse = await fetch(
+  //               `http://localhost:8081/dsj/payment/verify-status/${data.orderId}`,
+  //               {
+  //                 method: 'GET',
+  //                 credentials: 'include',
+  //                 headers: {
+  //                   'Content-Type': 'application/json',
+  //                 },
+  //               }
+  //             )
+
+  //             if (!statusResponse.ok) {
+  //               throw new Error('Failed to fetch payment status')
+  //             }
+
+  //             const statusData = await statusResponse.json()
+  //             console.log('✅ Payment Status Verified:', statusData)
+
+  //             setLoading(false)
+
+  //             if (statusData.status === 'TXN_SUCCESS') {
+  //               Swal.fire({
+  //                 title: 'Payment Successful!',
+  //                 html: `
+  //                 <p>Your payment has been processed successfully.</p>
+  //                 <p><strong>Transaction ID:</strong> ${
+  //                   statusData.txnId || 'N/A'
+  //                 }</p>
+  //                 <p><strong>Amount:</strong> ₹${
+  //                   statusData.amount || data.amount
+  //                 }</p>
+  //               `,
+  //                 icon: 'success',
+  //                 confirmButtonColor: '#ff7010',
+  //               }).then(() => {
+  //                 queryClient.invalidateQueries({ queryKey: ['cart'] })
+  //                 navigate('/orders')
+  //               })
+  //             } else if (statusData.status === 'TXN_FAILURE') {
+  //               Swal.fire({
+  //                 title: 'Payment Failed',
+  //                 text:
+  //                   statusData.message ||
+  //                   'Transaction failed. Please try again.',
+  //                 icon: 'error',
+  //                 confirmButtonColor: '#ff7010',
+  //               })
+  //             } else {
+  //               Swal.fire({
+  //                 title: 'Payment Pending',
+  //                 text:
+  //                   statusData.message ||
+  //                   'Transaction is pending. Please check back later.',
+  //                 icon: 'info',
+  //                 confirmButtonColor: '#ff7010',
+  //               })
+  //             }
+  //           } catch (error) {
+  //             console.error('❌ Error verifying payment:', error)
+  //             setLoading(false)
+  //             Swal.fire({
+  //               title: 'Error',
+  //               text:
+  //                 'Failed to verify payment status. Please contact support with order ID: ' +
+  //                 data.orderId,
+  //               icon: 'error',
+  //               confirmButtonColor: '#ff7010',
+  //             })
+  //           }
+  //         },
+  //         notifyMerchant: (eventName, data) => {
+  //           console.log('📢 Paytm Event:', eventName, data)
+
+  //           if (eventName === 'APP_CLOSED') {
+  //             setLoading(false)
+  //             Swal.fire({
+  //               title: 'Payment Cancelled',
+  //               text: 'You have cancelled the payment process.',
+  //               icon: 'warning',
+  //               confirmButtonColor: '#ff7010',
+  //             })
+  //           }
+  //         },
+  //       },
+  //     }
+
+  //     if (window.Paytm && window.Paytm.CheckoutJS) {
+  //       try {
+  //         console.log('🔧 Initializing Paytm Checkout with config:', config)
+  //         await window.Paytm.CheckoutJS.init(config)
+  //         console.log('✅ Paytm Checkout initialized, invoking...')
+  //         window.Paytm.CheckoutJS.invoke()
+  //       } catch (err) {
+  //         console.error('⚠️ Paytm Init Error:', err)
+  //         setLoading(false)
+  //         Swal.fire({
+  //           title: 'Error',
+  //           text: 'Something went wrong while loading Paytm Checkout.',
+  //           icon: 'error',
+  //           confirmButtonColor: '#ff7010',
+  //         })
+  //       }
+  //     } else {
+  //       console.error('❌ Paytm CheckoutJS not loaded')
+  //       setLoading(false)
+  //       Swal.fire({
+  //         title: 'Error',
+  //         text: 'Paytm payment gateway not available. Please refresh the page.',
+  //         icon: 'error',
+  //         confirmButtonColor: '#ff7010',
+  //       })
+  //     }
+  //   },
+
+  //   onError: (error) => {
+  //     console.error('❌ Payment initiation failed:', error)
+  //     setLoading(false)
+  //     Swal.fire({
+  //       title: 'Error',
+  //       text: error.message || 'Failed to initiate payment. Please try again.',
+  //       icon: 'error',
+  //       confirmButtonColor: '#ff7010',
+  //     })
+  //   },
+  // })
+
   const onSubmit = (data) => {
-    console.log(data)
-    reset()
-    setCountry('')
-    alert('Order Placed Successfully!')
+    setLoading(true)
+    console.log('📤 Submitting payment data:', data)
+    mutation.mutate(data)
   }
 
   if (isPending) {
@@ -322,29 +558,19 @@ const Checkout = () => {
                       </label>
                       <input
                         type="email"
-                        {...register('email', {
-                          required: 'Email is required',
-                          pattern: {
-                            value: /^\S+@\S+$/i,
-                            message: 'Enter a valid email address',
-                          },
-                        })}
+                        disabled
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        placeholder="Enter email address"
+                        value={user}
                       />
-                      {errors.email && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.email.message}
-                        </p>
-                      )}
                     </div>
 
                     {/* Pay Now Button */}
                     <button
                       type="submit"
+                      disabled={loading}
                       className="w-full bg-orange-500 text-sm hover:bg-orange-600 text-white font-aptos-semibold py-3 px-4 rounded-md transition-colors duration-300 mt-6"
                     >
-                      PAY NOW
+                      {loading ? 'Processing...' : 'Pay with Paytm'}
                     </button>
                   </form>
                 </div>

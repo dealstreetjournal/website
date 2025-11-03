@@ -320,7 +320,12 @@ const DealDetails = () => {
 
               <div className="w-full my-8 border-t-2 border-[#ff7010]"></div>
               {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
-                <div className="mb-6">
+                <div
+                  className={`mb-6 ${
+                    (deal?.grossGraphBox || deal?.fundRaiseBox) &&
+                    'hidden md:grid lg:grid'
+                  }`}
+                >
                   <div className="flex items-center mb-5 gap-3">
                     <h4 className="font-aptos-bold text-gray-800 text-2xl tracking-wide">
                       Recommended Articles for You
@@ -329,10 +334,7 @@ const DealDetails = () => {
                   </div>
 
                   <div
-                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 ${
-                      (deal?.grossGraphBox || deal?.fundRaiseBox) &&
-                      'hidden md:grid lg:grid'
-                    }`}
+                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6`}
                   >
                     {deal4Article.map((content) => (
                       <DetailsDealsSubCard
@@ -571,22 +573,22 @@ const DealDetails = () => {
               )}
 
               {/* </div> */}
-              {!deal?.grossGraphBox && !deal?.fundRaiseBox && (
-                <div>
-                  {dealSorted.map((content) => (
-                    <DealsSubCard
-                      key={content.id}
-                      deal={dealTitle}
-                      id={content.id}
-                      url={`/${content.deals}/${content.id}`}
-                      image={content.imageUrl}
-                      heading={content.title}
-                      date={content.articleDate}
-                      hide={true}
-                    />
-                  ))}
-                </div>
-              )}
+              {/* {!deal?.grossGraphBox && !deal?.fundRaiseBox && ( */}
+              <div>
+                {dealSorted.map((content) => (
+                  <DealsSubCard
+                    key={content.id}
+                    deal={dealTitle}
+                    id={content.id}
+                    url={`/${content.deals}/${content.id}`}
+                    image={content.imageUrl}
+                    heading={content.title}
+                    date={content.articleDate}
+                    hide={true}
+                  />
+                ))}
+              </div>
+              {/* )} */}
             </div>
           </div>
         </div>

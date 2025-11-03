@@ -17,12 +17,12 @@ const DetailsDealsSubCard = ({ deal, url, image, heading, date }) => {
         />
       </div>
 
-      <div className="px-3 py-4">
+      <div className="px-2 py-4">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-[9px] lg:text-[12px]  tracking-wide whitespace-nowrap text-white bg-gray-500 px-2 py-1 rounded-md font-aptos-semibold">
+          <span className="text-[9px] xl:text-[12px]  tracking-wide whitespace-nowrap text-white bg-gray-500 px-2 py-1 rounded-md font-aptos-semibold">
             {deal}
           </span>
-          <span className="text-[9px] lg:text-[12px] font-aptos-semibold whitespace-nowrap text-gray-800">
+          <span className="text-[10px] xl:text-[12px] font-aptos-semibold whitespace-nowrap text-gray-800">
             {handleDate(date)}
           </span>
         </div>
