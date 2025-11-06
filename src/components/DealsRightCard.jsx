@@ -1,8 +1,21 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { handleDate } from '../handleDate'
+import DOMPurify from 'dompurify'
+import { FaUserCircle } from 'react-icons/fa'
 
-const DealsSubCard = ({ deal, url, image, heading, date }) => {
+const DealsRightCard = ({
+  deal,
+  url,
+  company,
+  image,
+  heading,
+  date,
+  desc,
+  writtenBy,
+}) => {
+  const cleanHTML = DOMPurify.sanitize(desc)
+
   return (
     <>
       <Link to={url}>
@@ -25,9 +38,21 @@ const DealsSubCard = ({ deal, url, image, heading, date }) => {
               </p>
             </div>
 
-            <h1 className="font-aptos-semibold line-clamp-3 lg:text-sm xl:text-base mt-2 leading-snug">
+            <h3 className="md:hidden font-aptos-semibold text-[#ff7010] text-md mt-2">
+              {company}
+            </h3>
+
+            <h1 className="font-aptos-semibold line-clamp-1 text-xl mb-1 md:line-clamp-3 md:text-sm xl:text-base md:mt-2 md:leading-snug">
               {heading}
             </h1>
+
+            <p
+              className="md:hidden font-aptos-regular line-clamp-3 text-sm text-gray-700"
+              dangerouslySetInnerHTML={{ __html: cleanHTML }}
+            ></p>
+            <span className="md:hidden flex justify-start items-center gap-1 font-aptos-semibold text-sm text-gray-500">
+              <FaUserCircle /> {writtenBy}
+            </span>
           </div>
         </div>
         <hr className="mb-4 text-[#ff7010]" />
@@ -36,4 +61,4 @@ const DealsSubCard = ({ deal, url, image, heading, date }) => {
   )
 }
 
-export default DealsSubCard
+export default DealsRightCard

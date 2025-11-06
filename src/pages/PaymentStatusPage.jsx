@@ -9,7 +9,7 @@ const PaymentStatusPage = () => {
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState(null)
 
-  const { resetCartCount } = useCart()
+  const { loadCartCount } = useCart()
 
   useEffect(() => {
     const orderId = searchParams.get('ORDER_ID') || searchParams.get('orderId')
@@ -32,7 +32,7 @@ const PaymentStatusPage = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8081/dsj/payment/verify-status/${orderId}`,
+        `https://web.dealstreetjournal.com/dsj/payment/verify-status/${orderId}`,
         {
           method: 'GET',
           credentials: 'include',
@@ -54,7 +54,7 @@ const PaymentStatusPage = () => {
 
       // Show appropriate message
       if (data.status === 'TXN_SUCCESS') {
-        resetCartCount()
+        loadCartCount()
       }
     } catch (error) {
       console.error('❌ Error verifying payment:', error)

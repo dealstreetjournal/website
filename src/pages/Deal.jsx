@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import DealsCard from '../components/DealsCard'
-import DealsSubCard from '../components/DealsSubCard'
 import Pagination from '../components/Pagination'
 import { useQuery } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
 import { fetchDeal } from '../api/dealApi'
 import { useLocation } from 'react-router-dom'
+import DealsRightCard from '../components/DealsRightCard'
 
 const Deal = () => {
   const location = useLocation()
@@ -39,8 +39,8 @@ const Deal = () => {
     refetchOnReconnect: false,
   })
 
-  const rightContents = data?.deals.slice(0, 10) || []
-  const leftContents = data?.deals.slice(10) || []
+  const leftContents = data?.deals.slice(0, 10) || []
+  const rightContents = data?.deals.slice(10) || []
   const totalPages = Math.ceil((data?.totalCount || 0) / 20)
 
   if (isPending) {
@@ -72,7 +72,7 @@ const Deal = () => {
           </h1>
           <div className="md:grid md:grid-cols-[70%_30%] md:gap-6">
             <div className="">
-              {rightContents.map((content) => (
+              {leftContents.map((content) => (
                 <DealsCard
                   key={content.id}
                   url={`/${path}/${content.id}`}
@@ -87,27 +87,30 @@ const Deal = () => {
               ))}
             </div>
 
-            <div className="hidden md:block">
-              {/* <div className="sticky top-1"> */}
-              <div className="flex justify-between items-center mr-2 mb-5">
-                <h5 className="font-aptos-bold text-[#e66000] md:text-md lg:text-xl">
-                  Latest Stories
-                </h5>
-                <hr className="md:w-20 lg:w-30 border-t-2 border-[#e66000]" />
-              </div>
+            <div className="">
+              <div className="sticky top-1">
+                <div className="hidden md:flex justify-between items-center mr-2 mb-5">
+                  <h5 className="font-aptos-bold text-[#e66000] md:text-md lg:text-xl">
+                    Latest Stories
+                  </h5>
+                  <hr className="md:w-20 lg:w-30 border-t-2 border-[#e66000]" />
+                </div>
 
-              {leftContents.map((content) => (
-                <DealsSubCard
-                  key={content.id}
-                  url={`/${path}/${content.id}`}
-                  deal={dealTitle}
-                  image={content.imageUrl}
-                  heading={content.title}
-                  date={content.articleDate}
-                />
-              ))}
+                {rightContents.map((content) => (
+                  <DealsRightCard
+                    key={content.id}
+                    url={`/${path}/${content.id}`}
+                    deal={dealTitle}
+                    company={content.brandName}
+                    image={content.imageUrl}
+                    desc={content.description}
+                    heading={content.title}
+                    date={content.articleDate}
+                    writtenBy={content?.writtenBy || 'Team DSJ'}
+                  />
+                ))}
+              </div>
             </div>
-            {/* </div> */}
           </div>
           <div className="flex justify-center items-center">
             <Pagination page={page} setPage={setPage} totalPages={totalPages} />

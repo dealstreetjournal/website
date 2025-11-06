@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
 import Swal from 'sweetalert2'
 import { useCart } from '../hooks/useCart'
-import { redirect, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import logo from '../assets/spinner.png'
 import { useAuth } from '../hooks/useAuth'
 
@@ -226,160 +226,6 @@ const Checkout = () => {
     },
   })
 
-  // const mutation = useMutation({
-  //   mutationFn: (formData) => initiatePayment(formData),
-
-  //   onSuccess: async (data) => {
-  //     console.log('✅ Payment initiated successfully:', data)
-
-  //     const config = {
-  //       root: '',
-  //       flow: 'DEFAULT',
-  //       data: {
-  //         orderId: data.orderId,
-  //         token: data.txnToken,
-  //         tokenType: 'TXN_TOKEN',
-  //         amount: data.amount,
-  //       },
-  //       merchant: {
-  //         mid: data.mid,
-  //         name: 'Deal Street Journal',
-  //         logo: logo,
-  //       },
-  //       handler: {
-  //         transactionStatus: async (response) => {
-  //           console.log('💳 Transaction Status Response:', response)
-
-  //           setLoading(true)
-
-  //           // Call backend to verify status from Paytm
-  //           try {
-  //             const statusResponse = await fetch(
-  //               `http://localhost:8081/dsj/payment/verify-status/${data.orderId}`,
-  //               {
-  //                 method: 'GET',
-  //                 credentials: 'include',
-  //                 headers: {
-  //                   'Content-Type': 'application/json',
-  //                 },
-  //               }
-  //             )
-
-  //             if (!statusResponse.ok) {
-  //               throw new Error('Failed to fetch payment status')
-  //             }
-
-  //             const statusData = await statusResponse.json()
-  //             console.log('✅ Payment Status Verified:', statusData)
-
-  //             setLoading(false)
-
-  //             if (statusData.status === 'TXN_SUCCESS') {
-  //               Swal.fire({
-  //                 title: 'Payment Successful!',
-  //                 html: `
-  //                 <p>Your payment has been processed successfully.</p>
-  //                 <p><strong>Transaction ID:</strong> ${
-  //                   statusData.txnId || 'N/A'
-  //                 }</p>
-  //                 <p><strong>Amount:</strong> ₹${
-  //                   statusData.amount || data.amount
-  //                 }</p>
-  //               `,
-  //                 icon: 'success',
-  //                 confirmButtonColor: '#ff7010',
-  //               }).then(() => {
-  //                 queryClient.invalidateQueries({ queryKey: ['cart'] })
-  //                 navigate('/orders')
-  //               })
-  //             } else if (statusData.status === 'TXN_FAILURE') {
-  //               Swal.fire({
-  //                 title: 'Payment Failed',
-  //                 text:
-  //                   statusData.message ||
-  //                   'Transaction failed. Please try again.',
-  //                 icon: 'error',
-  //                 confirmButtonColor: '#ff7010',
-  //               })
-  //             } else {
-  //               Swal.fire({
-  //                 title: 'Payment Pending',
-  //                 text:
-  //                   statusData.message ||
-  //                   'Transaction is pending. Please check back later.',
-  //                 icon: 'info',
-  //                 confirmButtonColor: '#ff7010',
-  //               })
-  //             }
-  //           } catch (error) {
-  //             console.error('❌ Error verifying payment:', error)
-  //             setLoading(false)
-  //             Swal.fire({
-  //               title: 'Error',
-  //               text:
-  //                 'Failed to verify payment status. Please contact support with order ID: ' +
-  //                 data.orderId,
-  //               icon: 'error',
-  //               confirmButtonColor: '#ff7010',
-  //             })
-  //           }
-  //         },
-  //         notifyMerchant: (eventName, data) => {
-  //           console.log('📢 Paytm Event:', eventName, data)
-
-  //           if (eventName === 'APP_CLOSED') {
-  //             setLoading(false)
-  //             Swal.fire({
-  //               title: 'Payment Cancelled',
-  //               text: 'You have cancelled the payment process.',
-  //               icon: 'warning',
-  //               confirmButtonColor: '#ff7010',
-  //             })
-  //           }
-  //         },
-  //       },
-  //     }
-
-  //     if (window.Paytm && window.Paytm.CheckoutJS) {
-  //       try {
-  //         console.log('🔧 Initializing Paytm Checkout with config:', config)
-  //         await window.Paytm.CheckoutJS.init(config)
-  //         console.log('✅ Paytm Checkout initialized, invoking...')
-  //         window.Paytm.CheckoutJS.invoke()
-  //       } catch (err) {
-  //         console.error('⚠️ Paytm Init Error:', err)
-  //         setLoading(false)
-  //         Swal.fire({
-  //           title: 'Error',
-  //           text: 'Something went wrong while loading Paytm Checkout.',
-  //           icon: 'error',
-  //           confirmButtonColor: '#ff7010',
-  //         })
-  //       }
-  //     } else {
-  //       console.error('❌ Paytm CheckoutJS not loaded')
-  //       setLoading(false)
-  //       Swal.fire({
-  //         title: 'Error',
-  //         text: 'Paytm payment gateway not available. Please refresh the page.',
-  //         icon: 'error',
-  //         confirmButtonColor: '#ff7010',
-  //       })
-  //     }
-  //   },
-
-  //   onError: (error) => {
-  //     console.error('❌ Payment initiation failed:', error)
-  //     setLoading(false)
-  //     Swal.fire({
-  //       title: 'Error',
-  //       text: error.message || 'Failed to initiate payment. Please try again.',
-  //       icon: 'error',
-  //       confirmButtonColor: '#ff7010',
-  //     })
-  //   },
-  // })
-
   const onSubmit = (data) => {
     setLoading(true)
     console.log('📤 Submitting payment data:', data)
@@ -568,9 +414,9 @@ const Checkout = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full bg-orange-500 text-sm hover:bg-orange-600 text-white font-aptos-semibold py-3 px-4 rounded-md transition-colors duration-300 mt-6"
+                      className="w-full bg-orange-500 text-sm cursor-pointer hover:bg-orange-600 text-white font-aptos-semibold py-3 px-4 rounded-md transition-colors duration-300 mt-6"
                     >
-                      {loading ? 'Processing...' : 'Pay with Paytm'}
+                      {loading ? 'Processing...' : 'Pay'}
                     </button>
                   </form>
                 </div>

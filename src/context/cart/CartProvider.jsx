@@ -25,22 +25,22 @@ export const CartProvider = ({ children }) => {
     setCartCount(0)
   }
 
-  useEffect(() => {
-    const loadCartCount = async () => {
-      try {
-        const count = await cartCountApi()
-        if (count) {
-          setCartCount(count)
-        }
-      } catch (error) {
-        console.error('Error loading cart count:', error)
-      }
+  const loadCartCount = async () => {
+    try {
+      const count = await cartCountApi()
+      setCartCount(count || 0)
+    } catch (error) {
+      console.error('Error loading cart count:', error)
     }
+  }
+
+  useEffect(() => {
     loadCartCount()
   }, [])
 
   const value = {
     cartCount,
+    loadCartCount,
     incrementCartCount,
     decrementCartCount,
     setCartCountDirectly,

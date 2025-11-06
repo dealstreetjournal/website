@@ -8,6 +8,7 @@ import { useMutation } from '@tanstack/react-query'
 import { sendOtpToEmail, verifyOtp } from '../api/authApi'
 import Swal from 'sweetalert2'
 import { useAuth } from '../hooks/useAuth'
+import { useCart } from '../hooks/useCart'
 
 const Login = () => {
   document.title = 'Login | DealStreetJournal'
@@ -19,6 +20,7 @@ const Login = () => {
   const [showResend, setShowResend] = useState(false)
 
   const { login } = useAuth()
+  const { loadCartCount } = useCart()
 
   const {
     register,
@@ -91,6 +93,7 @@ const Login = () => {
       setIsCaptchaValid(false) // Reset captcha state
 
       login(email)
+      loadCartCount()
 
       Swal.fire({
         title: 'Success!',
@@ -238,7 +241,23 @@ const Login = () => {
                   })}
                   className="outline-0 w-full disabled:bg-gray-100"
                 />
-                {otpSent && <span className="text-green-500 text-sm">✓</span>}
+                {otpSent && (
+                  <span className="mx-auto flex items-center justify-center h-6 w-6 rounded-full border-2 border-green-600">
+                    <svg
+                      className="h-6 w-6 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </span>
+                )}
               </div>
               {errors.email && (
                 <p className="text-red-500 text-sm mt-1">
@@ -362,3 +381,9 @@ const Login = () => {
 }
 
 export default Login
+
+{
+  /* <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+              
+            </div> */
+}

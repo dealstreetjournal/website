@@ -9,6 +9,7 @@ import { useMutation } from '@tanstack/react-query'
 import { logout as logoutApi } from '../api/authApi'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useCart } from '../hooks/useCart'
 import Swal from 'sweetalert2'
 
 const UserDashboard = () => {
@@ -24,11 +25,13 @@ const UserDashboard = () => {
   }, [query])
 
   const { logout } = useAuth()
+  const { resetCartCount } = useCart()
 
   const mutationLogout = useMutation({
     mutationFn: logoutApi,
     onSuccess: () => {
       logout()
+      resetCartCount()
       Swal.fire({
         title: 'Success!',
         text: 'logout successful!',

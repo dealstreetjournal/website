@@ -6,6 +6,7 @@ import { getInvoice } from '../api/userApi'
 import spinner from '../assets/spinner.png'
 import { handleDate } from '../handleDate'
 import CreatePdf from './CreatePdf'
+import { Link } from 'react-router-dom'
 
 const Invoice = () => {
   document.title = 'Invoice | Dealstreetjournal'
@@ -106,13 +107,24 @@ const Invoice = () => {
 
                 {/* Download */}
                 <td className="px-4 py-4 border-t border-gray-200 text-center">
-                  <button
+                  <Link
+                    to="/invoice"
+                    state={{
+                      invoice: row.invoice,
+                      products: row.products,
+                      name: row.name,
+                      amount: row.amount,
+                      country: row.country,
+                      email: row.email,
+                      orderId: row.orderId,
+                      phone: row.phone,
+                      state: row.state,
+                    }}
                     className="flex items-center cursor-pointer justify-center mx-auto w-10 h-10 rounded-full hover:bg-[#ff7010]/10 text-[#ff7010] hover:text-[#e65c00] transition"
                     title="Download Invoice"
-                    // onClick={CreatePdf}
                   >
                     <FiDownload size={20} />
-                  </button>
+                  </Link>
                 </td>
               </tr>
             ))}
