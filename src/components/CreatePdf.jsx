@@ -104,11 +104,6 @@ const CreatePdf = () => {
                 <td>{index + 1}</td>
 
                 <td style={{ textAlign: 'left' }}>
-                  {/* <span style={{ color: 'gray' }}>
-                    {handleDate(product.date) === 'Invalid Date'
-                      ? product.date
-                      : handleDate(product.date)}
-                  </span>{' '} */}
                   {product.productName} - ({product.insight}) -
                   <span style={{ color: 'gray' }}>
                     {handleDate(product.date) === 'Invalid Date'
