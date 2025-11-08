@@ -89,7 +89,7 @@ const FinancialCompany = () => {
             <img
               src={companyInfo.image}
               alt={companyInfo.company}
-              className="w-15 h-15 rounded-md"
+              className="w-15 h-auto rounded-md"
             />
             <h3 className="font-aptos-bold text-xl">{companyInfo.company}</h3>
           </div>
