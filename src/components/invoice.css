@@ -11,6 +11,7 @@
 .logo {
   width: 300px;
   height: 45px;
+  mix-blend-mode: multiply;
 }
 
 #invoice,
@@ -31,14 +32,14 @@ html {
 /* Invoice title */
 .invoice-title {
   font-size: 25px;
-  font-weight: bold;
+  font-weight: 500;
   margin-bottom: 20px;
   text-align: center;
 }
 
 .bill {
-  font-size: 25px;
-  font-weight: bold;
+  font-size: 21px;
+  font-weight: 500;
   margin-top: 8px;
   color: #ff7010;
 }
@@ -72,10 +73,10 @@ html {
 
 .tableHeading {
   background-color: #ff7010;
-  padding: 5px;
   font-size: 18px;
-  font-weight: bold;
-  margin-top: 5px;
+  padding-left: 5px;
+  color: black;
+  padding-bottom: 10px;
 }
 
 .invoice-table th,
@@ -113,5 +114,37 @@ html {
 }
 
 .download-btn:hover {
-  background-color: #e65c00; /* darker orange */
+  background-color: #e65c00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+tr,
+td,
+th,
+p,
+div {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+.invoice-box,
+.invoice-table,
+.address,
+.discalimar {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+.page-break {
+  page-break-before: always !important;
+  break-before: always !important;
+}
+
+#invoice {
+  width: 100%;
+  font-size: 14px;
+  overflow: visible !important;
 }

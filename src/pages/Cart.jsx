@@ -167,7 +167,7 @@ const Cart = () => {
             <>
               <div className="border-t border-gray-300 pt-4">
                 <p className="text-right font-aptos-bold text-[#e66000] text-2xl">
-                  Total: &#x20B9;{totalPrice}
+                  Total: &#x20B9;{totalPrice.toLocaleString()}
                 </p>
               </div>
 

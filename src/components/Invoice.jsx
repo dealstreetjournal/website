@@ -18,6 +18,8 @@ const Invoice = () => {
     refetchOnReconnect: false,
   })
 
+  const sortData = data ? [...data].sort((a, b) => b.id - a.id) : []
+
   if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
@@ -60,7 +62,7 @@ const Invoice = () => {
           </thead>
 
           <tbody>
-            {data.map((row, i) => (
+            {sortData.map((row, i) => (
               <tr
                 key={i}
                 className={`transition-all duration-200 ${

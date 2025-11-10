@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { FaShoppingCart } from 'react-icons/fa'
 import pdf from '../assets/pdf.svg'
 import Pagination from '../components/Pagination'
@@ -17,6 +17,8 @@ const LatestDeal = () => {
   document.title = 'Latest deal | DealStreetJournal'
 
   const [showPopup, setShowPopup] = useState(false)
+
+  const navigate = useNavigate()
 
   useEffect(() => {
     const popup = sessionStorage.getItem('popupShown')
@@ -71,9 +73,15 @@ const LatestDeal = () => {
         title: 'Success!',
         text: 'Item added to cart successfully',
         icon: 'success',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'Cart',
         confirmButtonColor: '#ff7010',
+        showCancelButton: true,
+        showCloseButton: true,
         timer: 3000,
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate('/cart')
+        }
       })
     },
     onError: (error) => {
@@ -216,7 +224,7 @@ const LatestDeal = () => {
                   return (
                     <tr
                       key={row.id}
-                      className="odd:bg-white even:bg-slate-200 hover:bg-slate-100 transition duration-300"
+                      className="odd:bg-white even:bg-slate-200 hover:bg-orange-50 transition duration-300"
                     >
                       <td className="p-3 font-aptos-semibold xl:font-aptos-bold text-center">
                         {count + idx}

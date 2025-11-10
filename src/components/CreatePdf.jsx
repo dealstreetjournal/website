@@ -36,13 +36,14 @@ const CreatePdf = () => {
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     }
 
     html2pdf().set(opt).from(element).save()
   }
 
   return (
-    <div className="container">
+    <div className="container my-5">
       <div id="invoice" className="invoice-box">
         <img src={logo} className="logo" alt="Company Logo" />
         <h1 className="invoice-title">Tax Invoice</h1>
@@ -62,7 +63,7 @@ const CreatePdf = () => {
 
         <div className="address">
           <div className="userAddress">
-            <p style={{ fontWeight: 'bold' }}>{state?.name}</p>
+            <p style={{ fontWeight: '500' }}>{state?.name}</p>
             <p>Order: {state?.orderId}</p>
             <p>Mobile: {state?.phone}</p>
             <p>Email: {state?.email}</p>
@@ -72,7 +73,7 @@ const CreatePdf = () => {
           </div>
 
           <div className="companyAddress">
-            <p style={{ fontWeight: 'bold' }}>
+            <p style={{ fontWeight: '500' }}>
               Red Lion Technologies Private Limited
             </p>
             <p>Basement, 7415, DLF City Phase 4,</p>
@@ -126,37 +127,30 @@ const CreatePdf = () => {
 
             {/* Subtotal Row */}
             <tr>
-              <td
-                colSpan="4"
-                style={{ textAlign: 'right', fontWeight: 'bold' }}
-              >
+              <td colSpan="4" style={{ textAlign: 'right', fontWeight: '500' }}>
                 Sub Total (₹)
               </td>
-              <td style={{ fontWeight: 'bold' }}>{subTotal.toFixed(2)} /-</td>
+              <td style={{ fontWeight: '500' }}>{subTotal.toFixed(2)} /-</td>
             </tr>
 
             {/* gst Row */}
             <tr>
-              <td
-                colSpan="4"
-                style={{ textAlign: 'right', fontWeight: 'bold' }}
-              >
+              <td colSpan="4" style={{ textAlign: 'right', fontWeight: '500' }}>
                 {state.state.toLowerCase() === 'haryana'
                   ? 'CGST @ 9% + SGST @ 9%'
                   : 'IGST @ 18%'}
               </td>
-              <td style={{ fontWeight: 'bold' }}>{gstAmount.toFixed(2)} /-</td>
+              <td style={{ fontWeight: '500' }}>{gstAmount.toFixed(2)} /-</td>
             </tr>
 
             {/* total amount Row */}
             <tr>
-              <td
-                colSpan="4"
-                style={{ textAlign: 'right', fontWeight: 'bold' }}
-              >
+              <td colSpan="4" style={{ textAlign: 'right', fontWeight: '500' }}>
                 Total Amount
               </td>
-              <td style={{ fontWeight: 'bold' }}>{totalAmount} /-</td>
+              <td style={{ fontWeight: '500' }}>
+                {totalAmount.toLocaleString()} /-
+              </td>
             </tr>
           </tbody>
         </table>
@@ -170,7 +164,7 @@ const CreatePdf = () => {
             <a href="www.dealstreetjournal.com">www.dealstreetjournal.com</a>.
           </p>
           <p>
-            - For any support or resolution of any kindly contact on{' '}
+            - For any support or resolution of any issues, kindly contact on{' '}
             <a href="mailto:support@dealstreetjournal.com">
               support@dealstreetjournal.com
             </a>

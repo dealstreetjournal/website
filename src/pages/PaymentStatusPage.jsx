@@ -33,6 +33,7 @@ const PaymentStatusPage = () => {
     try {
       const response = await fetch(
         `https://web.dealstreetjournal.com/dsj/payment/verify-status/${orderId}`,
+        // `http://localhost:8081/dsj/payment/verify-status/${orderId}`,
         {
           method: 'GET',
           credentials: 'include',

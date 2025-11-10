@@ -495,7 +495,7 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/sauravlogin"
+        path="/login"
         element={
           <Suspense
             fallback={

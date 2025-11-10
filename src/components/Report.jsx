@@ -16,6 +16,8 @@ const Report = () => {
     refetchOnReconnect: false,
   })
 
+  const sortedData = data ? [...data].sort((a, b) => b.id - a.id) : []
+
   const handleDownload = (fileUrl, fileName, insight) => {
     fetch(fileUrl)
       .then((res) => res.blob())
@@ -68,7 +70,7 @@ const Report = () => {
           </thead>
 
           <tbody>
-            {data?.map((row, i) => (
+            {sortedData?.map((row, i) => (
               <tr
                 key={i}
                 className={`transition-all duration-200 ${

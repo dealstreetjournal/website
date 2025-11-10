@@ -93,7 +93,7 @@ const DealDetails = () => {
       )
     }
 
-    const timer = setTimeout(calculateVisibleCards, 500)
+    const timer = setTimeout(calculateVisibleCards, 2000)
     window.addEventListener('resize', calculateVisibleCards)
 
     return () => {
