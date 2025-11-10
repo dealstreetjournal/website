@@ -228,6 +228,7 @@ const LatestDeal = () => {
                         <img
                           src={row.companyLogoUrl}
                           alt={row.companyName}
+                          title={row.companyName}
                           loading="lazy"
                           className="w-22 h-20 object-contain"
                         />

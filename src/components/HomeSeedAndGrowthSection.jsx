@@ -66,16 +66,16 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                         <Link
                           to={`seed/${content.id}`}
                           key={content.id}
-                          className="border-b border-[#ff7010] pb-3 mb-6"
+                          className="border-b border-[#ff7010] pb-2 mb-1 sm:pb-6 sm:mb-6 lg:pb-3.5 lg:mb-4 xl:pb-2 xl:mb-1"
                         >
-                          <div className="flex justify-center items-center w-full h-[150px] bg-gray-300 rounded overflow-hidden">
-                            <img
-                              src={content.imageUrl}
-                              alt={content.title}
-                              loading="lazy"
-                              className="aspect-[2/3] object-contain object-center rounded-md"
-                            />
-                          </div>
+                          {/* <div className="flex justify-center items-center bg-gray-300 rounded overflow-hidden"> */}
+                          <img
+                            src={content.imageUrl}
+                            alt={content.title}
+                            loading="lazy"
+                            className=" object-cover object-center w-full h-[180px] md:h-[130px] lg:h-[150px] xl:h-[170px] rounded-md shadow-md"
+                          />
+                          {/* </div> */}
                           <div className="flex justify-between items-top mt-3 font-aptos-regular text-sm text-gray-700">
                             <p className="text-orange-700 font-aptos-semibold">
                               {content.brandName}
@@ -138,17 +138,17 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                             to={`growth/${content.id}`}
                             className="flex gap-2 w-full"
                           >
-                            <div>
-                              <div className="flex justify-center items-center w-[100px] h-[80px] bg-slate-300 rounded overflow-hidden">
-                                <img
-                                  src={content.imageUrl}
-                                  alt={content.title}
-                                  loading="lazy"
-                                  // className="w-full h-full object-cover object-center rounded-t-md"
-                                  className="w-full h-full object-cover object-center rounded-t-md"
-                                />
-                              </div>
+                            {/* <div> */}
+                            <div className="flex justify-center items-center w-[100px] h-[80px] bg-slate-300 rounded overflow-hidden">
+                              <img
+                                src={content.imageUrl}
+                                alt={content.title}
+                                loading="lazy"
+                                // className="w-full h-full object-cover object-center rounded-t-md"
+                                className="w-full h-full object-cover object-center rounded-t-md "
+                              />
                             </div>
+                            {/* </div> */}
 
                             <div className="flex-1">
                               <div className="flex justify-between items-start font-aptos-regular text-sm text-gray-700">

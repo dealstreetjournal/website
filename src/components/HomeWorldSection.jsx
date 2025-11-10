@@ -30,8 +30,9 @@ const HomeWorldSection = ({ data }) => {
                   >
                     <img
                       src={world.imageUrl}
-                      alt="image"
-                      className=" object-cover w-full h-[180px] md:h-[130px] lg:h-[150px] xl:h-[180px] rounded-md shadow-md"
+                      alt={world.title}
+                      loading="lazy"
+                      className=" object-cover object-center w-full h-[180px] md:h-[130px] lg:h-[150px] xl:h-[170px] rounded-md shadow-md"
                     />
 
                     <div className="flex justify-between items-top mt-2.5 font-aptos-regular text-sm text-gray-700">

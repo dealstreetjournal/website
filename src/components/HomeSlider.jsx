@@ -23,7 +23,7 @@ export default function HomeSlider({ data }) {
   useEffect(() => {
     if (isPaused) return
 
-    const interval = setInterval(nextSlide, 5000)
+    const interval = setInterval(nextSlide, 4000)
     return () => clearInterval(interval)
   }, [isPaused])
 
@@ -48,11 +48,11 @@ export default function HomeSlider({ data }) {
                   }}
                 >
                   {/* Left - Image */}
-                  <div className="sm:w-1/2 sm:h-[240px] lg:h-[280px] w-full h-[200px] bg-amber-300">
+                  <div className="sm:w-1/2 sm:h-[240px] lg:h-[280px] w-full h-[200px]">
                     <img
                       src={slide.imageUrl}
                       alt={slide.title}
-                      className="w-full h-full lg:object-fill object-center lazyload bg-amber-800"
+                      className="w-full h-full object-cover object-center lazyload bg-amber-800"
                     />
                   </div>
 

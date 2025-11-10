@@ -23,7 +23,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
             </h1>
             {mas && mas.length > 0 && (
               <div>
-                <h1 className="text-xl font-aptos-semibold mb-2">
+                <h1 className="text-xl font-aptos-semibold mb-2 line-clamp-2">
                   {mas[0]?.title}
                 </h1>
 
@@ -32,7 +32,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                     src={mas[0]?.imageUrl}
                     alt={mas[0]?.title}
                     loading="lazy"
-                    className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover"
+                    className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover object-center shadow-md"
                   />
                   <div className="flex justify-between items-top mt-2 mb-2 font-aptos-regular text-sm text-gray-700">
                     <p className="text-orange-700 font-aptos-semibold">
@@ -44,7 +44,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                   </div>
 
                   <p
-                    className="font-aptos-regular line-clamp-5 mb-2"
+                    className="font-aptos-regular line-clamp-4 lg:line-clamp-5 mb-2"
                     title={mas[0]?.title}
                     dangerouslySetInnerHTML={{
                       __html: sanitizeDescription(mas[0]?.description),
@@ -68,16 +68,16 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                   <Link
                     to={`preseed/${content.id}`}
                     key={content.id}
-                    className="border-b border-[#ff7010] pb-3 mb-6"
+                    className="border-b border-[#ff7010] pb-1 mb-1"
                   >
-                    <div className="flex justify-center items-center w-full h-[150px] bg-gray-300 rounded overflow-hidden">
-                      <img
-                        src={content.imageUrl}
-                        alt={content.title}
-                        loading="lazy"
-                        className="aspect-[2/3] object-contain object-center rounded-md"
-                      />
-                    </div>
+                    {/* <div className="flex justify-center items-center w-full h-[150px] bg-gray-300 rounded overflow-hidden"> */}
+                    <img
+                      src={content.imageUrl}
+                      alt={content.title}
+                      loading="lazy"
+                      className=" object-cover object-center w-full h-[180px] md:h-[130px] lg:h-[150px] xl:h-[170px] rounded-md shadow-md"
+                    />
+                    {/* </div> */}
 
                     <div className="flex justify-between items-top mt-2.5 font-aptos-regular text-sm text-gray-700">
                       <p className="text-orange-700 font-aptos-semibold">

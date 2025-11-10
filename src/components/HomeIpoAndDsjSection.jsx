@@ -44,7 +44,7 @@ const HomeIpoAndDsjSection = ({ data }) => {
                   src={ipo[0].imageUrl}
                   alt={ipo[0]?.title}
                   loading="lazy"
-                  className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover"
+                  className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover object-center"
                 />
               </Link>
             )}
