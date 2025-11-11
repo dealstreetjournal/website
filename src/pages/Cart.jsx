@@ -126,7 +126,7 @@ const Cart = () => {
                   <img
                     src={row.companyLogoUrl}
                     alt={row.companyName}
-                    className="w-24 h-24 object-cover rounded-sm mr-3 float-left flex-shrink-0"
+                    className="w-24 h-24 object-contain rounded-sm mr-3 float-left flex-shrink-0"
                   />
 
                   {row.financialTitle && (

@@ -51,7 +51,7 @@ export const initiatePayment = async (formData) => {
     state: formData.state || formData.customCountry,
   }
 
-  console.log('Initiating payment with data:', payload)
+  console.log('Initiating payment with data api:', payload)
 
   try {
     const response = await axios.post('/dsj/payment/initiate', payload, {
@@ -63,5 +63,3 @@ export const initiatePayment = async (formData) => {
     throw error
   }
 }
-
-
