@@ -20,7 +20,7 @@ const CartCard = ({ data, onRemove }) => {
               <img
                 src={d.companyLogoUrl}
                 alt={d.companyName || 'Company Logo'}
-                className="w-40 h-40 rounded object-cantain mx-auto"
+                className="w-40 h-40 rounded object-contain mx-auto"
               />
 
               <div className="mt-5">
