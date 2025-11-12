@@ -177,27 +177,30 @@ const LatestDeal = () => {
             </div>
           </div>
           {open && (
-            <div className="fixed inset-0  flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg w-11/12 md:w-3/4 lg:w-2/3 relative">
-                {/* Close Button (only tab/element) */}
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2">
+              <div className="bg-white rounded-lg w-full max-w-4xl h-[90vh] relative flex flex-col">
+                {/* Close Button */}
                 <button
                   onClick={() => setOpen(false)}
-                  className="absolute top-11 cursor-pointer right-5 border-2 border-red-700 bg-white px-2 text-red-700 rounded-full hover:text-red-800 text-lg font-aptos-bold"
+                  className="absolute top-2 right-2 border-2 border-red-700 bg-white text-red-700 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-red-700 hover:text-white transition"
                 >
                   ✕
                 </button>
 
                 {/* PDF Viewer */}
-                <embed
-                  src={pdfUrl}
-                  type="application/pdf"
-                  width="100%"
-                  height="600"
-                  className="overflow-auto"
-                />
+                <div className="flex-1 overflow-auto">
+                  <embed
+                    src={pdfUrl}
+                    type="application/pdf"
+                    width="100%"
+                    height="100%"
+                    className="w-full h-full"
+                  />
+                </div>
               </div>
             </div>
           )}
+
           {/* table for large device */}
           <div className="my-5 hidden md:block">
             <table className="min-w-full table-fixed">
