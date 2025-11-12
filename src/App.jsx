@@ -12,6 +12,7 @@ import spinner from './assets/spinner.png'
 import ProtectedRoute from './components/ProtectedRoute'
 import { CartProvider } from './context/cart/CartProvider'
 import { AuthProvider } from './context/auth/AuthProvider'
+import SamplePdf from './components/samplePdf'
 
 // Lazy load pages
 const Home = lazy(() => import('./pages/Home'))
@@ -529,6 +530,25 @@ const router = createBrowserRouter(
           >
             <Cart />
           </Suspense>
+        }
+      />
+
+      <Route
+        path="/sample"
+        element={
+          // <Suspense
+          //   fallback={
+          //     <div className="flex items-center justify-center min-h-[80vh]">
+          //       <img
+          //         src={spinner}
+          //         alt="Loading"
+          //         className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+          //       />
+          //     </div>
+          //   }
+          // >
+            <SamplePdf />
+          // </Suspense>
         }
       />
 
