@@ -17,6 +17,7 @@ const DsjInsight = () => {
             <img
               src={deal}
               alt="latestdeal"
+              loading="lazy"
               className="w-25 h-25 object-contain"
             />
             <div className="md:text-center lg:text-left">
@@ -38,6 +39,7 @@ const DsjInsight = () => {
             <img
               src={funding}
               alt="funding365"
+              loading="lazy"
               className="w-25 h-25 object-contain"
             />
             <div className="md:text-center lg:text-left">
@@ -59,6 +61,7 @@ const DsjInsight = () => {
             <img
               src={financial}
               alt="financial"
+              loading="lazy"
               className="w-25 h-25 object-contain"
             />
             <div className="md:text-center lg:text-left">

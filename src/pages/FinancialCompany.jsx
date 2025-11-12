@@ -41,6 +41,7 @@ const FinancialCompany = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -89,6 +90,7 @@ const FinancialCompany = () => {
             <img
               src={companyInfo.image}
               alt={companyInfo.company}
+              loading="lazy"
               className="w-15 h-auto rounded-md"
             />
             <h3 className="font-aptos-bold text-xl">{companyInfo.company}</h3>

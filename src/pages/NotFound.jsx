@@ -9,6 +9,7 @@ const NotFound = () => {
         <img
           src={nodata}
           alt="404 not found"
+          loading="lazy"
           className="w-48 h-48 md:w-60 md:h-60 lg:w-72 lg:h-72"
         />
         <h1 className="text-3xl font-aptos-bold text-center mt-20">

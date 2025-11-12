@@ -12,6 +12,7 @@ import Swal from 'sweetalert2'
 import Tippy from '@tippyjs/react'
 import 'tippy.js/dist/tippy.css'
 import Popup from '../components/Popup'
+import SamplePdf from '../components/samplePdf'
 
 const LatestDeal = () => {
   document.title = 'Latest deal | DealStreetJournal'
@@ -103,6 +104,7 @@ const LatestDeal = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -140,9 +142,10 @@ const LatestDeal = () => {
 
             <div
               className="block md:hidden cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white"
-              onClick={() => setOpen(true)}
+              // onClick={() => setOpen(true)}
             >
-              Sample
+              {/* Sample */}
+              <SamplePdf url={pdfUrl} />
             </div>
           </div>
           {/* heading */}
@@ -171,9 +174,9 @@ const LatestDeal = () => {
 
             <div
               className="hidden md:block cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white"
-              onClick={() => setOpen(true)}
+              // onClick={() => setOpen(true)}
             >
-              Sample Report
+              <SamplePdf url={pdfUrl} />
             </div>
           </div>
           {open && (
@@ -250,7 +253,7 @@ const LatestDeal = () => {
                       </td>
                       <td className="p-3 text-center">
                         <div className="w-22 h-20">
-                          <img src={pdf} alt="pdf-image" />
+                          <img src={pdf} loading="lazy" alt="pdf-image" />
                         </div>
                       </td>
                       <td className="p-3 text-center font-aptos-semibold xl:font-aptos-bold">
@@ -295,6 +298,7 @@ const LatestDeal = () => {
                   <img
                     src={row.companyLogoUrl}
                     alt="logo"
+                    loading="lazy"
                     className="w-24 h-24 object-cover rounded-sm mr-3 float-left flex-shrink-0"
                   />
                   <p className="text-gray-800 font-aptos-semibold text-sm">

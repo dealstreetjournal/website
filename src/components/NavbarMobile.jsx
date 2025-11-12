@@ -463,6 +463,7 @@ const NavbarMobile = () => {
           <img
             src={logo}
             alt="dealstreetjournal"
+            loading="lazy"
             className="mix-blend-multiply"
           />
         </Link>

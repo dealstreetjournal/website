@@ -20,6 +20,7 @@ const CartCard = ({ data, onRemove }) => {
               <img
                 src={d.companyLogoUrl}
                 alt={d.companyName || 'Company Logo'}
+                loading="lazy"
                 className="w-40 h-40 rounded object-contain mx-auto"
               />
 

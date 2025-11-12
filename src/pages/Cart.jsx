@@ -82,6 +82,7 @@ const Cart = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -126,6 +127,7 @@ const Cart = () => {
                   <img
                     src={row.companyLogoUrl}
                     alt={row.companyName}
+                    loading="lazy"
                     className="w-24 h-24 object-contain rounded-sm mr-3 float-left flex-shrink-0"
                   />
 

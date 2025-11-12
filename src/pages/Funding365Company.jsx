@@ -77,6 +77,7 @@ const Funding365Company = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -148,6 +149,7 @@ const Funding365Company = () => {
           <div className="flex gap-2 items-end">
             <img
               src={contents[0].companyId.companyLogoUrl}
+              loading="lazy"
               className="w-15 h-15 rounded-md"
             />
             <h3 className="font-aptos-bold text-xl">
@@ -189,7 +191,7 @@ const Funding365Company = () => {
                   </td>
                   <td className="p-3 flex justify-center items-center">
                     <div className="w-22 h-20">
-                      <img src={pdf} alt="sample pdf" />
+                      <img src={pdf} loading="lazy" alt="sample pdf" />
                     </div>
                   </td>
                   <td className="p-3 text-center font-aptos-semibold xl:font-aptos-bold">
@@ -232,6 +234,7 @@ const Funding365Company = () => {
                 <img
                   src={pdf}
                   alt="sample pdf"
+                  loading="lazy"
                   className="w-24 h-24 mr-2 object-contain rounded-md float-left flex-shrink-0"
                 />
                 <p className="text-gray-800 font-aptos-semibold text-sm">

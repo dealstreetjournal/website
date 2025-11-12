@@ -16,7 +16,12 @@ const DsjInsight = () => {
             to="/latest"
             className="flex flex-col justify-center items-center text-center w-full max-w-[350px] md:w-[350px] h-[300px] p-2 border-l-2 border-l-[#ff7010] bg-white border border-gray-300 rounded-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
           >
-            <img src={deal} alt="image" className="w-25 h-25 object-contain" />
+            <img
+              src={deal}
+              alt="image"
+              loading="lazy"
+              className="w-25 h-25 object-contain"
+            />
 
             <h5 className="font-aptos-bold text-2xl text-[#ff7010] text-center">
               Latest Deal
@@ -38,6 +43,7 @@ const DsjInsight = () => {
             <img
               src={funding}
               alt="image"
+              loading="lazy"
               className="w-25 h-25 object-contain"
             />
 
@@ -61,6 +67,7 @@ const DsjInsight = () => {
             <img
               src={financial}
               alt="image"
+              loading="lazy"
               className="w-25 h-25 object-contain"
             />
 

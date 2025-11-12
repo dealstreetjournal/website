@@ -45,7 +45,7 @@ const CreatePdf = () => {
   return (
     <div className="container my-5">
       <div id="invoice" className="invoice-box">
-        <img src={logo} className="logo" alt="Company Logo" />
+        <img src={logo} loading="lazy" className="logo" alt="Company Logo" />
         <h1 className="invoice-title">Tax Invoice</h1>
 
         <div style={{ fontSize: '18px' }}>
