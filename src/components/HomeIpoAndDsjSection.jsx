@@ -24,7 +24,7 @@ const HomeIpoAndDsjSection = ({ data }) => {
             {ipo && ipo.length > 0 && (
               <Link to={`ipo/${ipo[0].id}`} className="mb-5">
                 <p
-                  className="font-aptos-semibold line-clamp-2 md:line-clamp-4 xl:line-clamp-3 mb-1 md:mb-4 xl:mb-1"
+                  className="font-aptos-semibold line-clamp-4 md:line-clamp-4 xl:line-clamp-3 mb-1 md:mb-4 xl:mb-1"
                   title={ipo[0]?.title}
                   dangerouslySetInnerHTML={{
                     __html: sanitizeDescription(ipo[0]?.description),

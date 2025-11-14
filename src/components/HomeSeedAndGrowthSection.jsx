@@ -85,7 +85,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                             </p>
                           </div>
                           <p
-                            className="font-aptos-regular line-clamp-2 mt-1.5 w-full"
+                            className="font-aptos-regular line-clamp-3 mt-1.5 w-full"
                             title={content.title}
                           >
                             {content.title}
@@ -155,14 +155,17 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                                 <p className="text-orange-700 font-aptos-semibold whitespace-nowrap">
                                   {content.brandName}
                                 </p>
+                                <p className=" md:hidden whitespace-nowrap text-[12px] font-aptos text-gray-700">
+                                  {handleDate(content.articleDate)}
+                                </p>
                               </div>
                               <p
                                 title={content.title}
-                                className="font-aptos-regular line-clamp-2 w-full mt-2"
+                                className="font-aptos-regular line-clamp-3 w-full"
                               >
                                 {content.title}
                               </p>
-                              <p className="whitespace-nowrap flex justify-end items-center text-[12px] font-aptos text-gray-700">
+                              <p className="hidden md:flex whitespace-nowrap justify-end items-center text-[12px] font-aptos text-gray-700">
                                 {handleDate(content.articleDate)}
                               </p>
                             </div>

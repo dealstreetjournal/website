@@ -49,12 +49,13 @@ const Report = () => {
   }
 
   return (
-    <div className="bg-white p-6 sm:p-8 rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.15)] text-gray-800">
-      <h2 className="text-3xl font-aptos-bold text-center mb-8 text-[#ff7010]">
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-[0_0_15px_rgba(0,0,0,0.15)] text-gray-800">
+      <h2 className="text-2xl sm:text-3xl font-aptos-bold text-center mb-6 sm:mb-8 text-[#ff7010]">
         Download Report
       </h2>
 
-      <div className="overflow-x-auto">
+      {/* Desktop Table View - Hidden on mobile */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="w-full border border-gray-200 rounded-lg shadow-sm overflow-hidden">
           <thead>
             <tr className="bg-[#ff7010] text-white text-center">
@@ -78,17 +79,14 @@ const Report = () => {
                   i % 2 === 0 ? 'bg-slate-100' : 'bg-white'
                 } hover:bg-orange-50`}
               >
-                {/* Date */}
                 <td className="px-4 py-4 align-top font-aptos-semibold border-t border-gray-200 text-center">
                   {handleDate(row.date)}
                 </td>
 
-                {/* Invoice No */}
                 <td className="px-4 py-4 align-top font-aptos-semibold border-t border-gray-200 text-center text-[#333]">
                   {row.orderId}
                 </td>
 
-                {/* Details */}
                 <td className="px-4 py-4 border-t border-gray-200">
                   <ul className="list-none space-y-1">
                     {row.products?.map((d, j) => (
@@ -131,6 +129,71 @@ const Report = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Mobile Card View - Hidden on desktop */}
+      <div className="lg:hidden space-y-4">
+        {sortedData?.map((row, i) => (
+          <div
+            key={i}
+            className="bg-slate-50 rounded-lg border border-gray-200 shadow-sm overflow-hidden"
+          >
+            {/* Card Header */}
+            <div className="bg-[#ff7010] text-white px-4 py-3">
+              <div className="flex justify-between items-center flex-wrap gap-2">
+                <div className="font-aptos-semibold text-sm">
+                  Order: {row.orderId}
+                </div>
+                <div className="font-aptos-regular text-sm">
+                  {handleDate(row.date)}
+                </div>
+              </div>
+            </div>
+
+            {/* Card Body - Products */}
+            <div className="p-4 space-y-3">
+              {row.products?.map((d, j) => (
+                <div
+                  key={j}
+                  className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm"
+                >
+                  {/* Product Date */}
+                  <div className="text-xs text-gray-500 font-aptos-regular mb-2">
+                    {handleDate(d.date) === 'Invalid Date'
+                      ? d.date
+                      : handleDate(d.date)}
+                  </div>
+
+                  {/* Product Name & Insight */}
+                  <div className="font-aptos-semibold text-gray-800 mb-2 text-sm">
+                    {d.productName}
+                  </div>
+                  <div className="text-sm text-gray-600 font-aptos-semibold mb-3">
+                    ({d.insight})
+                  </div>
+
+                  {/* Download Button */}
+                  <button
+                    onClick={() =>
+                      handleDownload(d.report, d.productName, d.insight)
+                    }
+                    className="w-full bg-[#ff7010] hover:bg-[#e65c00] text-white font-aptos-semibold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors duration-200"
+                  >
+                    <FiDownload size={18} />
+                    <span>Download Report</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Empty State */}
+      {sortedData?.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          <p className="font-aptos-semibold text-lg">No reports available</p>
+        </div>
+      )}
     </div>
   )
 }

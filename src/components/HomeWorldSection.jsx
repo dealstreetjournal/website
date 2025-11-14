@@ -45,7 +45,7 @@ const HomeWorldSection = ({ data }) => {
                     </div>
 
                     <p
-                      className="font-aptos-regular line-clamp-2"
+                      className="font-aptos-regular line-clamp-3"
                       title={world.title}
                     >
                       {world?.title}

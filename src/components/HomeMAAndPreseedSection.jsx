@@ -23,7 +23,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
             </h1>
             {mas && mas.length > 0 && (
               <div>
-                <h1 className="text-xl font-aptos-semibold mb-2 line-clamp-2">
+                <h1 className="text-xl font-aptos-semibold mb-2 line-clamp-3">
                   {mas[0]?.title}
                 </h1>
 
@@ -88,7 +88,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                       </p>
                     </div>
                     <p
-                      className="font-aptos-regular line-clamp-2 mt-1.5 w-full"
+                      className="font-aptos-regular line-clamp-3 mt-1.5 w-full"
                       title={content.title}
                     >
                       {content.title}
