@@ -38,7 +38,7 @@ export const fetchFundingCompanyDetails = async (companyId, page) => {
   }
 }
 
-//below are financial api
+//below are financial api start
 export const fetchFinancialCompany = async () => {
   try {
     const response = await axios.get('/dsj/financial')
