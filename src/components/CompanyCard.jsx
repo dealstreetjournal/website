@@ -113,8 +113,8 @@ const CompanyCard = ({ content, url, title }) => {
         >
           <img
             src={content.companyLogoUrl}
-            alt={content.companyName}
-            className="object-contain w-full h-full rounded-lg shadow-md"
+            alt="company-image"
+            className="object-cover w-full h-full rounded-lg shadow-md"
             crossOrigin="anonymous"
             loading="lazy"
           />
