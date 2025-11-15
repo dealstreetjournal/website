@@ -175,7 +175,7 @@ const CreatePdf = () => {
         <div>
           <p>Thank you</p>
           <p>Red Lion Technologies Private Limited</p>
-          <p>
+          <p style={{ paddingBottom: '2px', marginBottom: '2px' }}>
             Registered address: 409, World Trade Center, Babar Road, Connaught
             Place, Delhi - 110001
           </p>

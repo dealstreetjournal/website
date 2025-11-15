@@ -1,22 +1,26 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import { getReport } from '../api/userApi'
 import { useQuery } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
 import { handleDate } from '../handleDate'
 import { FiDownload } from 'react-icons/fi'
 import { FaMinus } from 'react-icons/fa6'
+import Pagination from './Pagination'
 
 const Report = () => {
   document.title = 'Report | Dealstreetjournal'
+  const [page, setPage] = useState(1)
 
   const { data, isPending, isError, error } = useQuery({
-    queryKey: ['report'],
-    queryFn: getReport,
+    queryKey: ['report', page],
+    queryFn: ()=> getReport(page),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
 
-  const sortedData = data ? [...data].sort((a, b) => b.id - a.id) : []
+  const totalPages = useMemo(() => {
+    return Math.ceil((data?.totalCount || 0) / 5)
+  }, [data?.totalCount])
 
   const handleDownload = (fileUrl, fileName, insight) => {
     fetch(fileUrl)
@@ -55,7 +59,7 @@ const Report = () => {
       </h2>
 
       {/* Desktop Table View - Hidden on mobile */}
-      <div className="hidden lg:block overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full border border-gray-200 rounded-lg shadow-sm overflow-hidden">
           <thead>
             <tr className="bg-[#ff7010] text-white text-center">
@@ -72,7 +76,7 @@ const Report = () => {
           </thead>
 
           <tbody>
-            {sortedData?.map((row, i) => (
+            {data?.reports?.map((row, i) => (
               <tr
                 key={i}
                 className={`transition-all duration-200 ${
@@ -92,7 +96,7 @@ const Report = () => {
                     {row.products?.map((d, j) => (
                       <li
                         key={j}
-                        className="flex flex-wrap items-center justify-between text-sm text-gray-700"
+                        className="flex items-center justify-between text-sm text-gray-700"
                       >
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-gray-600 font-aptos-regular">
@@ -131,17 +135,17 @@ const Report = () => {
       </div>
 
       {/* Mobile Card View - Hidden on desktop */}
-      <div className="lg:hidden space-y-4">
-        {sortedData?.map((row, i) => (
+      <div className="md:hidden space-y-4">
+        {data?.reports?.map((row, i) => (
           <div
             key={i}
-            className="bg-slate-50 rounded-lg border border-gray-200 shadow-sm overflow-hidden"
+            className="bg-slate-100 rounded-lg border border-slate-400 shadow-sm overflow-hidden"
           >
             {/* Card Header */}
             <div className="bg-[#ff7010] text-white px-4 py-3">
               <div className="flex justify-between items-center flex-wrap gap-2">
                 <div className="font-aptos-semibold text-sm">
-                  Order: {row.orderId}
+                  orderId: {row.orderId}
                 </div>
                 <div className="font-aptos-regular text-sm">
                   {handleDate(row.date)}
@@ -176,7 +180,7 @@ const Report = () => {
                     onClick={() =>
                       handleDownload(d.report, d.productName, d.insight)
                     }
-                    className="w-full bg-[#ff7010] hover:bg-[#e65c00] text-white font-aptos-semibold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors duration-200"
+                    className="w-fit mx-auto cursor-pointer bg-orange-500/80 hover:bg-[#e65c00] text-white font-aptos-semibold py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors duration-200"
                   >
                     <FiDownload size={18} />
                     <span>Download Report</span>
@@ -189,11 +193,15 @@ const Report = () => {
       </div>
 
       {/* Empty State */}
-      {sortedData?.length === 0 && (
+      {data?.reports?.length === 0 && (
         <div className="text-center py-12 text-gray-500">
           <p className="font-aptos-semibold text-lg">No reports available</p>
         </div>
       )}
+
+      <div className="flex justify-center items-center mt-5">
+        <Pagination page={page} setPage={setPage} totalPages={totalPages} />
+      </div>
     </div>
   )
 }

@@ -49,7 +49,7 @@ const FinancialCompanyCard = ({ report, samplePdf }) => {
   return (
     <>
       {open && (
-        <div className="fixed inset-0  flex items-center justify-center z-50">
+        <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg w-11/12 md:w-3/4 lg:w-2/3 relative">
             {/* Close Button (only tab/element) */}
             <button

@@ -12,7 +12,7 @@ import Swal from 'sweetalert2'
 import Tippy from '@tippyjs/react'
 import 'tippy.js/dist/tippy.css'
 import Popup from '../components/Popup'
-import SamplePdf from '../components/samplePdf'
+import SamplePdf from '../components/SamplePdf'
 
 const LatestDeal = () => {
   document.title = 'Latest deal | DealStreetJournal'

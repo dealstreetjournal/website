@@ -40,6 +40,15 @@ export const updateMobile = async ({ mobile }) => {
   }
 }
 
+export const updateName = async ({ fullName }) => {
+  try {
+    const response = await axios.put('/user/update-name', { fullName })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update name')
+  }
+}
+
 export const contactMail = async (data) => {
   try {
     const response = await axios.post('/dsj/contactus-email', data)
@@ -52,9 +61,9 @@ export const contactMail = async (data) => {
   }
 }
 
-export const getInvoice = async () => {
+export const getInvoice = async (page) => {
   try {
-    const response = await axios.get('/dsj/report/invoice')
+    const response = await axios.get(`/dsj/report/invoice?page=${page}`)
     console.log('invoice res:', response.data)
     return response.data
   } catch (error) {
@@ -64,9 +73,9 @@ export const getInvoice = async () => {
   }
 }
 
-export const getReport = async () => {
+export const getReport = async (page) => {
   try {
-    const response = await axios.get('/dsj/report')
+    const response = await axios.get(`/dsj/report?page=${page}`)
     console.log('report res:', response.data)
     return response.data
   } catch (error) {

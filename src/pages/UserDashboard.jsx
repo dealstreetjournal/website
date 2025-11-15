@@ -61,7 +61,7 @@ const UserDashboard = () => {
         <div className="max-w-6xl w-[95%] lg:w-[90%] mx-auto py-5">
           <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] gap-5 mt-5 lg:mt-10">
             {/* Left sidebar */}
-            <div className="bg-white border-2 w-full lg:w-fit p-3 sm:p-5 border-[#ff7010] rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.25)] lg:sticky lg:top-15 h-fit">
+            <div className="bg-white border-2 mx-auto lg:mx-0 w-fit p-3 sm:p-5 border-[#ff7010] rounded-xl shadow-[0_0_10px_rgba(0,0,0,0.25)] sticky top-5 lg:top-15 h-fit">
               <ul className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible">
                 <li
                   onClick={() => {
@@ -73,7 +73,7 @@ const UserDashboard = () => {
                       : ''
                   } hover:bg-[#ff7010] cursor-pointer flex justify-center items-center gap-1 lg:gap-2 px-3 lg:px-3 font-aptos-semibold py-1.5 lg:py-1.5 rounded-md text-[#ff7010] text-base lg:text-lg hover:text-white transition-all duration-300 whitespace-nowrap flex-shrink-0`}
                 >
-                  <FaUser className="text-sm lg:text-base" />
+                  <FaUser className="text-xl lg:text-base" />
                   <span className="hidden sm:inline">Profile</span>
                 </li>
                 <li
@@ -86,7 +86,7 @@ const UserDashboard = () => {
                       : ''
                   } hover:bg-[#ff7010] cursor-pointer flex justify-center items-center gap-1 lg:gap-2 px-3 lg:px-3 font-aptos-semibold py-1.5 lg:py-1.5 rounded-md text-[#ff7010] text-base lg:text-lg hover:text-white transition-all duration-300 whitespace-nowrap flex-shrink-0`}
                 >
-                  <FaIdCard className="text-sm lg:text-base" />
+                  <FaIdCard className="text-xl lg:text-base" />
                   <span className="hidden sm:inline">Invoice</span>
                 </li>
                 <li
@@ -99,14 +99,14 @@ const UserDashboard = () => {
                       : ''
                   } hover:bg-[#ff7010] cursor-pointer flex justify-center items-center gap-1 lg:gap-2 px-3 lg:px-3 font-aptos-semibold py-1.5 lg:py-1.5 rounded-md text-[#ff7010] text-base lg:text-lg hover:text-white transition-all duration-300 whitespace-nowrap flex-shrink-0`}
                 >
-                  <FaFileInvoice className="text-sm lg:text-base" />
+                  <FaFileInvoice className="text-xl lg:text-base" />
                   <span className="hidden sm:inline">Report</span>
                 </li>
                 <li
                   onClick={() => mutationLogout.mutate()}
                   className="hover:bg-[#ff7010] cursor-pointer flex justify-center items-center gap-1 lg:gap-2 px-3 lg:px-3 font-aptos-semibold py-1.5 lg:py-1.5 rounded-md text-[#ff7010] text-base lg:text-lg hover:text-white transition-all duration-300 whitespace-nowrap flex-shrink-0"
                 >
-                  <MdExitToApp className="text-sm lg:text-base" />
+                  <MdExitToApp className="text-xl lg:text-base" />
                   <span className="hidden sm:inline">Logout</span>
                 </li>
               </ul>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { ImCross } from 'react-icons/im'
 import { FaUser } from 'react-icons/fa6'
+import { RxCross2 } from 'react-icons/rx'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { logout as logoutApi } from '../api/authApi'
 import { useNavigate } from 'react-router-dom'
@@ -9,16 +10,19 @@ import { useAuth } from '../hooks/useAuth'
 import {
   sendEmailOtp,
   updateMobile,
+  updateName,
   userData,
   verifyEmailOtp,
 } from '../api/userApi'
 import spinner from '../assets/spinner.png'
 import Swal from 'sweetalert2'
+import { MdModeEdit } from 'react-icons/md'
 
 const Profile = () => {
   document.title = 'Profile | Dealstreetjournal'
   const [email, setEmail] = useState(false)
   const [phone, setPhone] = useState(false)
+  const [name, setName] = useState(false)
   const [showOtpInput, setShowOtpInput] = useState(false)
   const [otpTimer, setOtpTimer] = useState(0)
   const [pendingEmail, setPendingEmail] = useState('')
@@ -196,6 +200,34 @@ const Profile = () => {
     },
   })
 
+  const mutationUpdateName = useMutation({
+    mutationFn: updateName,
+    onSuccess: () => {
+      setName(false)
+      reset()
+      Swal.fire({
+        title: 'Success!',
+        text: 'Name updated successfully!',
+        icon: 'success',
+        confirmButtonColor: '#ff7010',
+        confirmButtonText: 'Ok',
+        timer: 3000,
+      })
+      queryClient.invalidateQueries({ queryKey: ['userData'] })
+    },
+    onError: (error) => {
+      console.error('Update Name error:', error)
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to update Name',
+        icon: 'error',
+        confirmButtonColor: '#ff7010',
+        confirmButtonText: 'Ok',
+        timer: 3000,
+      })
+    },
+  })
+
   const handleEmailSubmit = (data) => {
     if (showOtpInput) {
       // Verify OTP
@@ -216,6 +248,11 @@ const Profile = () => {
     mutationUpdateMobile.mutate({ mobile: data.mobile })
   }
 
+  const handleNameSubmit = (data) => {
+    mutationUpdateName.mutate({ fullName: data.fullName })
+    // console.log('Name submitted:', data.fullName)
+  }
+
   const handleCancelEmail = () => {
     setEmail(false)
     setShowOtpInput(false)
@@ -226,6 +263,10 @@ const Profile = () => {
 
   const handleCancelMobile = () => {
     setPhone(false)
+    reset()
+  }
+  const handleCancelName = () => {
+    setName(false)
     reset()
   }
 
@@ -248,23 +289,84 @@ const Profile = () => {
 
   return (
     <>
-      <div className="bg-white flex flex-col justify-around items-center gap-5 py-5 rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.2)] text-gray-800">
-        <FaUser size={40} className="text-[#ff7010]" />
-        <h1 className="font-aptos-bold text-2xl">Hello, {userdata.email} !</h1>
+      <div className="bg-white flex flex-col justify-around items-center gap-3 py-5 rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.2)] text-gray-800">
+        <div className="p-3 border-3 border-[#ff7010] rounded-full">
+          <FaUser size={40} className="text-[#ff7010]" />
+        </div>
+
+        <div className="flex justify-center items-center">
+          {name ? (
+            <>
+              <form
+                onSubmit={handleSubmit(handleNameSubmit)}
+                className="flex justify-center items-center"
+              >
+                <div className="font-aptos-regular flex flex-col justify-center gap-1">
+                  <input
+                    type="text"
+                    placeholder="Enter full name"
+                    {...register('fullName', {
+                      required: 'Enter Full Name is required',
+                      minLength: {
+                        value: 3,
+                      },
+                      message: 'Name should be at least 3 characters long',
+                    })}
+                    disabled={mutationUpdateName.isPending}
+                    className="border border-gray-300 rounded px-2 py-1 font-aptos-regular text-gray-600"
+                  />
+                  {errors.fullName && (
+                    <p className="text-red-500 text-sm">
+                      {errors.fullName.message}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={mutationUpdateName.isPending}
+                  className="font-aptos-semibold bg-[#ff7010] px-3 py-1.5 rounded-sm text-white cursor-pointer ml-1.5 text-sm"
+                >
+                  {mutationUpdateName.isPending ? 'Updating...' : 'Update'}
+                </button>
+              </form>
+              <RxCross2
+                onClick={handleCancelName}
+                className="font-aptos-semibold ml-1.5 text-gray-400 cursor-pointer hover:text-gray-600 transition-all duration-500 hover:rotate-180"
+              />
+            </>
+          ) : (
+            <>
+              <h1 className="font-aptos-bold text-2xl">
+                Hello, {userdata?.fullName || userdata?.email}
+              </h1>
+
+              <p
+                onClick={() => {
+                  setPhone(false)
+                  setEmail(false)
+                  setName(true)
+                }}
+                className="font-aptos-semibold text-[#ff7010] cursor-pointer ml-1.5 hover:text-[#e55a00]"
+              >
+                <MdModeEdit />
+              </p>
+            </>
+          )}
+        </div>
 
         {/* email */}
         <div className="font-aptos-bold text-lg flex justify-center items-center">
-          <span>Email :&nbsp;</span>
+          {/* <span>Email :&nbsp;</span> */}
 
           {email ? (
             <>
               <form
                 onSubmit={handleSubmit(handleEmailSubmit)}
-                className="flex flex-col justify-center items-center gap-2"
+                className="flex justify-center items-center gap-2"
               >
                 {!showOtpInput ? (
                   // Email input
-                  <div className="flex justify-center items-center">
+                  <div className="flex gap-2 justify-center items-center">
                     <div className="font-aptos-regular flex flex-col justify-center gap-1">
                       <input
                         type="email"
@@ -288,11 +390,11 @@ const Profile = () => {
                     <button
                       type="submit"
                       disabled={mutationSendEmailOtp.isPending}
-                      className="font-aptos-regular bg-[#ff7010] px-2 py-1.5 rounded-md text-white cursor-pointer ml-1.5 text-sm disabled:opacity-50"
+                      className="font-aptos-semibold bg-[#ff7010] px-3 py-1.5 rounded-sm text-white cursor-pointer ml-1.5 text-sm disabled:opacity-50"
                     >
                       {mutationSendEmailOtp.isPending
                         ? 'Sending...'
-                        : 'Send OTP'}
+                        : 'Send'}
                     </button>
                   </div>
                 ) : (
@@ -328,7 +430,7 @@ const Profile = () => {
                         disabled={
                           mutationVerifyEmailOtp.isPending || otpTimer === 0
                         }
-                        className="font-aptos-regular bg-[#ff7010] px-2 py-1.5 rounded-md text-white cursor-pointer ml-1.5 text-sm disabled:opacity-50"
+                        className="font-aptos-semibild bg-[#ff7010] px-3 py-1.5 rounded-sm text-white cursor-pointer ml-1.5 text-sm disabled:opacity-50"
                       >
                         {mutationVerifyEmailOtp.isPending
                           ? 'Verifying...'
@@ -342,9 +444,9 @@ const Profile = () => {
                 )}
               </form>
 
-              <ImCross
+              <RxCross2
                 onClick={handleCancelEmail}
-                className="font-aptos-regular ml-1.5 text-gray-400 cursor-pointer hover:text-gray-600"
+                className="font-aptos-semibold ml-1.5 text-gray-400 cursor-pointer hover:text-gray-600 transition-all duration-500 hover:rotate-180"
               />
             </>
           ) : (
@@ -352,10 +454,14 @@ const Profile = () => {
               <p className="font-aptos-regular">{userdata.email}</p>
 
               <p
-                onClick={() => setEmail(true)}
+                onClick={() => {
+                  setEmail(true)
+                  setPhone(false)
+                  setName(false)
+                }}
                 className="font-aptos-semibold text-[#ff7010] cursor-pointer ml-1.5 hover:text-[#e55a00]"
               >
-                Edit
+                <MdModeEdit />
               </p>
             </>
           )}
@@ -363,7 +469,7 @@ const Profile = () => {
 
         {/* mobile */}
         <div className="font-aptos-bold text-lg flex justify-center items-center">
-          <span>Mobile :&nbsp;</span>
+          {/* <span>Mobile :&nbsp;</span> */}
 
           {phone ? (
             <>
@@ -394,15 +500,15 @@ const Profile = () => {
                 <button
                   type="submit"
                   disabled={mutationUpdateMobile.isPending}
-                  className="font-aptos-regular bg-[#ff7010] px-2 py-1.5 rounded-md text-white cursor-pointer ml-1.5 text-sm disabled:opacity-50"
+                  className="font-aptos-semibold bg-[#ff7010] px-3 py-1.5 rounded-sm text-white cursor-pointer ml-1.5 text-sm disabled:opacity-50"
                 >
                   {mutationUpdateMobile.isPending ? 'Updating...' : 'Update'}
                 </button>
               </form>
 
-              <ImCross
+              <RxCross2
                 onClick={handleCancelMobile}
-                className="font-aptos-regular ml-1.5 text-gray-400 cursor-pointer hover:text-gray-600"
+                className="font-aptos-semibold ml-1.5 text-gray-400 cursor-pointer hover:text-gray-600 transition-all duration-500 hover:rotate-180"
               />
             </>
           ) : (
@@ -410,10 +516,14 @@ const Profile = () => {
               <p className="font-aptos-regular">{userdata.mobile}</p>
 
               <p
-                onClick={() => setPhone(true)}
+                onClick={() => {
+                  setPhone(true)
+                  setEmail(false)
+                  setName(false)
+                }}
                 className="font-aptos-semibold text-[#ff7010] cursor-pointer ml-1.5 hover:text-[#e55a00]"
               >
-                Edit
+                <MdModeEdit />
               </p>
             </>
           )}
