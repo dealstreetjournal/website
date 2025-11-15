@@ -3,6 +3,7 @@ import axios from './axiosInstance'
 export const userData = async () => {
   try {
     const response = await axios.get('/user/profile')
+    console.log('user', response.data)
     return response.data
   } catch (error) {
     throw new Error(error.message || 'Failed to send OTP')
@@ -47,6 +48,30 @@ export const contactMail = async (data) => {
   } catch (error) {
     throw new Error(
       error.response?.data || error.message || 'Failed to send email'
+    )
+  }
+}
+
+export const getInvoice = async () => {
+  try {
+    const response = await axios.get('/dsj/report/invoice')
+    console.log('invoice res:', response.data)
+    return response.data
+  } catch (error) {
+    throw new Error(
+      error.response?.data || error.message || 'Failed to load Invoice'
+    )
+  }
+}
+
+export const getReport = async () => {
+  try {
+    const response = await axios.get('/dsj/report')
+    console.log('report res:', response.data)
+    return response.data
+  } catch (error) {
+    throw new Error(
+      error.response?.data || error.message || 'Failed to load Report'
     )
   }
 }

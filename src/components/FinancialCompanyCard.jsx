@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { addToCart } from '../api/cartApi'
 import { useCart } from '../hooks/useCart'
 import Swal from 'sweetalert2'
@@ -11,6 +11,8 @@ const FinancialCompanyCard = ({ report, samplePdf }) => {
   const [open, setOpen] = useState(false)
   const { incrementCartCount } = useCart()
 
+  const navigate = useNavigate()
+
   const mutation = useMutation({
     mutationFn: addToCart,
     onSuccess: (data) => {
@@ -20,9 +22,15 @@ const FinancialCompanyCard = ({ report, samplePdf }) => {
         title: 'Success!',
         text: 'Item added to cart successfully',
         icon: 'success',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'Cart',
         confirmButtonColor: '#ff7010',
+        showCancelButton: true,
+        showCloseButton: true,
         timer: 3000,
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate('/cart')
+        }
       })
     },
     onError: (error) => {

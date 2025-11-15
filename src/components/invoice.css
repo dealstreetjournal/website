@@ -1,0 +1,150 @@
+/* Container */
+.container {
+  padding: 40px;
+  background-color: #f9f9f9;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  color: #333;
+  margin-inline: auto;
+}
+
+.logo {
+  width: 300px;
+  height: 45px;
+  mix-blend-mode: multiply;
+}
+
+#invoice,
+.invoice-box {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  background: none;
+}
+
+/* Invoice title */
+.invoice-title {
+  font-size: 25px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.bill {
+  font-size: 21px;
+  font-weight: 500;
+  margin-top: 8px;
+  color: #ff7010;
+}
+
+.address {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.userAddress p {
+  font-size: 18px;
+  margin-bottom: 1px;
+}
+
+.companyAddress {
+  background-color: lightgray;
+  margin-bottom: 1px;
+  font-size: 18px;
+  padding: 8px;
+}
+
+/* Table styling */
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #ccc;
+  text-align: center;
+  font-size: 18px;
+}
+
+.tableHeading {
+  background-color: #ff7010;
+  font-size: 18px;
+  padding-left: 5px;
+  color: black;
+  padding-bottom: 10px;
+}
+
+.invoice-table th,
+.invoice-table td {
+  padding: 10px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
+.invoice-table thead {
+  background-color: lightgray;
+}
+
+.hr {
+  margin-block: 30px;
+  border: 1px solid black;
+}
+
+.discalimar {
+  margin-bottom: 15px;
+}
+
+/* Button styling */
+.download-btn {
+  display: block;
+  margin: 20px auto;
+  background-color: #ff7010;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.3s ease;
+}
+
+.download-btn:hover {
+  background-color: #e65c00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+tr,
+td,
+th,
+p,
+div {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+.invoice-box,
+.invoice-table,
+.address,
+.discalimar {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+.page-break {
+  page-break-before: always !important;
+  break-before: always !important;
+}
+
+#invoice {
+  width: 100%;
+  font-size: 14px;
+  overflow: visible !important;
+}

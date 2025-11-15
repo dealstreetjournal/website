@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { FaShoppingCart } from 'react-icons/fa'
 import pdf from '../assets/pdf.svg'
 import Pagination from '../components/Pagination'
@@ -12,11 +12,14 @@ import Swal from 'sweetalert2'
 import Tippy from '@tippyjs/react'
 import 'tippy.js/dist/tippy.css'
 import Popup from '../components/Popup'
+import SamplePdf from '../components/samplePdf'
 
 const LatestDeal = () => {
   document.title = 'Latest deal | DealStreetJournal'
 
   const [showPopup, setShowPopup] = useState(false)
+
+  const navigate = useNavigate()
 
   useEffect(() => {
     const popup = sessionStorage.getItem('popupShown')
@@ -71,9 +74,15 @@ const LatestDeal = () => {
         title: 'Success!',
         text: 'Item added to cart successfully',
         icon: 'success',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'Cart',
         confirmButtonColor: '#ff7010',
+        showCancelButton: true,
+        showCloseButton: true,
         timer: 3000,
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate('/cart')
+        }
       })
     },
     onError: (error) => {
@@ -95,6 +104,7 @@ const LatestDeal = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -131,10 +141,11 @@ const LatestDeal = () => {
             </div>
 
             <div
-              className="block sm:hidden cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white"
-              onClick={() => setOpen(true)}
+              className="block md:hidden cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white"
+              // onClick={() => setOpen(true)}
             >
-              Sample
+              {/* Sample */}
+              <SamplePdf url={pdfUrl} />
             </div>
           </div>
           {/* heading */}
@@ -163,32 +174,36 @@ const LatestDeal = () => {
 
             <div
               className="hidden md:block cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white"
-              onClick={() => setOpen(true)}
+              // onClick={() => setOpen(true)}
             >
-              Sample Report
+              <SamplePdf url={pdfUrl} />
             </div>
           </div>
           {open && (
-            <div className="fixed inset-0  flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg w-11/12 md:w-3/4 lg:w-2/3 relative">
-                {/* Close Button (only tab/element) */}
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2">
+              <div className="bg-white rounded-lg w-full max-w-4xl h-[90vh] relative flex flex-col">
+                {/* Close Button */}
                 <button
                   onClick={() => setOpen(false)}
-                  className="absolute top-11 cursor-pointer right-5 border-2 border-red-700 bg-white px-2 text-red-700 rounded-full hover:text-red-800 text-lg font-aptos-bold"
+                  className="absolute top-2 right-2 border-2 border-red-700 bg-white text-red-700 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-red-700 hover:text-white transition"
                 >
                   ✕
                 </button>
 
                 {/* PDF Viewer */}
-                <embed
-                  src={pdfUrl}
-                  type="application/pdf"
-                  width="100%"
-                  height="600"
-                />
+                <div className="flex-1 overflow-auto">
+                  <embed
+                    src={pdfUrl}
+                    type="application/pdf"
+                    width="100%"
+                    height="100%"
+                    className="w-full h-full"
+                  />
+                </div>
               </div>
             </div>
           )}
+
           {/* table for large device */}
           <div className="my-5 hidden md:block">
             <table className="min-w-full table-fixed">
@@ -216,7 +231,7 @@ const LatestDeal = () => {
                   return (
                     <tr
                       key={row.id}
-                      className="odd:bg-white even:bg-slate-200 hover:bg-slate-100 transition duration-300"
+                      className="odd:bg-white even:bg-slate-200 hover:bg-orange-50 transition duration-300"
                     >
                       <td className="p-3 font-aptos-semibold xl:font-aptos-bold text-center">
                         {count + idx}
@@ -228,6 +243,7 @@ const LatestDeal = () => {
                         <img
                           src={row.companyLogoUrl}
                           alt={row.companyName}
+                          title={row.companyName}
                           loading="lazy"
                           className="w-22 h-20 object-contain"
                         />
@@ -237,7 +253,7 @@ const LatestDeal = () => {
                       </td>
                       <td className="p-3 text-center">
                         <div className="w-22 h-20">
-                          <img src={pdf} alt="pdf-image" />
+                          <img src={pdf} loading="lazy" alt="pdf-image" />
                         </div>
                       </td>
                       <td className="p-3 text-center font-aptos-semibold xl:font-aptos-bold">
@@ -271,7 +287,7 @@ const LatestDeal = () => {
           </div>
 
           {/* card for small screen */}
-          <div className="grid sm:hidden gap-5 grid-cols-1 my-5">
+          <div className="grid md:hidden gap-5 grid-cols-1 my-5">
             {latestDeals.map((row) => (
               <div
                 key={row.id}
@@ -282,6 +298,7 @@ const LatestDeal = () => {
                   <img
                     src={row.companyLogoUrl}
                     alt="logo"
+                    loading="lazy"
                     className="w-24 h-24 object-cover rounded-sm mr-3 float-left flex-shrink-0"
                   />
                   <p className="text-gray-800 font-aptos-semibold text-sm">

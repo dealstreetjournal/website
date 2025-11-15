@@ -15,12 +15,14 @@ const CartCard = ({ data, onRemove }) => {
           data.map((d, idx) => (
             <div
               key={idx}
-              className="rounded-lg w-full min-h-[450px] bg-slate-200 p-5 border border-gray-400 hover:border-black hover:-translate-y-2 transition-transform duration-300"
+              className="rounded-lg w-full min-h-[370px] bg-slate-200 p-5 border border-gray-400 hover:border-black hover:-translate-y-2 transition-transform duration-300"
             >
               <img
                 src={d.companyLogoUrl}
                 alt={d.companyName || 'Company Logo'}
-                className="w-40 h-40 rounded object-cover mx-auto"
+                loading="lazy"
+                className="w-40 h-40 rounded object-contain mx-auto"
+                style={{ filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2))' }}
               />
 
               <div className="mt-5">

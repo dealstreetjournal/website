@@ -291,6 +291,7 @@ const Footer = () => {
               src={redlionlogo}
               className="mix-blend-multiply"
               alt="redlion"
+              loading="lazy"
             />
           </div>
         </div>

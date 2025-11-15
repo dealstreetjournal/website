@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import {
   FaArrowRight,
   FaCaretDown,
@@ -21,6 +21,7 @@ import { FaCalendarAlt, FaUserCircle } from 'react-icons/fa'
 import FundRaiseChart from '../components/FundRaiseChart'
 import FinancialChart from '../components/FinancialChart'
 import DetailsDealsSubCard from '../components/DetailsDealsSubCard'
+import SmartImage from '../components/SmartImage'
 
 const DealDetails = () => {
   const location = useLocation()
@@ -28,7 +29,11 @@ const DealDetails = () => {
   const [currentUrl, setCurrentUrl] = useState('')
   const [graph, setGraph] = useState()
   const [showGraph, setShowGraph] = useState(true)
+  const [visibleSidebarCards, setVisibleSidebarCards] = useState(0)
   const path = location.pathname.split('/')[1].toLowerCase()
+
+  const leftColRef = useRef(null)
+  const rightColRef = useRef(null)
 
   // Get current URL after component mounts
   useEffect(() => {
@@ -68,6 +73,35 @@ const DealDetails = () => {
 
   const deal4Article = dealSorted?.slice(0, 4)
 
+  // Calculate available space and determine number of cards to show
+  useEffect(() => {
+    const calculateVisibleCards = () => {
+      if (!leftColRef.current || !rightColRef.current) return
+
+      const leftHeight = leftColRef.current.scrollHeight
+      const rightHeight = rightColRef.current.scrollHeight
+
+      const remainingSpace = leftHeight - rightHeight
+      console.log('leftHeight', leftHeight)
+      console.log('rightHeight', rightHeight)
+      console.log('reamingSpace', remainingSpace)
+      const cardHeight = 150
+      const cardsToShow = Math.floor(remainingSpace / cardHeight)
+
+      setVisibleSidebarCards(
+        Math.max(0, Math.min(cardsToShow, dealSorted?.length || 0))
+      )
+    }
+
+    const timer = setTimeout(calculateVisibleCards, 2000)
+    window.addEventListener('resize', calculateVisibleCards)
+
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', calculateVisibleCards)
+    }
+  }, [deal, graph, showGraph])
+
   const handleGraph = (brandName) => {
     const selected = deal?.competitorGrossGraph?.find(
       (compe) => compe.brandName === brandName
@@ -79,11 +113,9 @@ const DealDetails = () => {
     if (deal?.competitorGrossGraph?.length > 0) {
       handleGraph(deal.competitorGrossGraph[0].brandName)
     } else {
-      setGraph(null) // Reset when no graph data
+      setGraph(null)
     }
   }, [deal])
-
-  console.log('competitorGraph', graph)
 
   // Prepare share data
   const shareTitle = deal?.title || 'Check this out!'
@@ -96,24 +128,16 @@ const DealDetails = () => {
       return ''
     }
 
-    // 1. Sanitize the description using DOMPurify
     const sanitized = DOMPurify.sanitize(desc)
-
-    // 2. Create a temporary element to parse the HTML string
     const tempElement = document.createElement('div')
     tempElement.innerHTML = sanitized
-
-    // 3. Find the first span tag within the parsed HTML
     const firstPara = tempElement.querySelector('p')
 
     if (firstPara) {
-      // 4. Get the first letter of the span's text content
       const originalText = firstPara.textContent
       const firstLetter = originalText.charAt(0)
 
-      // 5. Check if the first character is a letter
       if (/[a-zA-Z]/.test(firstLetter)) {
-        // 6. Create a new span for the styled first letter
         const styledLetter = document.createElement('span')
         styledLetter.style.fontSize = '3.3em'
         styledLetter.style.fontWeight = 'bold'
@@ -123,14 +147,11 @@ const DealDetails = () => {
         styledLetter.style.paddingRight = '10px'
         styledLetter.textContent = firstLetter
 
-        // 7. Replace the original first letter with the styled one
-
         const remainingText = originalText.slice(1)
         firstPara.innerHTML = styledLetter.outerHTML + remainingText
       }
     }
 
-    // 8. Return the modified HTML string
     return tempElement.innerHTML
   }
 
@@ -179,6 +200,7 @@ const DealDetails = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -194,16 +216,12 @@ const DealDetails = () => {
       <Helmet>
         <title>{deal?.brandName} Article</title>
         <meta name="description" content={shareDescription} />
-
-        {/* Open Graph tags */}
         <meta property="og:title" content={shareTitle} />
         <meta property="og:description" content={shareDescription} />
         <meta property="og:image" content={shareImage} />
         <meta property="og:url" content={currentUrl} />
         <meta property="og:type" content="article" />
         <meta property="og:site_name" content="DSJ" />
-
-        {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={shareTitle} />
         <meta name="twitter:description" content={shareDescription} />
@@ -211,14 +229,14 @@ const DealDetails = () => {
         <meta name="twitter:site" content="@yourtwitterhandle" />
       </Helmet>
 
-      <div className=" bg-slate-50 pb-5 w-full mx-auto">
+      <div className="bg-slate-50 pb-5 w-full mx-auto">
         <div className="bg-gray-200 h-48">
           <div className="max-w-6xl mx-auto h-full"></div>
         </div>
 
         <div className="max-w-6xl w-[90%] lg:w-[90%] mx-auto py-5">
           <div className="md:grid md:grid-cols-[70%_30%] md:gap-6">
-            <div className="">
+            <div ref={leftColRef} className="h-fit">
               <div className="flex justify-start items-start text-[15px]">
                 <Link
                   to={`/${path}`}
@@ -237,17 +255,11 @@ const DealDetails = () => {
                 {deal?.title}
               </h1>
 
-              <div className="flex justify-center items-center mt-2 w-full h-[450px] bg-slate-200 border-2 border-slate-300 rounded-md">
-                <img
-                  src={deal?.imageUrl}
-                  alt={deal?.brandName}
-                  loading="lazy"
-                  className="w-xl h-[350px] object-contain object-center mix-blend-multiply"
-                />
-                <p className="italic font-aptos-regular text-sm text-gray-300">
-                  {deal?.pcCredit}
-                </p>
-              </div>
+              <SmartImage src={deal?.imageUrl} alt={deal?.brandName} />
+
+              <p className="italic font-aptos-regular text-sm text-gray-400">
+                Image Credit: {deal?.pcCredit || 'Deal Street Journal'}
+              </p>
 
               <hr className="border-orange-400 border mt-5" />
 
@@ -263,7 +275,6 @@ const DealDetails = () => {
                   </p>
                 </div>
                 <div className="flex gap-4 text-xl mr-2">
-                  {/* WhatsApp */}
                   <button
                     onClick={handleWhatsAppShare}
                     aria-label="Share on WhatsApp"
@@ -274,8 +285,6 @@ const DealDetails = () => {
                       className="text-[#25D366] hover:text-[#ff7010] transition-all duration-300"
                     />
                   </button>
-
-                  {/* Facebook */}
                   <button
                     onClick={handleFacebookShare}
                     aria-label="Share on Facebook"
@@ -283,8 +292,6 @@ const DealDetails = () => {
                   >
                     <FaFacebook className="text-[#1877F2] hover:text-[#ff7010] transition-all duration-300" />
                   </button>
-
-                  {/* Twitter/X */}
                   <button
                     onClick={handleTwitterShare}
                     aria-label="Share on Twitter"
@@ -292,8 +299,6 @@ const DealDetails = () => {
                   >
                     <FaXTwitter className="text-black hover:text-[#ff7010] transition-all duration-300" />
                   </button>
-
-                  {/* LinkedIn */}
                   <button
                     onClick={handleLinkedInShare}
                     aria-label="Share on LinkedIn"
@@ -303,7 +308,6 @@ const DealDetails = () => {
                   </button>
                 </div>
               </div>
-              {/* social share */}
 
               <hr className="border-orange-400 border mt-2" />
 
@@ -316,7 +320,12 @@ const DealDetails = () => {
 
               <div className="w-full my-8 border-t-2 border-[#ff7010]"></div>
               {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
-                <div className="mb-6">
+                <div
+                  className={`mb-6 ${
+                    (deal?.grossGraphBox || deal?.fundRaiseBox) &&
+                    'hidden md:grid lg:grid'
+                  }`}
+                >
                   <div className="flex items-center mb-5 gap-3">
                     <h4 className="font-aptos-bold text-gray-800 text-2xl tracking-wide">
                       Recommended Articles for You
@@ -325,10 +334,7 @@ const DealDetails = () => {
                   </div>
 
                   <div
-                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 ${
-                      (deal?.grossGraphBox || deal?.fundRaiseBox) &&
-                      'hidden md:grid lg:grid'
-                    }`}
+                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6`}
                   >
                     {deal4Article.map((content) => (
                       <DetailsDealsSubCard
@@ -347,8 +353,7 @@ const DealDetails = () => {
               )}
             </div>
 
-            <div className="mt-10 sm:mt-0">
-              {/* <div className=""> */}
+            <div ref={rightColRef} className="mt-10 sm:mt-0 h-fit">
               <div className="flex flex-col justify-center items-center">
                 <hr className="w-[80%]" />
                 <h4 className="font-aptos-bold text-2xl text-[#ff7010]">
@@ -358,7 +363,6 @@ const DealDetails = () => {
                 <FaCaretDown />
               </div>
 
-              {/* dsj-insight */}
               <DsjInsight />
 
               <hr className="text-[#ff7010] mt-2 mb-4" />
@@ -375,8 +379,6 @@ const DealDetails = () => {
                     netProfitLoss={deal.companyInfo?.netProfitLoss}
                     yearIncorporation={deal.companyInfo?.yearIncorporation}
                   />
-
-                  {/* <hr className="text-[#ff7010] my-5" /> */}
                 </>
               )}
 
@@ -423,11 +425,9 @@ const DealDetails = () => {
                 <>
                   {deal?.grossGraphBox && (
                     <>
-                      {/* <div className="w-full my-5 border-t-3 border-[#ff7010]"></div> */}
                       <FinancialChart
                         title={deal.grossGraph?.brandName}
                         heading="Financial Performance Analysis"
-                        // subHeading="Revenue vs Expenses vs Income Overview"
                         labels={deal.grossGraph?.grossYear
                           ?.split(',')
                           .map((y) => y.trim())}
@@ -455,8 +455,8 @@ const DealDetails = () => {
                             data: deal.grossGraph?.otherIncome
                               ?.split(',')
                               .map((v) => parseFloat(v) || 0),
-                            borderColor: 'gray',
-                            backgroundColor: 'gray',
+                            borderColor: '#0D9488',
+                            backgroundColor: '#0D9488',
                             tension: 0.3,
                           },
                         ]}
@@ -488,14 +488,12 @@ const DealDetails = () => {
                       ))}
                   </div>
                   <br></br>
-                  {/* competitor */}
                   {graph && (
                     <>
                       <FinancialChart
                         competitor="true"
                         title={graph?.brandName}
                         heading="Financial Performance Analysis"
-                        // subHeading="Revenue vs Expenses vs Income Overview"
                         labels={graph?.grossYear
                           ?.split(',')
                           .map((y) => y.trim())}
@@ -523,25 +521,22 @@ const DealDetails = () => {
                             data: graph?.otherIncome
                               ?.split(',')
                               .map((v) => parseFloat(v) || 0),
-                            // borderColor: '#0D9488',
-                            // backgroundColor: 'rgba(13,148,136)',
-                            borderColor: 'gray',
-                            backgroundColor: 'gray',
+                            borderColor: '#0D9488',
+                            backgroundColor: '#0D9488',
                             tension: 0.3,
                           },
                         ]}
                       />
+                      <hr className="text-[#ff7010] my-5" />
                     </>
                   )}
                 </>
               )}
 
-              {/* fundRasie chart */}
               {!showGraph && (
                 <>
                   {deal?.fundRaiseBox && (
                     <>
-                      {/* <div className="w-full my-5 border-t-3 border-[#ff7010]"></div> */}
                       <FundRaiseChart
                         title={`${deal.fundRaise?.brandName}`}
                         heading="Overview of Fund Raising"
@@ -566,10 +561,16 @@ const DealDetails = () => {
                 </>
               )}
 
-              {/* </div> */}
-              {!deal?.grossGraphBox && !deal?.fundRaiseBox && (
-                <div>
-                  {dealSorted.map((content) => (
+              {/* Dynamically show DealsSubCard based on available space */}
+              <div>
+                {dealSorted
+                  ?.slice(
+                    0,
+                    window.innerWidth < 768
+                      ? dealSorted.length
+                      : visibleSidebarCards
+                  )
+                  .map((content) => (
                     <DealsSubCard
                       key={content.id}
                       deal={dealTitle}
@@ -581,8 +582,7 @@ const DealDetails = () => {
                       hide={true}
                     />
                   ))}
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import React from 'react'
 import DsjInsight from './DsjInsight'
 import { Link } from 'react-router-dom'
 import DOMPurify from 'dompurify'
+import { handleDate } from '../handleDate'
 
 const HomeIpoAndDsjSection = ({ data }) => {
   const ipo = data || []
@@ -23,15 +24,27 @@ const HomeIpoAndDsjSection = ({ data }) => {
             {ipo && ipo.length > 0 && (
               <Link to={`ipo/${ipo[0].id}`} className="mb-5">
                 <p
-                  className="font-aptos-semibold line-clamp-3 md:line-clamp-5 xl:line-clamp-4 mb-1 md:mb-4 xl:mb-1"
+                  className="font-aptos-semibold line-clamp-4 md:line-clamp-4 xl:line-clamp-3 mb-1 md:mb-4 xl:mb-1"
+                  title={ipo[0]?.title}
                   dangerouslySetInnerHTML={{
                     __html: sanitizeDescription(ipo[0]?.description),
                   }}
                 ></p>
+
+                <div className="flex justify-between items-top mt-2 font-aptos-regular text-sm text-gray-700">
+                  <p className="text-orange-700 font-aptos-semibold">
+                    {ipo[0]?.brandName}
+                  </p>
+                  <p className="whitespace-nowrap">
+                    {handleDate(ipo[0]?.articleDate)}
+                  </p>
+                </div>
+
                 <img
                   src={ipo[0].imageUrl}
-                  alt="image"
-                  className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover"
+                  alt={ipo[0]?.title}
+                  loading="lazy"
+                  className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover object-center"
                 />
               </Link>
             )}
@@ -41,7 +54,7 @@ const HomeIpoAndDsjSection = ({ data }) => {
           {/* dsj-section */}
           <div className="">
             <h1 className="text-4xl font-aptos-bold mb-8 pb-3 border-b border-[#ff7010]">
-              Dsj Insights
+              DSJ Insights
             </h1>
             <DsjInsight />
           </div>

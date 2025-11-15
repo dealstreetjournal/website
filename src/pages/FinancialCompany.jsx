@@ -16,6 +16,8 @@ const FinancialCompany = () => {
   const { id } = useParams()
   const [showPopup, setShowPopup] = useState(false)
 
+  const normalize = (str) => str.toLowerCase().trim().replace(/\s+/g, ' ')
+
   useEffect(() => {
     const popup = sessionStorage.getItem('popupShown')
     if (!popup) {
@@ -39,6 +41,7 @@ const FinancialCompany = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -87,7 +90,8 @@ const FinancialCompany = () => {
             <img
               src={companyInfo.image}
               alt={companyInfo.company}
-              className="w-15 h-15 rounded-md"
+              loading="lazy"
+              className="w-15 h-auto rounded-md"
             />
             <h3 className="font-aptos-bold text-xl">{companyInfo.company}</h3>
           </div>
@@ -112,9 +116,12 @@ const FinancialCompany = () => {
         {/* company card */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {financialData.map((report) => {
+            console.log('samples', samples)
             const pdf = samples.find(
-              (sample) => sample.title === report.reportTitle.toLowerCase()
+              (sample) =>
+                normalize(sample.title) === normalize(report.reportTitle)
             )?.pdf
+
             return (
               <FinancialCompanyCard
                 key={report.id}

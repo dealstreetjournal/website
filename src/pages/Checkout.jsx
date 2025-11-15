@@ -1,17 +1,21 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { fetchCart, removeFromCart } from '../api/cartApi'
+import { fetchCart, initiatePayment, removeFromCart } from '../api/cartApi'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
 import Swal from 'sweetalert2'
 import { useCart } from '../hooks/useCart'
 import { useNavigate } from 'react-router-dom'
+import logo from '../assets/spinner.png'
+import { useAuth } from '../hooks/useAuth'
 
 const Checkout = () => {
   document.title = 'Checkout | Dealstreetjournal'
   const [country, setCountry] = useState('')
   const [state, setState] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const queryClient = useQueryClient()
 
@@ -127,7 +131,7 @@ const Checkout = () => {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
+    // reset,
     setValue,
   } = useForm()
 
@@ -143,11 +147,89 @@ const Checkout = () => {
     setState(seletedState)
   }
 
+  const mutation = useMutation({
+    mutationFn: (formData) => initiatePayment(formData),
+
+    onSuccess: async (data) => {
+      console.log('✅ Payment initiated successfully:', data)
+
+      const config = {
+        root: '',
+        flow: 'DEFAULT',
+        data: {
+          orderId: data.orderId,
+          token: data.txnToken,
+          tokenType: 'TXN_TOKEN',
+          amount: data.amount,
+        },
+        merchant: {
+          mid: data.mid,
+          name: 'Deal Street Journal',
+          logo: logo,
+        },
+        handler: {
+          transactionStatus: (response) => {
+            console.log('💳 Transaction Status Response:', response)
+          },
+          notifyMerchant: (eventName, data) => {
+            console.log('📢 Event:', eventName, data)
+
+            if (eventName === 'APP_CLOSED') {
+              setLoading(false)
+              Swal.fire({
+                title: 'Payment Cancelled',
+                text: 'You have cancelled the payment process.',
+                icon: 'warning',
+                confirmButtonColor: '#ff7010',
+              })
+            }
+          },
+        },
+      }
+
+      if (window.Paytm && window.Paytm.CheckoutJS) {
+        try {
+          await window.Paytm.CheckoutJS.init(config)
+
+          window.Paytm.CheckoutJS.invoke()
+        } catch (err) {
+          console.error('⚠️ Paytm Init Error:', err)
+          Swal.fire({
+            title: 'Error',
+            text: 'Something went wrong while loading Paytm Checkout.',
+            icon: 'error',
+            confirmButtonColor: '#ff7010',
+          })
+          setLoading(false)
+        }
+      } else {
+        Swal.fire({
+          title: 'Error',
+          text: 'Paytm SDK not loaded. Please refresh the page.',
+          icon: 'error',
+          confirmButtonColor: '#ff7010',
+        })
+        setLoading(false)
+      }
+    },
+
+    onError: (error) => {
+      console.error('❌ Error initiating payment:', error)
+      setLoading(false)
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to initiate payment. Please try again.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#ff7010',
+      })
+    },
+  })
+
   const onSubmit = (data) => {
-    console.log(data)
-    reset()
-    setCountry('')
-    alert('Order Placed Successfully!')
+    setLoading(true)
+    console.log('📤 Submitting payment data:', data)
+    mutation.mutate(data)
   }
 
   if (isPending) {
@@ -156,6 +238,7 @@ const Checkout = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -322,29 +405,19 @@ const Checkout = () => {
                       </label>
                       <input
                         type="email"
-                        {...register('email', {
-                          required: 'Email is required',
-                          pattern: {
-                            value: /^\S+@\S+$/i,
-                            message: 'Enter a valid email address',
-                          },
-                        })}
+                        disabled
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        placeholder="Enter email address"
+                        value={user}
                       />
-                      {errors.email && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {errors.email.message}
-                        </p>
-                      )}
                     </div>
 
                     {/* Pay Now Button */}
                     <button
                       type="submit"
-                      className="w-full bg-orange-500 text-sm hover:bg-orange-600 text-white font-aptos-semibold py-3 px-4 rounded-md transition-colors duration-300 mt-6"
+                      disabled={loading}
+                      className="w-full bg-orange-500 text-sm cursor-pointer hover:bg-orange-600 text-white font-aptos-semibold py-3 px-4 rounded-md transition-colors duration-300 mt-6"
                     >
-                      PAY NOW
+                      {loading ? 'Processing...' : 'Pay'}
                     </button>
                   </form>
                 </div>

@@ -3,6 +3,7 @@ import {
   createBrowserRouter,
   createRoutesFromElements,
   Route,
+  HashRouter,
   RouterProvider,
 } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
@@ -32,6 +33,8 @@ const Login = lazy(() => import('./pages/Login'))
 const Cart = lazy(() => import('./pages/Cart'))
 const Checkout = lazy(() => import('./pages/Checkout'))
 const UserDashboard = lazy(() => import('./pages/UserDashboard'))
+const PaymentStatusPage = lazy(() => import('./pages/PaymentStatusPage'))
+const CreatePdf = lazy(() => import('./components/CreatePdf'))
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -530,6 +533,25 @@ const router = createBrowserRouter(
       />
 
       <Route
+        path="/payment/status"
+        element={
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-[80vh]">
+                <img
+                  src={spinner}
+                  alt="Loading"
+                  className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+                />
+              </div>
+            }
+          >
+            <PaymentStatusPage />
+          </Suspense>
+        }
+      />
+
+      <Route
         path="/checkout"
         element={
           <Suspense
@@ -545,6 +567,27 @@ const router = createBrowserRouter(
           >
             <ProtectedRoute>
               <Checkout />
+            </ProtectedRoute>
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/invoice"
+        element={
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-[80vh]">
+                <img
+                  src={spinner}
+                  alt="Loading"
+                  className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+                />
+              </div>
+            }
+          >
+            <ProtectedRoute>
+              <CreatePdf />
             </ProtectedRoute>
           </Suspense>
         }

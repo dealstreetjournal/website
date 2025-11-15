@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react'
 import CartCard from '../components/CartCard'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { FaArrowLeft, FaArrowRight } from 'react-icons/fa'
 import spinner from '../assets/spinner.png'
 import { fetchCart, removeFromCart } from '../api/cartApi'
 import { useCart } from '../hooks/useCart'
@@ -82,6 +83,7 @@ const Cart = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -126,7 +128,8 @@ const Cart = () => {
                   <img
                     src={row.companyLogoUrl}
                     alt={row.companyName}
-                    className="w-24 h-24 object-cover rounded-sm mr-3 float-left flex-shrink-0"
+                    loading="lazy"
+                    className="w-24 h-24 object-contain rounded-sm mr-3 float-left flex-shrink-0"
                   />
 
                   {row.financialTitle && (
@@ -167,22 +170,22 @@ const Cart = () => {
             <>
               <div className="border-t border-gray-300 pt-4">
                 <p className="text-right font-aptos-bold text-[#e66000] text-2xl">
-                  Total: &#x20B9;{totalPrice}
+                  Total: &#x20B9;{totalPrice.toLocaleString()}
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between items-center mt-10 gap-4 font-aptos-semibold text-white">
                 <Link
                   to="/dsj-insight"
-                  className="py-3 px-8 bg-[#e66000] rounded hover:bg-[#cc5500] transition-colors"
+                  className="flex justify-start items-center gap-4 py-3 px-5 bg-[#e66000] rounded hover:bg-[#cc5500] transition-colors"
                 >
-                  Continue Shopping
+                  <FaArrowLeft /> Continue Shopping
                 </Link>
                 <Link
                   to="/checkout"
-                  className="py-3 px-6 bg-[#e66000] rounded hover:bg-[#cc5500] transition-colors"
+                  className="flex justify-between items-center gap-4 py-3 px-5 bg-[#e66000] rounded hover:bg-[#cc5500] transition-colors"
                 >
-                  Proceed To Checkout
+                  Proceed To Checkout <FaArrowRight />
                 </Link>
               </div>
             </>

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import DOMPurify from 'dompurify'
+import { handleDate } from '../handleDate'
 
 const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
   const mas = maData || []
@@ -21,22 +22,37 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
               M & A
             </h1>
             {mas && mas.length > 0 && (
-              <Link to={`ma/${mas[0].id}`} className="mb-5">
-                <img
-                  src={mas[0]?.imageUrl}
-                  alt={mas[0]?.title}
-                  loading="lazy"
-                  className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover mb-3"
-                />
+              <div>
+                <h1 className="text-xl font-aptos-semibold mb-2 line-clamp-3">
+                  {mas[0]?.title}
+                </h1>
 
-                <p
-                  className="font-aptos-regular line-clamp-10 mb-2.5"
-                  dangerouslySetInnerHTML={{
-                    __html: sanitizeDescription(mas[0]?.description),
-                  }}
-                ></p>
-                <hr className="text-[#ff7010]" />
-              </Link>
+                <Link to={`ma/${mas[0].id}`} className="mb-5">
+                  <img
+                    src={mas[0]?.imageUrl}
+                    alt={mas[0]?.title}
+                    loading="lazy"
+                    className="rounded-md w-full h-58 md:h-68 xl:h-78 object-cover object-center shadow-md"
+                  />
+                  <div className="flex justify-between items-top mt-2 mb-2 font-aptos-regular text-sm text-gray-700">
+                    <p className="text-orange-700 font-aptos-semibold">
+                      {mas[0]?.brandName}
+                    </p>
+                    <p className="whitespace-nowrap">
+                      {handleDate(mas[0]?.articleDate)}
+                    </p>
+                  </div>
+
+                  <p
+                    className="font-aptos-regular line-clamp-4 lg:line-clamp-5 mb-2"
+                    title={mas[0]?.title}
+                    dangerouslySetInnerHTML={{
+                      __html: sanitizeDescription(mas[0]?.description),
+                    }}
+                  ></p>
+                  <hr className="text-[#ff7010]" />
+                </Link>
+              </div>
             )}
           </div>
 
@@ -52,22 +68,31 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                   <Link
                     to={`preseed/${content.id}`}
                     key={content.id}
-                    className="border-b border-[#ff7010] pb-3 mb-4.5 md:pb-1 md:mb-3 xl:pb-3 xl:mb-4.5"
+                    className="border-b border-[#ff7010] pb-1 mb-1"
                   >
-                    <div className="flex justify-center items-center w-full h-[170px] border-2 bg-slate-300 border-slate-400 rounded">
-                      <img
-                        src={content.imageUrl}
-                        alt={content.title}
-                        loading="lazy"
-                        className="w-[130px] h-[130px] object-contain object-center rounded-md"
-                      />
+                    {/* <div className="flex justify-center items-center w-full h-[150px] bg-gray-300 rounded overflow-hidden"> */}
+                    <img
+                      src={content.imageUrl}
+                      alt={content.title}
+                      loading="lazy"
+                      className=" object-cover object-center w-full h-[180px] md:h-[130px] lg:h-[150px] xl:h-[170px] rounded-md shadow-md"
+                    />
+                    {/* </div> */}
+
+                    <div className="flex justify-between items-top mt-2.5 font-aptos-regular text-sm text-gray-700">
+                      <p className="text-orange-700 font-aptos-semibold">
+                        {content.brandName}
+                      </p>
+                      <p className="whitespace-nowrap">
+                        {handleDate(content.articleDate)}
+                      </p>
                     </div>
                     <p
-                      className="font-aptos-regular line-clamp-4"
-                      dangerouslySetInnerHTML={{
-                        __html: sanitizeDescription(content?.description),
-                      }}
-                    ></p>
+                      className="font-aptos-regular line-clamp-3 mt-1.5 w-full"
+                      title={content.title}
+                    >
+                      {content.title}
+                    </p>
                   </Link>
                 ))}
             </div>
