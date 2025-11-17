@@ -150,10 +150,10 @@ const FinancialCompany = () => {
               </button>
             </div>
 
-            <div className="flex-1 p-4 overflow-hidden">
+            <div className="flex-1 p-6 overflow-hidden">
               <iframe
                 src={`${modalPdf}#toolbar=0`}
-                className="w-full h-[600px] border-0"
+                className="w-full h-[600px] pb-15 border-0"
                 title="PDF Preview"
               />
             </div>

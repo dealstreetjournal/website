@@ -64,7 +64,7 @@ const SamplePdf = ({ url }) => {
             <div className="flex-1 p-4 overflow-hidden">
               <iframe
                 src={`${pdfSrc}#toolbar=0`}
-                className="w-full h-[600px] border-0"
+                className="w-full h-[600px] pb-15 border-0"
                 title="PDF Preview"
                 tooltip="PDF Preview"
               />
