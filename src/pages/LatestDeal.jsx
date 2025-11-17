@@ -35,7 +35,7 @@ const LatestDeal = () => {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [debounceSearch, setDebounceSearch] = useState('')
-  const [open, setOpen] = useState(false)
+  // const [open, setOpen] = useState(false)
 
   useEffect(() => {
     if (query) {
@@ -179,10 +179,10 @@ const LatestDeal = () => {
               <SamplePdf url={pdfUrl} />
             </div>
           </div>
-          {open && (
+          {/* {open && (
             <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2">
               <div className="bg-white rounded-lg w-full max-w-4xl h-[90vh] relative flex flex-col">
-                {/* Close Button */}
+                
                 <button
                   onClick={() => setOpen(false)}
                   className="absolute top-2 right-2 border-2 border-red-700 bg-white text-red-700 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-red-700 hover:text-white transition"
@@ -190,7 +190,7 @@ const LatestDeal = () => {
                   ✕
                 </button>
 
-                {/* PDF Viewer */}
+               
                 <div className="flex-1 overflow-auto">
                   <embed
                     src={pdfUrl}
@@ -202,7 +202,7 @@ const LatestDeal = () => {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* table for large device */}
           <div className="my-5 hidden md:block">

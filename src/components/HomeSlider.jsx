@@ -28,7 +28,7 @@ export default function HomeSlider({ data }) {
   }, [isPaused])
 
   return (
-    <div className="w-full py-5 flex flex-col items-center justify-end bg-gray-100">
+    <div className="w-full py-5 flex flex-col items-center justify-end bg-slate-50">
       <div
         className="max-w-6xl w-[90%] md:w-[90%] lg:w-[80%] xl:w-[60%] mx-auto relative"
         onMouseEnter={() => setIsPaused(true)}
