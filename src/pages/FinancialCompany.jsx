@@ -15,8 +15,36 @@ const FinancialCompany = () => {
   const [year, setYear] = useState('')
   const { id } = useParams()
   const [showPopup, setShowPopup] = useState(false)
-
   const [modalPdf, setModalPdf] = useState(null)
+  const [isMobile, setIsMobile] = useState(false)
+  const [pdfSrc, setPdfSrc] = useState('')
+
+  useEffect(() => {
+    // Detect mobile devices
+    const checkMobile = () => {
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+      setIsMobile(mobile)
+    }
+    checkMobile()
+  }, [])
+
+  const handlePreviewClick = (e) => {
+    e.preventDefault()
+    const src = e.currentTarget.getAttribute('data-src')
+    setPdfSrc(src)
+
+    // On mobile, open PDF in new tab instead of modal
+    if (isMobile) {
+      window.open(src, '_blank')
+    } else {
+      setModalPdf(true)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setModalPdf(false)
+    setPdfSrc('')
+  }
 
   const normalize = (str) => str.toLowerCase().trim().replace(/\s+/g, ' ')
 
@@ -130,10 +158,10 @@ const FinancialCompany = () => {
       </div>
 
       {/* ---------------------- PDF MODAL ---------------------- */}
-      {modalPdf && (
+      {!isMobile && modalPdf && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setModalPdf(null)}
+          onClick={handleCloseModal}
         >
           <div
             className="bg-white rounded-lg shadow-xl w-11/12 max-w-4xl max-h-[90vh] flex flex-col"
@@ -144,7 +172,7 @@ const FinancialCompany = () => {
               <button
                 type="button"
                 className="text-gray-400 hover:text-gray-600 text-2xl font-bold hover:rotate-90 transition-transform cursor-pointer"
-                onClick={() => setModalPdf(null)}
+                onClick={handleCloseModal}
               >
                 ×
               </button>
