@@ -7,11 +7,11 @@ export const fetchLatestDeal = async (page, companyName = '') => {
         companyName ? `&companyName=${encodeURIComponent(companyName)}` : ''
       }`
     )
-    console.log('Fetched latest deal:', response.data)
+    // console.log('Fetched latest deal:', response.data)
     return response.data
   } catch (error) {
-    console.error('Error fetching latest deal:', error)
-    throw error
+    // console.error('Error fetching latest deal:', error)
+    throw new Error(error.message || 'Failed to fetch latest deal')
   }
 }
 
@@ -19,22 +19,22 @@ export const fetchLatestDeal = async (page, companyName = '') => {
 export const fetchFundingCompany = async () => {
   try {
     const response = await axios.get('/dsj/funding')
-    console.log('Fetched fundingcompany:', response.data)
+    // console.log('Fetched fundingcompany:', response.data)
     return response.data
   } catch (error) {
-    console.error('Error fetching fundingcompany:', error)
-    throw error
+    // console.error('Error fetching fundingcompany:', error)
+    throw new Error(error.message || 'Failed to fetch funding company')
   }
 }
 
 export const fetchFundingCompanyDetails = async (companyId, page) => {
   try {
     const response = await axios.get(`/dsj/funding/${companyId}?page=${page}`)
-    console.log('Fetched fundingcompany details:', response.data)
+    // console.log('Fetched fundingcompany details:', response.data)
     return response.data
   } catch (error) {
-    console.error('Error fetching fundingcompany details:', error)
-    throw error
+    // console.error('Error fetching fundingcompany details:', error)
+    throw new Error(error.message || 'Failed to fetch funding company details')
   }
 }
 
@@ -42,11 +42,11 @@ export const fetchFundingCompanyDetails = async (companyId, page) => {
 export const fetchFinancialCompany = async () => {
   try {
     const response = await axios.get('/dsj/financial')
-    console.log('Fetched financialcompany:', response.data)
+    // console.log('Fetched financialcompany:', response.data)
     return response.data
   } catch (error) {
-    console.error('Error fetching financialcompany:', error)
-    throw error
+    // console.error('Error fetching financialcompany:', error)
+    throw new Error(error.message || 'Failed to fetch financial company')
   }
 }
 
@@ -55,10 +55,10 @@ export const fetchFinancial = async (id, year) => {
     const response = await axios.get(
       `/dsj/financial/${id}${year ? `?year=${year}` : ''}`
     )
-    console.log('Fetched financial:', response.data)
+    // console.log('Fetched financial:', response.data)
     return response.data
   } catch (error) {
-    console.error('Error fetching financial:', error)
-    throw error
+    // console.error('Error fetching financial:', error)
+    throw new Error(error.message || 'Failed to fetch financial data')
   }
 }

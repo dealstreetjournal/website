@@ -3,7 +3,12 @@ import { useForm } from 'react-hook-form'
 import { ImCross } from 'react-icons/im'
 import { FaUser } from 'react-icons/fa6'
 import { RxCross2 } from 'react-icons/rx'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { logout as logoutApi } from '../api/authApi'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -17,6 +22,7 @@ import {
 import spinner from '../assets/spinner.png'
 import Swal from 'sweetalert2'
 import { MdModeEdit } from 'react-icons/md'
+import { useCart } from '../hooks/useCart'
 
 const Profile = () => {
   document.title = 'Profile | Dealstreetjournal'
@@ -31,6 +37,7 @@ const Profile = () => {
   const queryClient = useQueryClient()
 
   const { logout } = useAuth()
+  const { loadCartCount } = useCart()
 
   const {
     register,
@@ -86,6 +93,7 @@ const Profile = () => {
   const mutationLogout = useMutation({
     mutationFn: logoutApi,
     onSuccess: () => {
+      loadCartCount()
       logout()
       Swal.fire({
         title: 'Success!',
@@ -95,6 +103,7 @@ const Profile = () => {
         confirmButtonText: 'Ok',
         timer: 3000,
       })
+      queryClient.invalidateQueries({ queryKey: ['cart'] })
       navigate('/login')
     },
     onError: (error) => {
@@ -337,7 +346,7 @@ const Profile = () => {
           ) : (
             <>
               <h1 className="font-aptos-bold text-2xl">
-                Hello, {userdata?.fullName || userdata?.email}
+                Hi, {userdata?.fullName || userdata?.email}
               </h1>
 
               <p
@@ -392,9 +401,7 @@ const Profile = () => {
                       disabled={mutationSendEmailOtp.isPending}
                       className="font-aptos-semibold bg-[#ff7010] px-3 py-1.5 rounded-sm text-white cursor-pointer ml-1.5 text-sm disabled:opacity-50"
                     >
-                      {mutationSendEmailOtp.isPending
-                        ? 'Sending...'
-                        : 'Send'}
+                      {mutationSendEmailOtp.isPending ? 'Sending...' : 'Send'}
                     </button>
                   </div>
                 ) : (

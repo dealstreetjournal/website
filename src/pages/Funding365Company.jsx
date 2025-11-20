@@ -47,8 +47,8 @@ const Funding365Company = () => {
 
   const mutation = useMutation({
     mutationFn: addToCart,
-    onSuccess: (data) => {
-      console.log('item added to cart :', data)
+    onSuccess: () => {
+      // console.log('item added to cart :', data)
       incrementCartCount()
       Swal.fire({
         title: 'Success!',

@@ -2,34 +2,34 @@ import axios from './axiosInstance'
 
 export const addToCart = async (data) => {
   try {
-    console.log('Adding to cart:', data)
+    // console.log('Adding to cart:', data)
     const response = await axios.post('/dsj/cart', data)
     // console.log('Fetched cart:', response.data)
     return response.data
   } catch (error) {
-    console.error('Error cart:', error)
-    throw error
+    // console.error('Error cart:', error)
+    throw new Error(error.message || 'Failed to add to cart')
   }
 }
 
 export const fetchCart = async () => {
   try {
     const response = await axios.get('/dsj/cart')
-    console.log(response.data)
+    // console.log(response.data)
     return response.data
   } catch (error) {
-    console.error('fetch cart error ', error)
-    throw error
+    // console.error('fetch cart error ', error)
+    throw new Error(error.message || 'Failed to fetch cart')
   }
 }
 
 export const removeFromCart = async (productId, title) => {
   try {
     const response = await axios.delete(`/dsj/cart/${productId}?title=${title}`)
-    console.log(response.data)
+    // console.log(response.data)
   } catch (error) {
-    console.log(error)
-    throw error
+    // console.log(error)
+    throw new Error(error.message || 'Failed to remove from cart')
   }
 }
 
@@ -38,8 +38,8 @@ export const cartCountApi = async () => {
     const response = await axios.get(`/dsj/cart/count`)
     return response.data
   } catch (error) {
-    console.log(error)
-    throw error
+    // console.log(error)
+    throw new Error(error.message || 'Failed to fetch cart count')
   }
 }
 
@@ -51,7 +51,7 @@ export const initiatePayment = async (formData) => {
     state: formData.state || formData.customCountry,
   }
 
-  console.log('Initiating payment with data api:', payload)
+  // console.log('Initiating payment with data api:', payload)
 
   try {
     const response = await axios.post('/dsj/payment/initiate', payload, {
@@ -59,7 +59,7 @@ export const initiatePayment = async (formData) => {
     })
     return response.data
   } catch (error) {
-    console.error('Error initiating payment:', error)
-    throw error
+    // console.error('Error initiating payment:', error)
+    throw new Error(error.message || 'Failed to initiate payment')
   }
 }

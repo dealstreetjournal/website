@@ -178,7 +178,7 @@ const Footer = () => {
           error: 'Primary data collection failed',
         }
 
-        console.log('Fallback payload:', fallbackPayload)
+        // console.log('Fallback payload:', fallbackPayload)
         return fallbackPayload
       } catch (fallbackErr) {
         console.error('Fallback data collection also failed:', fallbackErr)
@@ -193,13 +193,13 @@ const Footer = () => {
       {showConsent && <ConsentBanner onAccept={handleAccept} />}
 
       {/* Footer */}
-      <div className="bg-slate-300 py-5">
+      <div className="bg-[#F3F4F6] py-5">
         <div className="max-w-7xl mx-auto flex sm:flex-row flex-col justify-between gap-5 p-5">
           {/* our office */}
           <div>
-            <h4 className="font-aptos-bold mb-3">Our Office</h4>
+            <h4 className="font-aptos-bold mb-3 text-gray-800">Our Office</h4>
             <div className="font-aptos-regular flex flex-col gap-4 items-start">
-              <div className="flex flex-col gap-2 justify-center items-start">
+              <div className="flex flex-col gap-2 text-gray-600 justify-center items-start">
                 <p>
                   409, World Trade Centre, Babar Road, Connaught Place,
                   Delhi-110001
@@ -232,15 +232,15 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div className="mt-5 sm:mt-0">
-            <h4 className="font-aptos-bold mb-3">Quick Links</h4>
+            <h4 className="font-aptos-bold mb-3 text-gray-800">Quick Links</h4>
             <div className="flex justify-between items-start sm:gap-x-8 font-aptos-regular">
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col text-gray-600 gap-2">
                 <Link to="preseed">Pre Seed</Link>
                 <Link to="seed">Seed</Link>
                 <Link to="growth">Growth</Link>
                 <Link to="ma">M&A</Link>
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col text-gray-600 gap-2">
                 <Link to="ipo">IPO</Link>
                 <Link to="world">World</Link>
                 <Link to="login">Login</Link>
@@ -250,8 +250,8 @@ const Footer = () => {
 
           {/* Explore */}
           <div className="mt-5 sm:mt-0">
-            <h4 className="font-aptos-bold mb-3">Explore</h4>
-            <div className="flex flex-col justify-between items-start gap-2 font-aptos-regular">
+            <h4 className="font-aptos-bold mb-3 text-gray-800">Explore</h4>
+            <div className="flex flex-col justify-between text-gray-600 items-start gap-2 font-aptos-regular">
               <Link to="latest">Latest Deal</Link>
               <Link to="funding">Funding365</Link>
               <Link to="financial">Financial Insight</Link>
@@ -260,8 +260,8 @@ const Footer = () => {
 
           {/* company */}
           <div className="mt-5 sm:mt-0">
-            <h4 className="font-aptos-bold mb-3">Company</h4>
-            <div className="flex flex-col items-start gap-2 font-aptos-regular">
+            <h4 className="font-aptos-bold mb-3 text-gray-800">Company</h4>
+            <div className="flex flex-col items-start gap-2 font-aptos-regular text-gray-600">
               <Link to="about-us">About Us</Link>
               <Link to="terms-of-services">Terms of Services</Link>
               <Link to="privacy-policy">Privacy Policy</Link>
@@ -272,16 +272,19 @@ const Footer = () => {
         </div>
 
         {/* copyright Footer */}
-        <div className="border-t border-t-white pt-5 flex flex-col sm:flex-row justify-center items-center">
+        <div className="border-t border-t-gray-300 pt-5 flex flex-col sm:flex-row justify-center items-center">
           <div>
             <p>
-              <span className="text-gray-800 font-aptos-regular">
+              <span className="text-gray-600 font-aptos-regular">
                 &copy; {year}
               </span>
               &nbsp;
-              <span className="font-aptos-semibold"> Deal Street Journal</span>
+              <span className="font-aptos-semibold text-gray-800">
+                {' '}
+                Deal Street Journal
+              </span>
               &nbsp;
-              <span className="text-gray-800 font-aptos-regular">
+              <span className="text-gray-600 font-aptos-regular">
                 Powered by
               </span>
             </p>

@@ -84,8 +84,8 @@ const Login = () => {
   // Verify OTP mutation
   const verifyOtpMutation = useMutation({
     mutationFn: verifyOtp,
-    onSuccess: (data) => {
-      console.log('user verify and login successful', data)
+    onSuccess: () => {
+      // console.log('user verify and login successful', data)
       reset()
       setOtpSent(false)
       setTimeLeft(0)
@@ -178,10 +178,10 @@ const Login = () => {
       return
     }
 
-    console.log('Attempting to verify OTP:', {
-      email: emailValue,
-      otp: parseInt(otp),
-    })
+    // console.log('Attempting to verify OTP:', {
+    //   email: emailValue,
+    //   otp: parseInt(otp),
+    // })
     verifyOtpMutation.mutate({ email: emailValue, otp: parseInt(otp) })
   }
 
@@ -192,8 +192,8 @@ const Login = () => {
   }
 
   // Main form submission - FIXED VERSION
-  const onSubmit = async (data) => {
-    console.log('Form submitted with data:', data)
+  const onSubmit = async () => {
+    // console.log('Form submitted with data:', data)
 
     // Validate terms and conditions
     const termsValid = await trigger('terms')
@@ -203,13 +203,13 @@ const Login = () => {
 
     if (!otpSent) {
       // If OTP not sent, send it first
-      console.log('OTP not sent, sending OTP...')
+      // console.log('OTP not sent, sending OTP...')
       await handleSendOtp()
       return
     }
 
     // If OTP is sent, verify it and login
-    console.log('OTP sent, verifying OTP...')
+    // console.log('OTP sent, verifying OTP...')
     await handleVerifyOtp()
   }
 
@@ -381,9 +381,3 @@ const Login = () => {
 }
 
 export default Login
-
-{
-  /* <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-              
-            </div> */
-}

@@ -10,7 +10,7 @@ const SmartImage = ({ src, alt, className }) => {
 
     img.onload = () => {
       const container = containerRef.current
-      console.log('ref:', container)
+      // console.log('ref:', container)
       if (container) {
         const containerWidth = container.offsetWidth
         const containerHeight = container.offsetHeight

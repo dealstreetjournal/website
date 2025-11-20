@@ -68,7 +68,7 @@ const LatestDeal = () => {
   const mutation = useMutation({
     mutationFn: addToCart,
     onSuccess: () => {
-      console.log('item added to cart :', data)
+      // console.log('item added to cart :', data)
       incrementCartCount()
       Swal.fire({
         title: 'Success!',

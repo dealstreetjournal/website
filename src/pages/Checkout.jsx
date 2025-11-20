@@ -7,7 +7,7 @@ import Swal from 'sweetalert2'
 import { useCart } from '../hooks/useCart'
 import { useNavigate } from 'react-router-dom'
 import logo from '../assets/spinner.png'
-import { useAuth } from '../hooks/useAuth'
+import { userData } from '../api/userApi'
 
 const Checkout = () => {
   document.title = 'Checkout | Dealstreetjournal'
@@ -15,7 +15,6 @@ const Checkout = () => {
   const [state, setState] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const { user } = useAuth()
 
   const queryClient = useQueryClient()
 
@@ -68,6 +67,18 @@ const Checkout = () => {
   } = useQuery({
     queryKey: ['cart'],
     queryFn: fetchCart,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+
+  const {
+    isPending: userPending,
+    isError: userError,
+    data: userdata,
+    error: userErrorData,
+  } = useQuery({
+    queryKey: ['userData'],
+    queryFn: userData,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
@@ -151,7 +162,7 @@ const Checkout = () => {
     mutationFn: (formData) => initiatePayment(formData),
 
     onSuccess: async (data) => {
-      console.log('✅ Payment initiated successfully:', data)
+      // console.log('✅ Payment initiated successfully:', data)
 
       const config = {
         root: '',
@@ -168,11 +179,11 @@ const Checkout = () => {
           logo: logo,
         },
         handler: {
-          transactionStatus: (response) => {
-            console.log('💳 Transaction Status Response:', response)
-          },
-          notifyMerchant: (eventName, data) => {
-            console.log('📢 Event:', eventName, data)
+          // transactionStatus: (response) => {
+          //   // console.log('💳 Transaction Status Response:', response)
+          // },
+          notifyMerchant: (eventName) => {
+            // console.log('📢 Event:', eventName, data)
 
             if (eventName === 'APP_CLOSED') {
               setLoading(false)
@@ -228,7 +239,7 @@ const Checkout = () => {
 
   const onSubmit = (data) => {
     setLoading(true)
-    console.log('📤 Submitting payment data:', data)
+    // console.log('📤 Submitting payment data:', data)
     mutation.mutate(data)
   }
 
@@ -252,6 +263,32 @@ const Checkout = () => {
           <p className="text-red-500 text-lg">Error loading cart</p>
           <p className="text-gray-600">
             {error?.message || 'Something went wrong'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (userPending) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <img
+          src={spinner}
+          alt="Loading"
+          loading="lazy"
+          className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+        />
+      </div>
+    )
+  }
+
+  if (userError) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center">
+          <p className="text-red-500 text-lg">Error loading user</p>
+          <p className="text-gray-600">
+            {userErrorData?.message || 'Something went wrong'}
           </p>
         </div>
       </div>
@@ -284,6 +321,8 @@ const Checkout = () => {
                         </label>
                         <input
                           type="text"
+                          defaultValue={userdata?.fullName || ''}
+                          readOnly={!!userdata?.fullName}
                           {...register('fullName', {
                             required: 'Name is required',
                           })}
@@ -303,6 +342,8 @@ const Checkout = () => {
                         </label>
                         <input
                           type="tel"
+                          defaultValue={userdata?.mobile || ''}
+                          readOnly={!!userdata?.mobile}
                           {...register('mobile', {
                             required: 'Mobile number is required',
                             pattern: {
@@ -405,9 +446,9 @@ const Checkout = () => {
                       </label>
                       <input
                         type="email"
-                        disabled
+                        readOnly
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        value={user}
+                        defaultValue={userdata?.email}
                       />
                     </div>
 

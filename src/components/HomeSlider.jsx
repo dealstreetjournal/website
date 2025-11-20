@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
-import { AiOutlineLeft, AiOutlineRight } from 'react-icons/ai'
-// import { useQuery } from '@tanstack/react-query'
+import {
+  MdOutlineKeyboardArrowLeft,
+  MdOutlineKeyboardArrowRight,
+} from 'react-icons/md'
+
 import { Link } from 'react-router-dom'
 
 export default function HomeSlider({ data }) {
@@ -23,12 +26,12 @@ export default function HomeSlider({ data }) {
   useEffect(() => {
     if (isPaused) return
 
-    const interval = setInterval(nextSlide, 4000)
+    const interval = setInterval(nextSlide, 8000)
     return () => clearInterval(interval)
   }, [isPaused])
 
   return (
-    <div className="w-full py-5 flex flex-col items-center justify-end bg-slate-50">
+    <div className="w-full pt-15 flex flex-col items-center justify-end bg-[#F8F9FA]">
       <div
         className="max-w-6xl w-[90%] md:w-[90%] lg:w-[80%] xl:w-[60%] mx-auto relative"
         onMouseEnter={() => setIsPaused(true)}
@@ -37,7 +40,7 @@ export default function HomeSlider({ data }) {
         {slides && slides.length > 0 && (
           <>
             {/* Slides Container */}
-            <div className="flex overflow-hidden shadow-lg rounded-lg">
+            <div className="flex overflow-hidden shadow rounded-lg">
               {slides.map((slide) => (
                 <Link
                   to={slide.pageUrl}
@@ -57,16 +60,19 @@ export default function HomeSlider({ data }) {
                   </div>
 
                   {/* Right - Content */}
-                  <div className="sm:w-1/2 sm:h-[240px] lg:h-[280px] w-full h-[200px] pt-5 px-3 md:px-5 flex flex-col justify-start items-start bg-slate-200">
+                  <div className="sm:w-1/2 sm:h-[240px] lg:h-[280px] w-full h-[200px] pt-5 px-3 md:px-5 flex flex-col justify-start items-start bg-white">
                     <h2
                       title={slide.title}
-                      className="text-xl md:text-2xl font-aptos-bold text-gray-800 mb-1 pb-1 md:mb-3 line-clamp-3"
+                      className="text-xl md:text-[22px] font-aptos-semibold text-gray-900 mb-1 pb-1 md:mb-3 line-clamp-3"
                     >
                       {slide.title}
                     </h2>
-                    <p className="text-gray-800 font-aptos-regular text-base md:text-lg mb-5 lg:line-clamp-4 line-clamp-3">
+                    <p className="text-gray-800 font-aptos-regular text-base md:text-lg lg:line-clamp-3 line-clamp-2">
                       {slide.description}
                     </p>
+                    <span className="text-[#ff7010] font-aptos-semibold">
+                      Read More...
+                    </span>
                   </div>
                 </Link>
               ))}
@@ -76,15 +82,15 @@ export default function HomeSlider({ data }) {
             <div className="flex gap-4 justify-center absolute left-[50%] right-[50%] bottom-9 sm:bottom-7">
               <button
                 onClick={prevSlide}
-                className="p-2 bg-orange-700/80 hover:bg-orange-500 text-white rounded-full transition-colors cursor-pointer"
+                className="p-1 bg-[#ff7010]/90 hover:bg-orange-700 text-white rounded-full transition-colors cursor-pointer"
               >
-                <AiOutlineLeft />
+                <MdOutlineKeyboardArrowLeft size={25} />
               </button>
               <button
                 onClick={nextSlide}
-                className="p-2 bg-orange-700/80 hover:bg-orange-500 text-white rounded-full transition-colors cursor-pointer"
+                className="p-1 bg-[#ff7010]/90 hover:bg-orange-700 text-white rounded-full transition-colors cursor-pointer"
               >
-                <AiOutlineRight />
+                <MdOutlineKeyboardArrowRight size={25} />
               </button>
             </div>
 

@@ -82,9 +82,9 @@ const DealDetails = () => {
       const rightHeight = rightColRef.current.scrollHeight
 
       const remainingSpace = leftHeight - rightHeight
-      console.log('leftHeight', leftHeight)
-      console.log('rightHeight', rightHeight)
-      console.log('reamingSpace', remainingSpace)
+      // console.log('leftHeight', leftHeight)
+      // console.log('rightHeight', rightHeight)
+      // console.log('reamingSpace', remainingSpace)
       const cardHeight = 150
       const cardsToShow = Math.floor(remainingSpace / cardHeight)
 

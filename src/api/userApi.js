@@ -3,7 +3,7 @@ import axios from './axiosInstance'
 export const userData = async () => {
   try {
     const response = await axios.get('/user/profile')
-    console.log('user', response.data)
+    // console.log('user', response.data)
     return response.data
   } catch (error) {
     throw new Error(error.message || 'Failed to send OTP')
@@ -13,7 +13,7 @@ export const userData = async () => {
 export const sendEmailOtp = async ({ email }) => {
   try {
     const response = await axios.post('/user/send-email-otp', { email })
-    console.log('updateEmailSend', response.data)
+    // console.log('updateEmailSend', response.data)
     return response.data
   } catch (error) {
     throw new Error(error.message || 'Failed to send OTP')
@@ -52,7 +52,7 @@ export const updateName = async ({ fullName }) => {
 export const contactMail = async (data) => {
   try {
     const response = await axios.post('/dsj/contactus-email', data)
-    console.log('updateEmailSend', response.data)
+    // console.log('updateEmailSend', response.data)
     return response.data
   } catch (error) {
     throw new Error(
@@ -64,7 +64,7 @@ export const contactMail = async (data) => {
 export const getInvoice = async (page) => {
   try {
     const response = await axios.get(`/dsj/report/invoice?page=${page}`)
-    console.log('invoice res:', response.data)
+    // console.log('invoice res:', response.data)
     return response.data
   } catch (error) {
     throw new Error(
@@ -76,7 +76,7 @@ export const getInvoice = async (page) => {
 export const getReport = async (page) => {
   try {
     const response = await axios.get(`/dsj/report?page=${page}`)
-    console.log('report res:', response.data)
+    // console.log('report res:', response.data)
     return response.data
   } catch (error) {
     throw new Error(

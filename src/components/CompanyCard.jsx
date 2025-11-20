@@ -11,7 +11,7 @@ const getDominantColor = (imageSrc) => {
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
 
-      canvas.width = img.width 
+      canvas.width = img.width
       canvas.height = img.height
 
       ctx.drawImage(img, 0, 0)
@@ -55,7 +55,8 @@ const getDominantColor = (imageSrc) => {
         resolve(dominantColor)
       } catch (error) {
         // Fallback color if CORS issues
-        console.log(error)
+        console.error(error)
+
         resolve('70,112,160')
       }
     }
