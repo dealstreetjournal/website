@@ -5,9 +5,9 @@ import DOMPurify from 'dompurify'
 import { FaUserCircle } from 'react-icons/fa'
 
 const DealsRightCard = ({
-  deal,
+  index,
+  array,
   url,
-  company,
   image,
   heading,
   date,
@@ -19,30 +19,21 @@ const DealsRightCard = ({
   return (
     <>
       <Link to={url}>
-        <div className="lg:grid lg:grid-cols-[35%_65%] lg:gap-5 mb-5">
-          <div className="flex justify-center items-center my-auto lg:w-24 lg:h-22 xl:w-34 xl:h-23 bg-slate-100 rounded-sm overflow-hidden">
+        <div className="lg:grid lg:grid-cols-[25%_75%]">
+          <div className="flex justify-center items-center my-auto w-22 h-22 bg-gray-300 rounded-lg overflow-clip">
             <img
               src={image}
               alt={heading}
               loading="lazy"
-              className="w-full h-full object-cover object-center my-auto rounded"
+              className="w-full h-full object-cover object-center my-auto rounded-lg"
             />
           </div>
-          <div className="lg:mr-5 xl:mr-6">
-            <div className="flex justify-between items-center mt-2">
-              <p className="font-aptos-regular text-[10px] text-white bg-gray-500 w-fit rounded px-2 py-1">
-                {deal}
-              </p>
-              <p className="font-aptos-regular text-[12px] text-gray-700">
-                {handleDate(date)}
-              </p>
-            </div>
+          <div className="ml-4 md:ml-8">
+            <p className="font-aptos-regular text-sm text-gray-500">
+              {handleDate(date)}
+            </p>
 
-            <h3 className="md:hidden font-aptos-semibold text-[#ff7010] text-md mt-2">
-              {company}
-            </h3>
-
-            <h1 className="font-aptos-semibold line-clamp-1 text-xl mb-1 md:line-clamp-3 md:text-sm xl:text-base md:mt-2 md:leading-snug">
+            <h1 className="font-aptos-semibold line-clamp-1 text-xl mb-1 md:line-clamp-2 md:text-sm xl:text-base md:mt-2 md:leading-snug">
               {heading}
             </h1>
 
@@ -55,7 +46,7 @@ const DealsRightCard = ({
             </span>
           </div>
         </div>
-        <hr className="mb-4 text-[#ff7010]" />
+        {index !== array.length - 1 && <hr className="my-6 text-gray-300" />}
       </Link>
     </>
   )

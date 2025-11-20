@@ -5,7 +5,7 @@ import { memo } from 'react'
 const Pagination = ({ page, setPage, totalPages }) => {
   return (
     <>
-      <div className="font-aptos-bold flex justify-center items-center text-[#ff7010] bg-slate-200 border-2 border-slate-400 rounded overflow-hidden w-fit text-sm">
+      <div className="font-aptos-bold flex justify-center items-center text-[#ff7010] bg-slate-200 border-2 border-slate-400 rounded overflow-hidden w-fit text-sm mt-15">
         <button
           disabled={page === 1}
           onClick={() => setPage(page > 1 ? page - 1 : 1)}
