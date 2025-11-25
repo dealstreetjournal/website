@@ -1,6 +1,7 @@
 import React from 'react'
 import html2pdf from 'html2pdf.js'
 import logo from '../assets/logo.png'
+import sign from '../assets/redlionSign.jpeg'
 import './invoice.css'
 import { useLocation } from 'react-router-dom'
 import { handleDate } from '../handleDate'
@@ -173,7 +174,9 @@ const CreatePdf = () => {
         </div>
 
         <div>
-          <p>Thank you</p>
+          <p style={{ paddingBottom: '6px' }}>Thank you</p>
+          <img src={sign} loading="lazy" className="sign" alt="Sign" />
+          <p>Authorised Signatory</p>
           <p>Red Lion Technologies Private Limited</p>
           <p style={{ paddingBottom: '2px', marginBottom: '2px' }}>
             Registered address: 409, World Trade Center, Babar Road, Connaught

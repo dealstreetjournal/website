@@ -304,7 +304,7 @@ const Checkout = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 bg-white rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.2)] p-2">
               {/* Billing Address Form */}
               <div className="lg:col-span-2">
-                <div className="p-6">
+                <div className="p-1">
                   <h2 className="text-2xl font-aptos-bold text-gray-800 mb-6">
                     Billing address
                   </h2>

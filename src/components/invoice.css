@@ -148,3 +148,10 @@ div {
   font-size: 14px;
   overflow: visible !important;
 }
+
+.sign {
+  width: 50px;
+  height: auto;
+  margin-inline: 10px;
+  mix-blend-mode: multiply;
+}

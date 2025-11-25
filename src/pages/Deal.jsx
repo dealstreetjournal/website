@@ -95,7 +95,7 @@ const Deal = () => {
                 <div className="sticky top-1">
                   <div className="hidden md:flex justify-between items-center mr-2 mb-5">
                     <h5 className="font-aptos-bold text-gray-800 md:text-xl lg:text-2xl">
-                      Privious Articles
+                      Previous Articles
                     </h5>
                   </div>
 
