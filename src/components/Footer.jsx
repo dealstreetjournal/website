@@ -193,7 +193,7 @@ const Footer = () => {
       {showConsent && <ConsentBanner onAccept={handleAccept} />}
 
       {/* Footer */}
-      <div className="bg-[#F3F4F6] py-5">
+      <div className="bg-[#e0e3ea] py-5">
         <div className="max-w-7xl mx-auto flex sm:flex-row flex-col justify-between gap-5 p-5">
           {/* our office */}
           <div>

@@ -23,7 +23,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
             </h1>
             {mas && mas.length > 0 && (
               <div className="bg-white rounded-lg shadow">
-                <h1 className="text-lg font-aptos-regular text-gray-800 p-3 line-clamp-2">
+                <h1 className="text-lg font-aptos-regular text-gray-800 p-3 pb-2 line-clamp-2">
                   {mas[0]?.title}
                 </h1>
 
@@ -45,7 +45,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                   </div>
 
                   <p
-                    className="font-aptos-regular text-gray-600 line-clamp-7 px-3 pb-3 overflow-clip"
+                    className="font-aptos-regular text-gray-600 line-clamp-7 px-3 pb-1 md:pb-1.5 overflow-clip"
                     title={mas[0]?.title}
                     dangerouslySetInnerHTML={{
                       __html: sanitizeDescription(mas[0]?.description),

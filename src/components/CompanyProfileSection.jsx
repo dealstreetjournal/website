@@ -28,12 +28,12 @@ const CompanyProfileSection = ({
           loading="lazy"
           className="w-15 aspect-square object-contain object-center rounded border-2 border-slate-300"
         />
-        <h2 className="text-[#ff7010] text-xl md:text-base lg:text-xl whitespace-nowrap font-aptos-bold">
+        <h2 className="text-[#e66000] text-xl md:text-base lg:text-xl whitespace-nowrap font-aptos-bold">
           {brandName}
         </h2>
       </div>
 
-      <hr className="border-t-2 border-[#ff7010] w-full mb-7" />
+      <hr className="text-[#ff7010] w-full my-3" />
 
       {/* Responsive Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-6 text-sm">

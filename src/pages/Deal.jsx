@@ -71,9 +71,9 @@ const Deal = () => {
           <h1 className="font-aptos-bold text-4xl text-gray-800 my-5">
             {dealTitle}
           </h1>
-          <div className="md:grid md:grid-cols-[70%_30%] md:gap-15">
+          <div className="md:grid md:grid-cols-[70%_30%] md:gap-5 lg:gap-10">
             <div className="">
-              {leftContents.map((content,index,arr) => (
+              {leftContents.map((content, index, arr) => (
                 <DealsCard
                   key={content.id}
                   index={index}
@@ -90,31 +90,33 @@ const Deal = () => {
               ))}
             </div>
 
-            <div className="border border-gray-300 rounded-lg p-6">
-              <div className="sticky top-1">
-                <div className="hidden md:flex justify-between items-center mr-2 mb-5">
-                  <h5 className="font-aptos-bold text-gray-800 md:text-xl lg:text-2xl">
-                    Other Articles
-                  </h5>
-                </div>
+            {rightContents.length > 0 && (
+              <div className="sm:border sm:border-gray-300 sm:rounded-lg sm:p-6">
+                <div className="sticky top-1">
+                  <div className="hidden md:flex justify-between items-center mr-2 mb-5">
+                    <h5 className="font-aptos-bold text-gray-800 md:text-xl lg:text-2xl">
+                      Privious Articles
+                    </h5>
+                  </div>
 
-                {rightContents.map((content,index, arr) => (
-                  <DealsRightCard
-                    key={content.id}
-                    url={`/${path}/${content.id}`}
-                    index={index}
-                    array={arr}
-                    deal={dealTitle}
-                    company={content.brandName}
-                    image={content.imageUrl}
-                    desc={content.description}
-                    heading={content.title}
-                    date={content.articleDate}
-                    writtenBy={content?.writtenBy || 'Team DSJ'}
-                  />
-                ))}
+                  {rightContents.map((content, index, arr) => (
+                    <DealsRightCard
+                      key={content.id}
+                      url={`/${path}/${content.id}`}
+                      index={index}
+                      array={arr}
+                      deal={dealTitle}
+                      company={content.brandName}
+                      image={content.imageUrl}
+                      desc={content.description}
+                      heading={content.title}
+                      date={content.articleDate}
+                      writtenBy={content?.writtenBy || 'Team DSJ'}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <div className="flex justify-center items-center">
             <Pagination page={page} setPage={setPage} totalPages={totalPages} />

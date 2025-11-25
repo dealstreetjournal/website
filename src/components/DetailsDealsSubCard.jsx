@@ -6,7 +6,7 @@ const DetailsDealsSubCard = ({ deal, url, image, heading, date }) => {
   return (
     <Link
       to={url}
-      className="group bg-white border border-gray-200 rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden hover:-translate-y-1"
+      className="group bg-white shadow rounded-xl hover:shadow-md transition-all duration-300 overflow-hidden hover:-translate-y-1"
     >
       <div className="w-full h-30 bg-slate-200 flex items-center justify-center overflow-hidden">
         <img
@@ -19,10 +19,10 @@ const DetailsDealsSubCard = ({ deal, url, image, heading, date }) => {
 
       <div className="px-2 py-4">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-[9px] xl:text-[12px]  tracking-wide whitespace-nowrap text-white bg-gray-500 px-2 py-1 rounded-md font-aptos-semibold">
+          <span className="text-[9px] xl:text-[12px] tracking-wide whitespace-nowrap text-white bg-gray-500 px-2 py-1 rounded-md font-aptos-semibold">
             {deal}
           </span>
-          <span className="text-[10px] xl:text-[12px] font-aptos-semibold whitespace-nowrap text-gray-800">
+          <span className="text-[10px] xl:text-[12px] font-aptos-semibold whitespace-nowrap text-gray-500">
             {handleDate(date)}
           </span>
         </div>

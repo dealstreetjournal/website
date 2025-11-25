@@ -9,12 +9,12 @@ const DsjInsight = () => {
 
   return (
     <>
-      <div className="bg-slate-100">
+      <div className="bg-[#F8F9FA]">
         <div className="max-w-6xl mx-auto min-h-[100vh] flex flex-col md:flex-row justify-center items-center gap-5 px-4 py-8 md:py-0">
           {/* latest */}
           <Link
             to="/latest"
-            className="flex flex-col justify-center items-center text-center w-full max-w-[350px] md:w-[350px] h-[300px] p-2 border-l-2 border-l-[#ff7010] bg-white border border-gray-300 rounded-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+            className="flex flex-col justify-center items-center text-center w-full max-w-[350px] md:w-[350px] h-[300px] p-2 border-l-2 border-l-[#ff7010] bg-white shadow-sm rounded-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
           >
             <img
               src={deal}
@@ -27,10 +27,10 @@ const DsjInsight = () => {
               Latest Deal
             </h5>
 
-            <h2 className="font-aptos text-sm text-gray-600 mt-2">
+            <h2 className="font-aptos-regular text-sm text-gray-600 mt-2">
               Stay updated with the latest fund raising
             </h2>
-            <div className="bg-[#ff7010] px-4 mt-5 py-2 font-aptos-bold text-white w-fit rounded">
+            <div className="bg-[#ff7010] px-4 mt-5 py-2 font-aptos-regular text-white w-fit rounded">
               View
             </div>
           </Link>
@@ -38,7 +38,7 @@ const DsjInsight = () => {
           {/* funding */}
           <Link
             to="/funding"
-            className="flex flex-col justify-center items-center text-center w-full max-w-[350px] md:w-[350px] h-[300px] p-2 border-l-2 border-l-[#ff7010] bg-white border border-gray-300 rounded-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+            className="flex flex-col justify-center items-center text-center w-full max-w-[350px] md:w-[350px] h-[300px] p-2 border-l-2 border-l-[#ff7010] bg-white shadow-sm rounded-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
           >
             <img
               src={funding}
@@ -51,10 +51,10 @@ const DsjInsight = () => {
               Funding365
             </h5>
 
-            <h2 className="font-aptos text-sm text-gray-600 mt-2">
+            <h2 className="font-aptos-regular text-sm text-gray-600 mt-2">
               Explore detailed reports on funding activities
             </h2>
-            <div className="bg-[#ff7010] px-4 mt-5 py-2 font-aptos-bold text-white w-fit rounded">
+            <div className="bg-[#ff7010] px-4 mt-5 py-2 font-aptos-regular text-white w-fit rounded">
               View
             </div>
           </Link>
@@ -62,7 +62,7 @@ const DsjInsight = () => {
           {/* financial */}
           <Link
             to="/financial"
-            className="flex flex-col justify-center items-center text-center w-full max-w-[350px] md:w-[350px] h-[300px] p-2 border-l-2 border-l-[#ff7010] bg-white border border-gray-300 rounded-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+            className="flex flex-col justify-center items-center text-center w-full max-w-[350px] md:w-[350px] h-[300px] p-2 border-l-2 border-l-[#ff7010] bg-white shadow-sm rounded-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
           >
             <img
               src={financial}
@@ -75,10 +75,10 @@ const DsjInsight = () => {
               Financial Insight
             </h5>
 
-            <h2 className="font-aptos text-sm text-gray-600 mt-2">
+            <h2 className="font-aptos-regular text-sm text-gray-600 mt-2">
               Access in-depth financial reports and analysis
             </h2>
-            <div className="bg-[#ff7010] px-4 mt-5 py-2 font-aptos-bold text-white w-fit rounded">
+            <div className="bg-[#ff7010] px-4 mt-5 py-2 font-aptos-regular text-white w-fit rounded">
               View
             </div>
           </Link>

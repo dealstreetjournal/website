@@ -1,42 +1,58 @@
-import { Link } from 'react-router-dom'
-import { FaAngleLeft, FaAngleRight } from 'react-icons/fa'
 import { memo } from 'react'
 
 const Pagination = ({ page, setPage, totalPages }) => {
+  // Calculate start and end
+  const start = Math.max(page - 2, 1)
+  const end = Math.min(page + 2, totalPages)
+
+  const pageNumbers = Array.from(
+    { length: end - start + 1 },
+    (_, i) => start + i
+  )
+
   return (
-    <>
-      <div className="font-aptos-bold flex justify-center items-center text-[#ff7010] bg-slate-200 border-2 border-slate-400 rounded overflow-hidden w-fit text-sm mt-15">
-        <button
-          disabled={page === 1}
-          onClick={() => setPage(page > 1 ? page - 1 : 1)}
-          className={`flex items-center gap-1 px-4 py-2 border-r-2 border-slate-400 transition-all duration-300 
-    ${
-      page === 1
-        ? 'cursor-not-allowed opacity-50 bg-gray-200 text-gray-500'
-        : 'cursor-pointer hover:text-white hover:bg-slate-400 hover:border-slate-400'
-    }`}
-        >
-          <FaAngleLeft />
-          Prev
-        </button>
+    <div className="font-aptos-bold flex justify-center items-center text-[#6B7280] text-md mt-15">
+      {/* Previous */}
+      <button
+        disabled={page === 1}
+        onClick={() => setPage(page - 1)}
+        className={`px-4 py-2 border-2 border-[#E5E7EB] rounded-lg transition-all duration-300 ${
+          page === 1
+            ? 'cursor-not-allowed text-[#6B7280]'
+            : 'cursor-pointer hover:text-white hover:bg-[#ff7010]'
+        }`}
+      >
+        Previous
+      </button>
 
-        <span className="px-4 py-2 border-r border-slate-300">{page}</span>
-
+      {/* Page Numbers */}
+      {pageNumbers.map((num) => (
         <button
-          disabled={page === totalPages}
-          onClick={() => setPage(page < totalPages ? page + 1 : totalPages)}
-          className={`flex items-center gap-1 px-4 py-2 border-l-2 border-slate-400 transition-all duration-300 
-    ${
-      page === totalPages
-        ? 'cursor-not-allowed opacity-50 bg-gray-200 text-gray-500'
-        : 'cursor-pointer hover:text-white hover:bg-slate-400 hover:border-slate-400'
-    }`}
+          key={num}
+          onClick={() => setPage(num)}
+          className={`px-4 py-2 border-2 border-[#E5E7EB] rounded-lg ml-2 transition-all duration-300 ${
+            num === page
+              ? 'bg-[#ff7010] text-white '
+              : 'hidden sm:block hover:bg-[#ff7010] hover:text-white cursor-pointer'
+          }`}
         >
-          Next
-          <FaAngleRight />
+          {num}
         </button>
-      </div>
-    </>
+      ))}
+
+      {/* Next */}
+      <button
+        disabled={page === totalPages}
+        onClick={() => setPage(page + 1)}
+        className={`px-4 py-2 border-2 border-[#E5E7EB] ml-2 rounded-lg transition-all duration-300 ${
+          page === totalPages
+            ? 'cursor-not-allowed text-[#6B7280]'
+            : 'cursor-pointer hover:text-white hover:bg-[#ff7010]'
+        }`}
+      >
+        Next
+      </button>
+    </div>
   )
 }
 

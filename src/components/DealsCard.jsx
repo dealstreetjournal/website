@@ -9,12 +9,12 @@ const DealsCard = ({ deal, url, index, array, image, heading, desc, date }) => {
   return (
     <>
       <Link to={url} className="lg:grid lg:grid-cols-[30%_70%] lg:gap-4">
-        <div className="flex justify-center items-center w-full h-42 bg-slate-100 rounded-lg overflow-clip">
+        <div className="flex justify-center items-center w-full h-42 bg-gray-300 rounded-lg overflow-clip">
           <img
             src={image}
             alt={heading}
             loading="lazy"
-            className="w-full h-full object-cover object-center my-auto rounded"
+            className="w-full h-full object-cover object-center my-auto"
           />
         </div>
         <div className="md:mr-6">

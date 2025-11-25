@@ -82,7 +82,7 @@ const FinancialCompany = () => {
   }
 
   return (
-    <div className="bg-slate-50 pb-5 w-full mx-auto">
+    <div className="bg-[#F8F9FA] pb-5 w-full mx-auto">
       {/* Header */}
       <div className="bg-gray-200 h-48">
         <div className="max-w-6xl mx-auto h-full"></div>

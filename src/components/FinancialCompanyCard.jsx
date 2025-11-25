@@ -44,7 +44,7 @@ const FinancialCompanyCard = ({ report, samplePdf, openPdf }) => {
   })
 
   return (
-    <div className="flex flex-col justify-between bg-white shadow-md rounded-lg p-5 mt-10 text-center hover:border border-black hover:-translate-y-2 transition-transform duration-300 h-[250px]">
+    <div className="flex flex-col justify-between bg-white shadow-md rounded-lg p-5 mt-10 text-center hover:border border-gray-500 hover:-translate-y-2 transition-transform duration-300 h-[250px]">
       <h4 className="font-aptos-bold text-lg">{report.reportTitle}</h4>
       <p className="text-gray-500 font-aptos-regular">{report.reportDesc}</p>
 

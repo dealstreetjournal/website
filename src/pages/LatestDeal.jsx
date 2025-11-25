@@ -87,6 +87,7 @@ const LatestDeal = () => {
     },
     onError: (error) => {
       const res = error.response.data
+      console.log('Error adding to cart :', res)
       Swal.fire({
         title: 'Warning !',
         text: res,

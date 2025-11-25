@@ -12,7 +12,7 @@ const DsjInsight = () => {
           {/* latest deal */}
           <Link
             to="/latest"
-            className="flex md:flex-col lg:flex-row gap-8 p-2 mb-4 justify-start md:justify-center lg:justify-start items-center border border-gray-300 rounded-md bg-white hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+            className="flex md:flex-col lg:flex-row gap-8 p-2 mb-4 justify-start md:justify-center lg:justify-start items-center shadow rounded-md bg-white hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer"
           >
             <img
               src={deal}
@@ -29,12 +29,12 @@ const DsjInsight = () => {
               </h2>
             </div>
           </Link>
-          <hr className="text-[#ff7010] mb-4" />
+          {/* <hr className="text-[#ff7010] mb-4" /> */}
 
           {/* funding 365 */}
           <Link
             to="/funding"
-            className="flex md:flex-col lg:flex-row gap-8 p-2 mb-4 justify-start md:justify-center lg:justify-start items-center border border-gray-300 rounded-md bg-white hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+            className="flex md:flex-col lg:flex-row gap-8 p-2 mb-4 justify-start md:justify-center lg:justify-start items-center shadow rounded-md bg-white hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer"
           >
             <img
               src={funding}
@@ -51,12 +51,12 @@ const DsjInsight = () => {
               </h2>
             </div>
           </Link>
-          <hr className="text-[#ff7010] mb-4" />
+          {/* <hr className="text-[#ff7010] mb-4" /> */}
 
           {/* financial insight */}
           <Link
             to="/financial"
-            className="flex md:flex-col lg:flex-row gap-8 p-2 mb-2 justify-start md:justify-center lg:justify-start items-center border border-gray-300 rounded-md bg-white hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+            className="flex md:flex-col lg:flex-row gap-8 p-2 mb-2 justify-start md:justify-center lg:justify-start items-center shadow rounded-md bg-white hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer"
           >
             <img
               src={financial}

@@ -30,7 +30,7 @@ const DealsSubCard = ({ deal, url, image, heading, date }) => {
             </h1>
           </div>
         </div>
-        <hr className="mb-4 text-[#ff7010]" />
+        <hr className="mb-4 text-gray-400" />
       </Link>
     </>
   )

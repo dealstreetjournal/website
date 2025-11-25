@@ -7,8 +7,9 @@ export const addToCart = async (data) => {
     // console.log('Fetched cart:', response.data)
     return response.data
   } catch (error) {
-    // console.error('Error cart:', error)
-    throw new Error(error.message || 'Failed to add to cart')
+    // console.error('Error cart:', error.response.data)
+    // throw new Error(error.message || 'Failed to add to cart')
+    throw error
   }
 }
 

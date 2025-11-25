@@ -1,16 +1,10 @@
 import React from 'react'
 import DsjInsight from './DsjInsight'
 import { Link } from 'react-router-dom'
-import DOMPurify from 'dompurify'
 import { handleDate } from '../handleDate'
 
 const HomeIpoAndDsjSection = ({ data }) => {
   const ipo = data || []
-
-  const sanitizeDescription = (desc) => {
-    const sanitizeDesc = DOMPurify.sanitize(desc)
-    return sanitizeDesc
-  }
 
   return (
     <>
@@ -24,12 +18,11 @@ const HomeIpoAndDsjSection = ({ data }) => {
             {ipo && ipo.length > 0 && (
               <Link to={`ipo/${ipo[0].id}`} className="mb-5">
                 <p
-                  className="font-aptos-regular line-clamp-4 md:line-clamp-4 xl:line-clamp-3 mb-1 md:mb-4 xl:mb-1"
+                  className="font-aptos-regular line-clamp-3 md:line-clamp-2 xl:line-clamp-2 mb-1 md:mb-4 xl:mb-1"
                   title={ipo[0]?.title}
-                  dangerouslySetInnerHTML={{
-                    __html: sanitizeDescription(ipo[0]?.description),
-                  }}
-                ></p>
+                >
+                  {ipo[0]?.title}
+                </p>
 
                 <div className="flex justify-between items-top mt-2 font-aptos-regular text-sm">
                   <p className="text-[#ff7010] font-aptos-semibold">

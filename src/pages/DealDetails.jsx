@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react'
 import {
-  FaArrowRight,
   FaCaretDown,
   FaWhatsapp,
   FaFacebook,
   FaXTwitter,
   FaLinkedin,
 } from 'react-icons/fa6'
+import { TbSeparator } from 'react-icons/tb'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import spinner from '../assets/spinner.png'
 import DsjInsight from '../components/DsjInsight'
@@ -244,14 +244,14 @@ const DealDetails = () => {
                 >
                   {dealTitle}
                 </Link>
-                <FaArrowRight className="border-l-2 text-[#ff7010] mx-1 mt-1" />
+                <TbSeparator className="mx-1 mt-1" />
                 <p className="font-aptos-regular">{deal?.title}</p>
               </div>
 
               <h3 className="font-aptos-semibold text-[15px] text-white bg-gray-500 w-fit mt-6 px-2 py-1 rounded">
                 {deal?.brandName}
               </h3>
-              <h1 className="font-aptos-bold text-3xl mt-2 text-[#ff7010]">
+              <h1 className="font-aptos-bold text-3xl my-3 text-[#ff7010]">
                 {deal?.title}
               </h1>
 
@@ -261,7 +261,7 @@ const DealDetails = () => {
                 Image Credit: {deal?.pcCredit || 'Deal Street Journal'}
               </p>
 
-              <hr className="border-orange-400 border mt-5" />
+              <hr className="text-orange-400 mt-5" />
 
               {/* social share */}
               <div className="flex justify-between items-center mt-2">
@@ -309,7 +309,7 @@ const DealDetails = () => {
                 </div>
               </div>
 
-              <hr className="border-orange-400 border mt-2" />
+              <hr className="text-orange-400 mt-2" />
 
               <p
                 className="font-aptos-regular text-lg mt-7 text-left"
@@ -318,7 +318,7 @@ const DealDetails = () => {
                 }}
               ></p>
 
-              <div className="w-full my-8 border-t-2 border-[#ff7010]"></div>
+              <hr className="text-[#ff7010] my-5" />
               {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
                 <div
                   className={`mb-6 ${
@@ -365,7 +365,7 @@ const DealDetails = () => {
 
               <DsjInsight />
 
-              <hr className="text-[#ff7010] mt-2 mb-4" />
+              <hr className="text-gray-400 mt-2 mb-4" />
 
               {deal?.companyInfoBox && (
                 <>
@@ -384,16 +384,16 @@ const DealDetails = () => {
 
               {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
                 <>
-                  <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
+                  <hr className="text-gray-400 my-6" />
 
-                  <div className="flex justify-start items-center flex-wrap gap-y-3 gap-x-0">
+                  <div className="flex justify-start items-center flex-wrap gap-y-3 gap-x-0 mb-5">
                     {deal?.grossGraphBox && (
                       <div
                         onClick={() => setShowGraph(true)}
                         className={`font-aptos-regular px-3 py-1 rounded-lg w-fit mx-auto cursor-pointer
        relative border-2   ${
          showGraph
-           ? 'text-orange-800 border-orange-500 bg-gray-300 animate-[glowBorder_4s_ease-in-out_infinite]'
+           ? 'text-white bg-[#D97706]'
            : 'border-gray-500 bg-slate-300 text-slate-700 hover:scale-105 transition-transform duration-300'
        }
      `}
@@ -408,7 +408,7 @@ const DealDetails = () => {
                         className={`font-aptos-regular px-3 py-1 rounded-lg w-fit mx-auto cursor-pointer
                   relative border-2 ${
                     !showGraph
-                      ? 'text-orange-800 border-orange-500 bg-gray-300 animate-[glowBorder_4s_ease-in-out_infinite]'
+                      ? 'text-white bg-[#D97706]'
                       : 'border-gray-500 bg-slate-300 text-slate-700 hover:scale-105 transition-transform duration-300'
                   }
      `}
@@ -417,7 +417,7 @@ const DealDetails = () => {
                       </div>
                     )}
                   </div>
-                  <div className="w-full my-5 border-t-3 border-[#ff7010]"></div>
+                  {/* <hr className="text-gray-400 my-5" /> */}
                 </>
               )}
 
@@ -461,11 +461,11 @@ const DealDetails = () => {
                           },
                         ]}
                       />
-                      <hr className="text-[#ff7010] my-5" />
+                      <hr className="text-gray-400 my-5" />
                     </>
                   )}
                   {deal?.competitorGrossGraph?.length > 0 && (
-                    <h5 className="text-gray-700 font-aptos-bold text-center mb-1">
+                    <h5 className="text-gray-700 font-aptos-bold text-[20px] text-center mb-2">
                       Compare Financial Performance
                     </h5>
                   )}
@@ -527,7 +527,7 @@ const DealDetails = () => {
                           },
                         ]}
                       />
-                      <hr className="text-[#ff7010] my-5" />
+                      <hr className="text-gray-400 my-5" />
                     </>
                   )}
                 </>

@@ -72,7 +72,7 @@ const Captcha = ({ onValidate }) => {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Enter CAPTCHA"
-        className="w-full rounded-md px-2 py-1 bg-white border border-gray-300 outline-none"
+        className="w-full rounded-md font-aptos-regular px-2 py-1 bg-white border border-gray-300 outline-none"
       />
     </div>
   )
