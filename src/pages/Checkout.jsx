@@ -173,6 +173,7 @@ const Checkout = () => {
           tokenType: 'TXN_TOKEN',
           amount: data.amount,
         },
+
         merchant: {
           mid: data.mid,
           name: 'Deal Street Journal',
@@ -301,175 +302,181 @@ const Checkout = () => {
       {cartData.length > 0 ? (
         <div className="w-full bg-slate-50 py-10 text-gray-600 font-aptos-regular">
           <div className="max-w-6xl mx-auto p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 bg-white rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.2)] p-2">
+            <div className="grid grid-cols-1 lg:grid-cols-[69%_1%_30%] bg-white rounded-lg shadow-[0_0_10px_rgba(0,0,0,0.2)] p-2">
               {/* Billing Address Form */}
-              <div className="lg:col-span-2">
-                <div className="p-1">
-                  <h2 className="text-2xl font-aptos-bold text-gray-800 mb-6">
+              <div className="order-last lg:order-none">
+                {/* <div className="p-1"> */}
+                {/* <h2 className="text-2xl font-aptos-bold text-gray-800 mb-2">
+                    Billing address
+                  </h2> */}
+
+                <form
+                  onSubmit={handleSubmit(onSubmit)}
+                  // className="space-y-4 rounded-lg shadow-[0_0_7px_rgba(0,0,0,0.2)] p-5"
+                  className="space-y-4 p-5"
+                >
+                  <h2 className="text-2xl font-aptos-bold text-gray-800 mb-2">
                     Billing address
                   </h2>
-
-                  <form
-                    onSubmit={handleSubmit(onSubmit)}
-                    className="space-y-4 rounded-lg shadow-[0_0_7px_rgba(0,0,0,0.2)] p-5"
-                  >
-                    {/* Name and Mobile in a row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 ">
-                      <div>
-                        <label className="block text-md font-aptos-regular text-gray-600 mb-1">
-                          Name
-                        </label>
-                        <input
-                          type="text"
-                          defaultValue={userdata?.fullName || ''}
-                          readOnly={!!userdata?.fullName}
-                          {...register('fullName', {
-                            required: 'Name is required',
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                          placeholder="Enter your full name"
-                        />
-                        {errors.fullName && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors.fullName.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-md font-aptos-regular text-gray-600 mb-1">
-                          Mobile
-                        </label>
-                        <input
-                          type="tel"
-                          defaultValue={userdata?.mobile || ''}
-                          readOnly={!!userdata?.mobile}
-                          {...register('mobile', {
-                            required: 'Mobile number is required',
-                            pattern: {
-                              value: /^[0-9]{10}$/,
-                              message: 'Enter a valid 10-digit number',
-                            },
-                          })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                          placeholder="Enter mobile number"
-                        />
-                        {errors.mobile && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors.mobile.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Country and State in a row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-md font-aptos-regular text-gray-600 mb-1">
-                          Country
-                        </label>
-                        <select
-                          {...register('country', {
-                            required: 'Country is required',
-                          })}
-                          onChange={handleCountryChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        >
-                          <option value="">Select Country</option>
-                          <option value="India">India</option>
-                          <option value="Other">Other</option>
-                        </select>
-                        {errors.country && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors.country.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-md font-aptos-regular text-gray-600 mb-1">
-                          {country === 'India'
-                            ? 'State'
-                            : country === 'Other'
-                            ? 'Country Name'
-                            : 'State'}
-                        </label>
-                        {country === 'India' ? (
-                          <select
-                            {...register('state', {
-                              required: 'State is required',
-                            })}
-                            onChange={handleStateChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                          >
-                            <option value="">Select State</option>
-                            {indianStates.map((state, index) => (
-                              <option key={index} value={state}>
-                                {state}
-                              </option>
-                            ))}
-                          </select>
-                        ) : country === 'Other' ? (
-                          <input
-                            type="text"
-                            {...register('customCountry', {
-                              required: 'Country name is required',
-                            })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                            placeholder="Enter country name"
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            disabled
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
-                            placeholder="Select country first"
-                          />
-                        )}
-                        {errors.state && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors.state.message}
-                          </p>
-                        )}
-                        {errors.customCountry && (
-                          <p className="text-red-500 text-xs mt-1">
-                            {errors.customCountry.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Email */}
+                  {/* Name and Mobile in a row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 ">
                     <div>
-                      <label className="block text-md font-aptos-regular text-gray-600 mb-1 mt-5">
-                        Email
+                      <label className="block text-md font-aptos-regular text-gray-600 mb-1">
+                        Name
                       </label>
                       <input
-                        type="email"
-                        readOnly
+                        type="text"
+                        defaultValue={userdata?.fullName || ''}
+                        readOnly={!!userdata?.fullName}
+                        {...register('fullName', {
+                          required: 'Name is required',
+                        })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        defaultValue={userdata?.email}
+                        placeholder="Enter your full name"
                       />
+                      {errors.fullName && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.fullName.message}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Pay Now Button */}
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full bg-orange-500 text-sm cursor-pointer hover:bg-orange-600 text-white font-aptos-semibold py-3 px-4 rounded-md transition-colors duration-300 mt-6"
-                    >
-                      {loading ? 'Processing...' : 'Pay'}
-                    </button>
-                  </form>
-                </div>
+                    <div>
+                      <label className="block text-md font-aptos-regular text-gray-600 mb-1">
+                        Mobile
+                      </label>
+                      <input
+                        type="tel"
+                        defaultValue={userdata?.mobile || ''}
+                        readOnly={!!userdata?.mobile}
+                        {...register('mobile', {
+                          required: 'Mobile number is required',
+                          pattern: {
+                            value: /^[0-9]{10}$/,
+                            message: 'Enter a valid 10-digit number',
+                          },
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        placeholder="Enter mobile number"
+                      />
+                      {errors.mobile && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.mobile.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Country and State in a row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-md font-aptos-regular text-gray-600 mb-1">
+                        Country
+                      </label>
+                      <select
+                        {...register('country', {
+                          required: 'Country is required',
+                        })}
+                        onChange={handleCountryChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      >
+                        <option value="">Select Country</option>
+                        <option value="India">India</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      {errors.country && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.country.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-md font-aptos-regular text-gray-600 mb-1">
+                        {country === 'India'
+                          ? 'State'
+                          : country === 'Other'
+                          ? 'Country Name'
+                          : 'State'}
+                      </label>
+                      {country === 'India' ? (
+                        <select
+                          {...register('state', {
+                            required: 'State is required',
+                          })}
+                          onChange={handleStateChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        >
+                          <option value="">Select State</option>
+                          {indianStates.map((state, index) => (
+                            <option key={index} value={state}>
+                              {state}
+                            </option>
+                          ))}
+                        </select>
+                      ) : country === 'Other' ? (
+                        <input
+                          type="text"
+                          {...register('customCountry', {
+                            required: 'Country name is required',
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          placeholder="Enter country name"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                          placeholder="Select country first"
+                        />
+                      )}
+                      {errors.state && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.state.message}
+                        </p>
+                      )}
+                      {errors.customCountry && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.customCountry.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-md font-aptos-regular text-gray-600 mb-1 mt-5">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      defaultValue={userdata?.email}
+                    />
+                  </div>
+
+                  {/* Pay Now Button */}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-orange-500 text-sm cursor-pointer hover:bg-orange-600 text-white font-aptos-semibold py-3 px-4 rounded-md transition-colors duration-300 mt-6"
+                  >
+                    {loading ? 'Processing...' : 'Pay'}
+                  </button>
+                </form>
+                {/* </div> */}
               </div>
 
+              <div className="hidden lg:block border-r border-gray-500 h-[70%] my-auto"></div>
+
               {/* Cart Summary */}
-              <div className="lg:col-span-1">
+              <div className="order-first lg:order-none ">
                 <div className="p-6">
                   {/* Cart Header */}
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-aptos-bold text-2xl text-orange-500">
+                    <h3 className="font-aptos-semibold text-2xl text-orange-500">
                       Your cart
                     </h3>
                     <div className="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-aptos-semibold">
@@ -483,14 +490,14 @@ const Checkout = () => {
                       cartData.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-around py-1.5 bg-white rounded-lg shadow-[0_0_5px_rgba(0,0,0,0.2)]"
+                          className="flex items-center justify-around py-1.5 bg-white rounded-lg shadow-[0_0_4px_rgba(0,0,0,0.2)]"
                         >
                           <p className="text-orange-500 font-semibold">
                             {item.title}
                           </p>
 
                           <div className="flex flex-col items-center">
-                            <h4 className="font-aptos-bold text-gray-800">
+                            <h4 className="font-aptos-semibold text-gray-800">
                               {item.companyName}
                             </h4>{' '}
                             <p className="font-aptos-regular text-gray-600">
@@ -540,6 +547,7 @@ const Checkout = () => {
                   </div>
                 </div>
               </div>
+              <hr className="lg:hidden text-gray-500 mb-2" />
             </div>
           </div>
         </div>

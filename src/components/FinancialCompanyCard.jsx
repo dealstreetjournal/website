@@ -52,7 +52,8 @@ const FinancialCompanyCard = ({ report, samplePdf, openPdf }) => {
         ₹{report.reportPrice}
       </span>
 
-      <div className="flex justify-around items-center gap-3">
+      {/* for large screens */}
+      <div className="hidden sm:flex justify-around items-center gap-3">
         <Tippy
           content="Please carefully review the product before buying. You can view our sample reports to get better understanding of our products. We do not provide any kind of refund after purchase. Please refer terms of services Point No.10 to know more about our no refund policy."
           placement="top"
@@ -65,11 +66,35 @@ const FinancialCompanyCard = ({ report, samplePdf, openPdf }) => {
                 title: 'financial',
               })
             }
-            className="border-2 border-[#ff7010] bg-[#ff7010] text-white px-2 py-1.5 rounded font-aptos-semibold"
+            className="border-2 border-[#ff7010] cursor-pointer bg-[#ff7010] text-white px-2 py-1.5 rounded font-aptos-semibold"
           >
             Add to Cart
           </button>
         </Tippy>
+
+        {samplePdf && (
+          <button
+            onClick={openPdf}
+            className="border-2 border-[#ff7010] text-black px-4 py-1.5 rounded font-aptos-regular cursor-pointer"
+          >
+            Sample Report
+          </button>
+        )}
+      </div>
+
+      {/* for small screens (mobile phones) */}
+      <div className="sm:hidden flex justify-around items-center gap-3">
+        <button
+          onClick={() =>
+            mutation.mutate({
+              productId: report.id,
+              title: 'financial',
+            })
+          }
+          className="border-2 border-[#ff7010] bg-[#ff7010] text-white px-2 py-1.5 rounded font-aptos-semibold"
+        >
+          Add to Cart
+        </button>
 
         {samplePdf && (
           <button

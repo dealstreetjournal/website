@@ -182,7 +182,7 @@ const Cart = () => {
                 </Link>
                 <Link
                   to="/checkout"
-                  className="flex justify-between items-center gap-4 py-2 px-4 bg-[#e66000] border-2 border-[#e66000] rounded hover:bg-[#cc5500] hover:border-[#cc5500] transition-colors"
+                  className="flex justify-between items-center gap-4 py-2 px-3 bg-[#e66000] border-2 border-[#e66000] rounded hover:bg-[#cc5500] hover:border-[#cc5500] transition-colors"
                 >
                   Proceed To Checkout <FaArrowRight />
                 </Link>

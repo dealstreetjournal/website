@@ -494,7 +494,7 @@ const router = createBrowserRouter(
         }
       />
 
-      <Route
+      {/* <Route
         path="/login"
         element={
           <Suspense
@@ -511,7 +511,7 @@ const router = createBrowserRouter(
             <Login />
           </Suspense>
         }
-      />
+      /> */}
 
       <Route
         path="/cart"

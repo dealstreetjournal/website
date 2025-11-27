@@ -62,6 +62,7 @@ const FinancialCompany = () => {
   }
 
   const financialData = data?.data
+  // console.log('financialData', financialData)
   const availableYears = data?.availableYears || []
   const companyInfo = financialData[0]
   const samples = data?.samplePdf || []
@@ -123,7 +124,7 @@ const FinancialCompany = () => {
           <div className="font-aptos-semibold flex-col md:flex-row justify-center items-center md:gap-2">
             <p className="mb-2 md:mb-0">Financial Year</p>
             <select
-              value={year}
+              value={year || financialData[0]?.financialYear}
               onChange={(e) => setYear(e.target.value)}
               className="border rounded-md px-2 py-2 border-slate-200 focus:border-[#cc5c00] focus:ring-0"
             >
