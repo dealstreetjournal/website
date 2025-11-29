@@ -67,6 +67,10 @@ const FundRaiseChart = ({
         },
       },
       tooltip: {
+        position: 'nearest',
+        intersect: false,
+        caretPadding: 15,
+        yAlign: 'bottom',
         callbacks: {
           label: (context) => {
             const index = context.dataIndex

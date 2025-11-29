@@ -64,6 +64,10 @@ const FinancialChart = ({
         },
       },
       tooltip: {
+        position: 'nearest',
+        intersect: false,
+        caretPadding: 15,
+        yAlign: 'bottom',
         callbacks: {
           label: (context) => {
             const value = parseFloat(context.parsed.y).toLocaleString('en-IN')
