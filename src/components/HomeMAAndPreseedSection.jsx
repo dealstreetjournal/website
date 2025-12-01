@@ -2,15 +2,16 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import DOMPurify from 'dompurify'
 import { handleDate } from '../handleDate'
+import { handleDesc } from './handleDesc'
 
 const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
   const mas = maData || []
   const preseeds = preseedData || []
 
-  const sanitizeDescription = (desc) => {
-    const sanitizeDesc = DOMPurify.sanitize(desc)
-    return sanitizeDesc
-  }
+  // const sanitizeDescription = (desc) => {
+  //   const sanitizeDesc = DOMPurify.sanitize(desc)
+  //   return sanitizeDesc
+  // }
 
   return (
     <>
@@ -46,11 +47,13 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
 
                   <p
                     className="font-aptos-regular text-gray-600 line-clamp-7 px-3 pb-1 md:pb-1.5 overflow-clip"
-                    title={mas[0]?.title}
-                    dangerouslySetInnerHTML={{
-                      __html: sanitizeDescription(mas[0]?.description),
-                    }}
-                  ></p>
+                    title={mas[0]?.description}
+                    // dangerouslySetInnerHTML={{
+                    //   __html: sanitizeDescription(mas[0]?.description),
+                    // }}
+                  >
+                    {handleDesc(mas[0]?.description)}
+                  </p>
                 </Link>
               </div>
             )}

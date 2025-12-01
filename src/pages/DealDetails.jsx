@@ -27,6 +27,7 @@ const DealDetails = () => {
   const location = useLocation()
   const { id } = useParams()
   const [currentUrl, setCurrentUrl] = useState('')
+  const [finalHtml, setFinalHtml] = useState('')
   const [graph, setGraph] = useState()
   const [showGraph, setShowGraph] = useState(true)
   const [visibleSidebarCards, setVisibleSidebarCards] = useState(0)
@@ -123,37 +124,95 @@ const DealDetails = () => {
     deal?.description?.replace(/<[^>]*>/g, '').slice(0, 200) || ''
   const shareImage = deal?.imageUrl || ''
 
-  const sanitizeDesc = (desc) => {
-    if (!desc) {
-      return ''
-    }
+  // show image at center when click
+  function showPopup(src) {
+    const popup = document.createElement('div')
 
-    const sanitized = DOMPurify.sanitize(desc)
-    const tempElement = document.createElement('div')
-    tempElement.innerHTML = sanitized
-    const firstPara = tempElement.querySelector('p')
+    popup.style.position = 'fixed'
+    popup.style.top = '0'
+    popup.style.left = '0'
+    popup.style.width = '100vw'
+    popup.style.height = '100vh'
+    popup.style.background = 'rgba(0,0,0,0.7)'
+    popup.style.display = 'flex'
+    popup.style.alignItems = 'center'
+    popup.style.justifyContent = 'center'
+    popup.style.zIndex = '9999'
+
+    popup.innerHTML = `
+    <img src="${src}" style="max-width:90%; max-height:90%; border-radius:6px;" />
+  `
+
+    popup.addEventListener('click', () => popup.remove())
+
+    document.body.appendChild(popup)
+  }
+
+  // handle image border and first letter bold and bigger
+  useEffect(() => {
+    if (!deal?.description) return
+
+    const sanitized = DOMPurify.sanitize(deal.description)
+
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(sanitized, 'text/html')
+
+    const firstPara = doc.querySelector('p')
 
     if (firstPara) {
-      const originalText = firstPara.textContent
-      const firstLetter = originalText.charAt(0)
+      const walker = document.createTreeWalker(
+        firstPara,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      )
 
-      if (/[a-zA-Z]/.test(firstLetter)) {
-        const styledLetter = document.createElement('span')
-        styledLetter.style.fontSize = '3.3em'
-        styledLetter.style.fontWeight = 'bold'
-        styledLetter.style.color = '#ff7010'
-        styledLetter.style.float = 'left'
-        styledLetter.style.lineHeight = '1'
-        styledLetter.style.paddingRight = '10px'
-        styledLetter.textContent = firstLetter
+      const textNode = walker.nextNode()
+      if (textNode && textNode.nodeValue.trim().length > 0) {
+        const originalText = textNode.nodeValue
+        const firstChar = originalText.trim().charAt(0)
 
-        const remainingText = originalText.slice(1)
-        firstPara.innerHTML = styledLetter.outerHTML + remainingText
+        // remove only first visible character
+        textNode.nodeValue = originalText.replace(firstChar, '')
+
+        // create drop cap span
+        const span = document.createElement('span')
+        span.className = 'drop-cap'
+        span.textContent = firstChar
+
+        // insert before the textNode
+        textNode.parentNode.insertBefore(span, textNode)
       }
     }
 
-    return tempElement.innerHTML
-  }
+    doc.querySelectorAll('img').forEach((img) => {
+      img.style.border = '1px solid lightgray'
+      img.style.borderRadius = '4px'
+      img.style.cursor = 'pointer'
+    })
+
+    const updatedHtml = doc.body.innerHTML
+    setFinalHtml(updatedHtml)
+  }, [deal])
+
+  // handle image zoom
+  useEffect(() => {
+    const container = document.getElementById('article-content')
+
+    if (!container) return
+
+    // When any element inside container is clicked
+    const handleClick = (e) => {
+      const img = e.target.closest('img')
+      if (img) {
+        showPopup(img.src)
+      }
+    }
+
+    container.addEventListener('click', handleClick)
+
+    return () => container.removeEventListener('click', handleClick)
+  }, [finalHtml])
 
   // Social sharing handlers
   const handleWhatsAppShare = () => {
@@ -312,9 +371,10 @@ const DealDetails = () => {
               <hr className="text-orange-400 mt-2" />
 
               <p
+                id="article-content"
                 className="font-aptos-regular text-lg mt-7 text-left"
                 dangerouslySetInnerHTML={{
-                  __html: sanitizeDesc(deal?.description),
+                  __html: finalHtml,
                 }}
               ></p>
 

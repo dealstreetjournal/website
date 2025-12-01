@@ -1,11 +1,9 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { handleDate } from '../handleDate'
-import DOMPurify from 'dompurify'
-import { FaUserCircle } from 'react-icons/fa'
+import { handleDesc } from './handleDesc'
 
 const DealsCard = ({ deal, url, index, array, image, heading, desc, date }) => {
-  const cleanHTML = DOMPurify.sanitize(desc)
   return (
     <>
       <Link to={url} className="lg:grid lg:grid-cols-[30%_70%] lg:gap-4">
@@ -30,10 +28,9 @@ const DealsCard = ({ deal, url, index, array, image, heading, desc, date }) => {
           <h1 className="font-aptos-bold line-clamp-2 text-xl my-2">
             {heading}
           </h1>
-          <p
-            className="font-aptos-regular line-clamp-3 text-sm text-gray-700"
-            dangerouslySetInnerHTML={{ __html: cleanHTML }}
-          ></p>
+          <p className="font-aptos-regular line-clamp-3 text-sm text-gray-700">
+            {handleDesc(desc)}
+          </p>
         </div>
       </Link>
       {index !== array.length - 1 && <hr className="my-8 text-gray-300" />}

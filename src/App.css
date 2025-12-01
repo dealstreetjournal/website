@@ -144,3 +144,12 @@
 /* .tippy-arrow {
   color: #4b5563 !important;
 } */
+
+.drop-cap {
+  font-size: 3em;
+  font-weight: bold;
+  color: #ff7010;
+  float: left;
+  line-height: 1;
+  padding-right: 9px;
+}

@@ -1,15 +1,9 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import DOMPurify from 'dompurify'
 import { handleDate } from '../handleDate'
 
 const HomeWorldSection = ({ data }) => {
   const worlds = data || []
-
-  // const sanitizeDescription = (desc) => {
-  //   const sanitizeDesc = DOMPurify.sanitize(desc)
-  //   return sanitizeDesc
-  // }
 
   return (
     <>

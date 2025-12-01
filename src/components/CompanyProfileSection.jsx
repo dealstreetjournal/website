@@ -28,7 +28,7 @@ const CompanyProfileSection = ({
           loading="lazy"
           className="w-15 aspect-square object-contain object-center rounded border-2 border-slate-300"
         />
-        <h2 className="text-[#e66000] text-xl md:text-base lg:text-xl whitespace-nowrap font-aptos-bold">
+        <h2 className="text-[#e66000] text-xl md:text-base lg:text-xl whitespace-wrap font-aptos-bold">
           {brandName}
         </h2>
       </div>
