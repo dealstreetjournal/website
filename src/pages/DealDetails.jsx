@@ -337,6 +337,7 @@ const DealDetails = () => {
                   <button
                     onClick={handleWhatsAppShare}
                     aria-label="Share on WhatsApp"
+                    title="Share on WhatsApp"
                     className="hover:scale-110 transition-transform duration-200"
                   >
                     <FaWhatsapp
@@ -347,6 +348,7 @@ const DealDetails = () => {
                   <button
                     onClick={handleFacebookShare}
                     aria-label="Share on Facebook"
+                    title="Share on Facebook"
                     className="hover:scale-110 transition-transform duration-200"
                   >
                     <FaFacebook className="text-[#1877F2] hover:text-[#ff7010] transition-all duration-300" />
@@ -354,6 +356,7 @@ const DealDetails = () => {
                   <button
                     onClick={handleTwitterShare}
                     aria-label="Share on Twitter"
+                    title="Share on Twitter"
                     className="hover:scale-110 transition-transform duration-200"
                   >
                     <FaXTwitter className="text-black hover:text-[#ff7010] transition-all duration-300" />
@@ -361,6 +364,7 @@ const DealDetails = () => {
                   <button
                     onClick={handleLinkedInShare}
                     aria-label="Share on LinkedIn"
+                    title="Share on LinkedIn"
                     className="hover:scale-110 transition-transform duration-200"
                   >
                     <FaLinkedin className="text-[#0077B5] hover:text-[#ff7010] transition-all duration-300" />

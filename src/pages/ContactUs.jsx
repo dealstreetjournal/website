@@ -133,6 +133,8 @@ const ContactUs = () => {
                   className="border-2 border-gray-300 rounded-md p-1.5"
                 >
                   <option value="">Select Subject</option>
+                  <option>Investor</option>
+                  <option>Founder</option>
                   <option>Support</option>
                   <option>Advertising</option>
                   <option>Customise Report</option>
@@ -149,7 +151,13 @@ const ContactUs = () => {
                 <label>Message</label>
                 <textarea
                   rows={5}
-                  {...register('message', { required: 'Message is required' })}
+                  {...register('message', {
+                    required: 'Message is required',
+                    maxLength: {
+                      value: 2000,
+                      message: 'Maximum length is 2000 characters',
+                    },
+                  })}
                   className="border-2 border-gray-300 p-1.5 rounded-md"
                 ></textarea>
                 {errors.message && (

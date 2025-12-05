@@ -71,20 +71,25 @@ const CompanyProfileSection = ({
           <FaMoneyBillWave size={18} className="text-[#ff7010] mt-1 shrink-0" />
           <div>
             <p className="text-gray-500 font-aptos-regular">Gross Revenue</p>
+            {console.log('grossRevenue', grossRevenue)}
             {grossRevenue &&
               (() => {
-                const start = grossRevenue.indexOf('(')
+                {
+                  /* const start = grossRevenue.indexOf('(')
                 const end = grossRevenue.indexOf(')')
 
                 // Main value (before parentheses)
                 const value = grossRevenue.slice(0, start).trim()
                 // Year with parentheses
-                const year = grossRevenue.slice(start, end + 1)
+                const year = grossRevenue.slice(start, end + 1) */
+                }
+
+                const [value, year] = grossRevenue.split('(')
 
                 return (
                   <>
                     <p className="font-aptos-bold">{value}</p>
-                    <p className="font-aptos-bold">{year}</p>
+                    {year && <p className="font-aptos-bold">{`(${year}`}</p>}
                   </>
                 )
               })()}
