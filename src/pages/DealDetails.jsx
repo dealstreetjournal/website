@@ -215,43 +215,43 @@ const DealDetails = () => {
   }, [finalHtml])
 
   // Social sharing handlers
-  const handleWhatsAppShare = () => {
-    const text = encodeURIComponent(`${shareTitle}\n\n${shareDescription}`)
-    const url = encodeURIComponent(currentUrl)
-    window.open(
-      `https://wa.me/?text=${text}%20${url}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // const handleWhatsAppShare = () => {
+  //   const text = encodeURIComponent(`${shareTitle}\n\n${shareDescription}`)
+  //   const url = encodeURIComponent(currentUrl)
+  //   window.open(
+  //     `https://wa.me/?text=${text}%20${url}`,
+  //     '_blank',
+  //     'noopener,noreferrer'
+  //   )
+  // }
 
-  const handleFacebookShare = () => {
-    const url = encodeURIComponent(currentUrl)
-    window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${url}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // const handleFacebookShare = () => {
+  //   const url = encodeURIComponent(currentUrl)
+  //   window.open(
+  //     `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+  //     '_blank',
+  //     'noopener,noreferrer'
+  //   )
+  // }
 
-  const handleTwitterShare = () => {
-    const text = encodeURIComponent(shareTitle)
-    const url = encodeURIComponent(currentUrl)
-    window.open(
-      `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // const handleTwitterShare = () => {
+  //   const text = encodeURIComponent(shareTitle)
+  //   const url = encodeURIComponent(currentUrl)
+  //   window.open(
+  //     `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+  //     '_blank',
+  //     'noopener,noreferrer'
+  //   )
+  // }
 
-  const handleLinkedInShare = () => {
-    const url = encodeURIComponent(currentUrl)
-    window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // const handleLinkedInShare = () => {
+  //   const url = encodeURIComponent(currentUrl)
+  //   window.open(
+  //     `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+  //     '_blank',
+  //     'noopener,noreferrer'
+  //   )
+  // }
 
   if (isPending) {
     return (
@@ -334,7 +334,9 @@ const DealDetails = () => {
                   </p>
                 </div>
                 <div className="flex gap-4 text-xl mr-2">
-                  <button
+                  <div class="sharethis-inline-share-buttons"></div>
+
+                  {/* <button
                     onClick={handleWhatsAppShare}
                     aria-label="Share on WhatsApp"
                     title="Share on WhatsApp"
@@ -368,7 +370,7 @@ const DealDetails = () => {
                     className="hover:scale-110 transition-transform duration-200"
                   >
                     <FaLinkedin className="text-[#0077B5] hover:text-[#ff7010] transition-all duration-300" />
-                  </button>
+                  </button> */}
                 </div>
               </div>
 
