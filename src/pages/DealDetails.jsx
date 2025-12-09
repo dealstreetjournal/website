@@ -76,7 +76,9 @@ const DealDetails = () => {
 
   useEffect(() => {
     if (deal && window.__sharethis__) {
-      window.__sharethis__.initialize()
+      setTimeout(() => {
+        window.__sharethis__.initialize()
+      }, 500)
     }
   }, [deal])
 
@@ -339,10 +341,10 @@ const DealDetails = () => {
                     {handleDate(deal.articleDate)}
                   </p>
                 </div>
-                <div className="flex gap-4 mr-2">
-                  <div class="sop"></div>
+                {/* <div className="flex gap-4 mr-2"> */}
+                <div class="sop"></div>
 
-                  {/* <button
+                {/* <button
                     onClick={handleWhatsAppShare}
                     aria-label="Share on WhatsApp"
                     title="Share on WhatsApp"
@@ -377,7 +379,7 @@ const DealDetails = () => {
                   >
                     <FaLinkedin className="text-[#0077B5] hover:text-[#ff7010] transition-all duration-300" />
                   </button> */}
-                </div>
+                {/* </div> */}
               </div>
 
               <hr className="text-orange-400 mt-2" />
