@@ -74,6 +74,12 @@ const DealDetails = () => {
 
   const deal4Article = dealSorted?.slice(0, 4)
 
+  useEffect(() => {
+    if (deal && window.__sharethis__) {
+      window.__sharethis__.initialize()
+    }
+  }, [deal])
+
   // Calculate available space and determine number of cards to show
   useEffect(() => {
     const calculateVisibleCards = () => {
@@ -333,7 +339,7 @@ const DealDetails = () => {
                     {handleDate(deal.articleDate)}
                   </p>
                 </div>
-                <div className="flex gap-4 text-xl mr-2">
+                <div className="flex gap-4 mr-2">
                   <div class="sop"></div>
 
                   {/* <button
