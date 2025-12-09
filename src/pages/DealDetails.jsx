@@ -342,7 +342,7 @@ const DealDetails = () => {
                   </p>
                 </div>
                 {/* <div className="flex gap-4 mr-2"> */}
-                <div class="sop"></div>
+                <div class="sharethis-inline-share-buttons"></div>
 
                 {/* <button
                     onClick={handleWhatsAppShare}
