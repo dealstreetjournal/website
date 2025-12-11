@@ -74,13 +74,13 @@ const DealDetails = () => {
 
   const deal4Article = dealSorted?.slice(0, 4)
 
-  useEffect(() => {
-    if (deal && window.__sharethis__) {
-      setTimeout(() => {
-        window.__sharethis__.initialize()
-      }, 500)
-    }
-  }, [deal])
+  // useEffect(() => {
+  //   if (deal && window.__sharethis__) {
+  //     setTimeout(() => {
+  //       window.__sharethis__.initialize()
+  //     }, 500)
+  //   }
+  // }, [deal])
 
   // Calculate available space and determine number of cards to show
   useEffect(() => {
@@ -263,13 +263,15 @@ const DealDetails = () => {
 
 
   // Create dynamic full text for sharing
-const fullShareText = `${deal?.title}\n\n${shareDescription}\n\n${currentUrl}`
+// ---- SHARE TEXT BUILDER ----
+const fullShareText = `${deal?.title}\n\n${shareDescription}\n\n${currentUrl}`;
 
 // WhatsApp
 const handleWhatsAppShare = () => {
   window.open(
     `https://wa.me/?text=${encodeURIComponent(fullShareText)}`,
-    "_blank"
+    "_blank",
+    "noopener,noreferrer"
   );
 };
 
@@ -277,7 +279,8 @@ const handleWhatsAppShare = () => {
 const handleFacebookShare = () => {
   window.open(
     `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`,
-    "_blank"
+    "_blank",
+    "noopener,noreferrer"
   );
 };
 
@@ -285,7 +288,8 @@ const handleFacebookShare = () => {
 const handleTwitterShare = () => {
   window.open(
     `https://twitter.com/intent/tweet?text=${encodeURIComponent(deal?.title)}&url=${encodeURIComponent(currentUrl)}`,
-    "_blank"
+    "_blank",
+    "noopener,noreferrer"
   );
 };
 
@@ -293,9 +297,11 @@ const handleTwitterShare = () => {
 const handleLinkedInShare = () => {
   window.open(
     `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`,
-    "_blank"
+    "_blank",
+    "noopener,noreferrer"
   );
 };
+
 
   if (isPending) {
     return (
@@ -378,7 +384,7 @@ const handleLinkedInShare = () => {
                   </p>
                 </div>
                 {/* <div className="flex gap-4 mr-2"> */}
-                <div class="sharethis-inline-share-buttons"></div>
+                {/* <div class="sharethis-inline-share-buttons"></div> */}
 
                 {/* <button
                     onClick={handleWhatsAppShare}
@@ -416,6 +422,43 @@ const handleLinkedInShare = () => {
                     <FaLinkedin className="text-[#0077B5] hover:text-[#ff7010] transition-all duration-300" />
                   </button> */}
                 {/* </div> */}
+
+                <div className="flex gap-4 mr-2">
+
+  <button
+    onClick={handleWhatsAppShare}
+    aria-label="Share on WhatsApp"
+    className="hover:scale-110 transition-transform duration-200"
+  >
+    <FaWhatsapp size={22} className="text-[#25D366]" />
+  </button>
+
+  <button
+    onClick={handleFacebookShare}
+    aria-label="Share on Facebook"
+    className="hover:scale-110 transition-transform duration-200"
+  >
+    <FaFacebook size={22} className="text-[#1877F2]" />
+  </button>
+
+  <button
+    onClick={handleTwitterShare}
+    aria-label="Share on Twitter"
+    className="hover:scale-110 transition-transform duration-200"
+  >
+    <FaXTwitter size={22} className="text-black" />
+  </button>
+
+  <button
+    onClick={handleLinkedInShare}
+    aria-label="Share on LinkedIn"
+    className="hover:scale-110 transition-transform duration-200"
+  >
+    <FaLinkedin size={22} className="text-[#0077B5]" />
+  </button>
+
+</div>
+
               </div>
 
               <hr className="text-orange-400 mt-2" />
