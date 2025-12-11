@@ -414,7 +414,7 @@ const DealDetails = () => {
                 {/* <div className="flex gap-4 mr-2"> */}
                 {/* <div class="sharethis-inline-share-buttons"></div> */}
 
-                <button
+                {/* <button
                   onClick={handleWhatsAppShare}
                   aria-label="Share on WhatsApp"
                   title="Share on WhatsApp"
@@ -424,7 +424,7 @@ const DealDetails = () => {
                     size={30}
                     className="text-[#25D366] hover:text-[#ff7010] transition-all duration-300"
                   />
-                </button>
+                </button> */}
                 {/* <button
                     onClick={handleFacebookShare}
                     aria-label="Share on Facebook"
