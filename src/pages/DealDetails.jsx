@@ -69,43 +69,80 @@ const DealDetails = () => {
   }
 
   // Social sharing handlers
-  const handleWhatsAppShare = () => {
-    const text = encodeURIComponent(`${shareTitle}\n\n${shareDescription}`)
-    const url = encodeURIComponent(currentUrl)
-    window.open(
-      `https://wa.me/?text=${text}%20${url}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // const handleWhatsAppShare = () => {
+  //   const text = encodeURIComponent(`${shareTitle}\n\n${shareDescription}`)
+  //   const url = encodeURIComponent(currentUrl)
+  //   window.open(
+  //     `https://wa.me/?text=${text}%20${url}`,
+  //     '_blank',
+  //     'noopener,noreferrer'
+  //   )
+  // }
 
-  const handleFacebookShare = () => {
-    const url = encodeURIComponent(currentUrl)
-    window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${url}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // const handleFacebookShare = () => {
+  //   const url = encodeURIComponent(currentUrl)
+  //   window.open(
+  //     `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+  //     '_blank',
+  //     'noopener,noreferrer'
+  //   )
+  // }
 
-  const handleTwitterShare = () => {
-    const text = encodeURIComponent(shareTitle)
-    const url = encodeURIComponent(currentUrl)
-    window.open(
-      `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // const handleTwitterShare = () => {
+  //   const text = encodeURIComponent(shareTitle)
+  //   const url = encodeURIComponent(currentUrl)
+  //   window.open(
+  //     `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+  //     '_blank',
+  //     'noopener,noreferrer'
+  //   )
+  // }
 
-  const handleLinkedInShare = () => {
-    const url = encodeURIComponent(currentUrl)
-    window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // const handleLinkedInShare = () => {
+  //   const url = encodeURIComponent(currentUrl)
+  //   window.open(
+  //     `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+  //     '_blank',
+  //     'noopener,noreferrer'
+  //   )
+  // }
+
+
+  // Create dynamic full text for sharing
+const fullShareText = `${deal?.title}\n\n${shareDescription}\n\n${currentUrl}`
+
+// WhatsApp
+const handleWhatsAppShare = () => {
+  window.open(
+    `https://wa.me/?text=${encodeURIComponent(fullShareText)}`,
+    "_blank"
+  );
+};
+
+// Facebook
+const handleFacebookShare = () => {
+  window.open(
+    `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`,
+    "_blank"
+  );
+};
+
+// Twitter
+const handleTwitterShare = () => {
+  window.open(
+    `https://twitter.com/intent/tweet?text=${encodeURIComponent(deal?.title)}&url=${encodeURIComponent(currentUrl)}`,
+    "_blank"
+  );
+};
+
+// LinkedIn
+const handleLinkedInShare = () => {
+  window.open(
+    `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`,
+    "_blank"
+  );
+};
+
 
   if (isPending) {
     return (
