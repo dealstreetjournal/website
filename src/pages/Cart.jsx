@@ -2,11 +2,13 @@ import React, { useCallback, useMemo } from 'react'
 import CartCard from '../components/CartCard'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { FaArrowLeft, FaArrowRight } from 'react-icons/fa'
 import spinner from '../assets/spinner.png'
 import { fetchCart, removeFromCart } from '../api/cartApi'
 import { useCart } from '../hooks/useCart'
 import Swal from 'sweetalert2'
 import { MdDelete } from 'react-icons/md'
+import { MdOutlineRemoveShoppingCart } from 'react-icons/md'
 
 const Cart = () => {
   document.title = 'Cart | DealStreetjournal'
@@ -82,6 +84,7 @@ const Cart = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -105,9 +108,9 @@ const Cart = () => {
 
   return (
     <>
-      <div className="bg-slate-50 w-full mx-auto min-h-screen">
+      <div className="bg-[#F8F9FA] w-full mx-auto min-h-screen pb-20">
         <div className="max-w-6xl w-[90%] lg:w-[90%] mx-auto py-5">
-          <h1 className="font-aptos-bold text-2xl text-[#ff7010] mb-5">
+          <h1 className="font-aptos-bold text-2xl sm:text-3xl text-[#e66000] mt-5 mb-10">
             Your Cart ({cartData.length}{' '}
             {cartData.length === 1 ? 'item' : 'items'})
           </h1>
@@ -117,16 +120,14 @@ const Cart = () => {
           {/* card for small screen */}
           <div className="grid md:hidden gap-5 grid-cols-1 my-5 w-[90%] mx-auto">
             {cartData.map((row, index) => (
-              <div
-                key={index}
-                className="bg-slate-200 rounded-md p-4 border border-slate-300"
-              >
+              <div key={index} className="bg-slate-200 rounded-md p-4 shadow">
                 {/* Image & Description */}
                 <div className="min-h-[100px]">
                   <img
                     src={row.companyLogoUrl}
                     alt={row.companyName}
-                    className="w-24 h-24 object-cover rounded-sm mr-3 float-left flex-shrink-0"
+                    loading="lazy"
+                    className="w-24 h-24 object-contain rounded-sm mr-3 float-left flex-shrink-0"
                   />
 
                   {row.financialTitle && (
@@ -134,12 +135,12 @@ const Cart = () => {
                       {row.financialTitle}
                     </h1>
                   )}
-                  <p className="text-gray-800 font-aptos-regular text-sm line-clamp-3">
+                  <p className="text-gray-600 font-aptos-regular text-sm line-clamp-3">
                     {row.details}
                   </p>
                 </div>
 
-                <div className="border border-slate-300 my-3"></div>
+                <hr className="text-slate-300 my-3" />
 
                 {/* Price & Date */}
                 <div className="flex-col justify-between items-center mt-4 font-aptos-semibold">
@@ -165,32 +166,35 @@ const Cart = () => {
 
           {cartData.length > 0 && (
             <>
-              <div className="border-t border-gray-300 pt-4">
-                <p className="text-right font-aptos-bold text-[#e66000] text-2xl">
-                  Total: &#x20B9;{totalPrice}
+              <div className="my-8 w-[90%] mx-auto">
+                <p className="text-right font-aptos-bold text-[#e66000] text-3xl">
+                  <span className="text-[#6C757D]">Total:</span> &#x20B9;
+                  {totalPrice.toLocaleString()}
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-between items-center mt-10 gap-4 font-aptos-semibold text-white">
+              <div className="flex flex-col sm:flex-row justify-end items-center sm:mt-10 gap-4 font-aptos-semibold text-white">
                 <Link
                   to="/dsj-insight"
-                  className="py-3 px-8 bg-[#e66000] rounded hover:bg-[#cc5500] transition-colors"
+                  className="flex justify-start items-center gap-4 py-2 px-4 bg-white text-[#e66000] border-2 border-[#e66000] rounded hover:bg-[#cc5500] hover:border-[#cc5500] hover:text-white transition-colors"
                 >
-                  Continue Shopping
+                  <FaArrowLeft /> Continue Shopping
                 </Link>
                 <Link
                   to="/checkout"
-                  className="py-3 px-6 bg-[#e66000] rounded hover:bg-[#cc5500] transition-colors"
+                  className="flex justify-between items-center gap-4 py-2 px-3 bg-[#e66000] border-2 border-[#e66000] rounded hover:bg-[#cc5500] hover:border-[#cc5500] transition-colors"
                 >
-                  Proceed To Checkout
+                  Proceed To Checkout <FaArrowRight />
                 </Link>
               </div>
             </>
           )}
 
           {cartData.length === 0 && (
-            <div className="text-center py-20">
-              {/* <p className="text-gray-500 text-xl mb-4">Your cart is empty</p> */}
+            <div className="text-center flex flex-col justify-center items-center gap-6">
+              <div className="text-gray-500 sm:hidden">
+                <MdOutlineRemoveShoppingCart size={150} />
+              </div>
               <Link
                 to="/dsj-insight"
                 className="inline-block py-3 px-6 bg-[#e66000] text-white rounded hover:bg-[#cc5500] transition-colors font-aptos-semibold"

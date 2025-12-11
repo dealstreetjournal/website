@@ -30,6 +30,7 @@ const Home = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -44,12 +45,15 @@ const Home = () => {
     <>
       <HomeSlider data={homeData?.sliders} />
       <HomeWorldSection data={homeData?.worldDeals} />
-      <HomeDsjSlider data={homeData?.dsjSliders[0]} />
+      <HomeDsjSlider
+        data={homeData?.dsjSliders.slice(0, 5)}
+        heading="Latest Deal"
+      />
       <HomeSeedAndGrowthSection
         seedData={homeData?.seedDeals}
         growthData={homeData?.growthDeals}
       />
-      <HomeDsjSlider data={homeData?.dsjSliders[1]} />
+      <HomeDsjSlider data={homeData?.dsjSliders[5]} heading="Funding 365" />
       <HomeMAAndPreeseedSection
         maData={homeData?.maDeals}
         preseedData={homeData?.preseedDeals}

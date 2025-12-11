@@ -8,6 +8,7 @@ import { useMutation } from '@tanstack/react-query'
 import { sendOtpToEmail, verifyOtp } from '../api/authApi'
 import Swal from 'sweetalert2'
 import { useAuth } from '../hooks/useAuth'
+import { useCart } from '../hooks/useCart'
 
 const Login = () => {
   document.title = 'Login | DealStreetJournal'
@@ -19,6 +20,7 @@ const Login = () => {
   const [showResend, setShowResend] = useState(false)
 
   const { login } = useAuth()
+  const { loadCartCount } = useCart()
 
   const {
     register,
@@ -82,8 +84,8 @@ const Login = () => {
   // Verify OTP mutation
   const verifyOtpMutation = useMutation({
     mutationFn: verifyOtp,
-    onSuccess: (data) => {
-      console.log('user verify and login successful', data)
+    onSuccess: () => {
+      // console.log('user verify and login successful', data)
       reset()
       setOtpSent(false)
       setTimeLeft(0)
@@ -91,6 +93,7 @@ const Login = () => {
       setIsCaptchaValid(false) // Reset captcha state
 
       login(email)
+      loadCartCount()
 
       Swal.fire({
         title: 'Success!',
@@ -175,10 +178,10 @@ const Login = () => {
       return
     }
 
-    console.log('Attempting to verify OTP:', {
-      email: emailValue,
-      otp: parseInt(otp),
-    })
+    // console.log('Attempting to verify OTP:', {
+    //   email: emailValue,
+    //   otp: parseInt(otp),
+    // })
     verifyOtpMutation.mutate({ email: emailValue, otp: parseInt(otp) })
   }
 
@@ -189,8 +192,8 @@ const Login = () => {
   }
 
   // Main form submission - FIXED VERSION
-  const onSubmit = async (data) => {
-    console.log('Form submitted with data:', data)
+  const onSubmit = async () => {
+    // console.log('Form submitted with data:', data)
 
     // Validate terms and conditions
     const termsValid = await trigger('terms')
@@ -200,13 +203,13 @@ const Login = () => {
 
     if (!otpSent) {
       // If OTP not sent, send it first
-      console.log('OTP not sent, sending OTP...')
+      // console.log('OTP not sent, sending OTP...')
       await handleSendOtp()
       return
     }
 
     // If OTP is sent, verify it and login
-    console.log('OTP sent, verifying OTP...')
+    // console.log('OTP sent, verifying OTP...')
     await handleVerifyOtp()
   }
 
@@ -214,16 +217,16 @@ const Login = () => {
     <>
       <div className="w-full bg-slate-50">
         <div className="max-w-[450px] w-[90%] mx-auto py-10">
-          <h1 className="bg-[#ff7010] rounded-tl-lg rounded-tr-lg text-center font-bold text-2xl text-white py-7">
+          <h1 className="bg-[#ff7010] rounded-tl-lg rounded-tr-lg text-center font-aptos-bold text-2xl text-white py-7">
             Login
           </h1>
           <form
             onSubmit={handleSubmit(onSubmit)}
-            className="bg-slate-200 py-5 px-3 rounded-bl-lg rounded-br-lg"
+            className="bg-slate-200 py-5 px-3 shadow rounded-bl-lg rounded-br-lg"
           >
             {/* Email */}
             <div className="mb-4">
-              <div className="flex justify-start items-center p-2 bg-white gap-1 rounded focus-within:outline focus-within:outline-[#ff7010]">
+              <div className="flex justify-start border border-gray-300 items-center p-2 bg-white gap-1 rounded focus-within:outline focus-within:outline-[#ff7010]">
                 <MdEmail size={20} className="text-gray-400" />
                 <input
                   type="email"
@@ -236,9 +239,25 @@ const Login = () => {
                       message: 'Enter a valid email address',
                     },
                   })}
-                  className="outline-0 w-full disabled:bg-gray-100"
+                  className="outline-0 w-full disabled:bg-gray-100 font-aptos-regular"
                 />
-                {otpSent && <span className="text-green-500 text-sm">✓</span>}
+                {otpSent && (
+                  <span className="mx-auto flex items-center justify-center h-6 w-6 rounded-full border-2 border-green-600">
+                    <svg
+                      className="h-5 w-5 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </span>
+                )}
               </div>
               {errors.email && (
                 <p className="text-red-500 text-sm mt-1">
@@ -250,7 +269,7 @@ const Login = () => {
             {/* OTP Input */}
             {otpSent && (
               <div className="mb-4">
-                <div className="flex justify-start items-center p-2 bg-white gap-1 rounded focus-within:outline focus-within:outline-[#ff7010]">
+                <div className="flex justify-start items-center p-2 border border-gray-300 bg-white gap-1 rounded focus-within:outline focus-within:outline-[#ff7010]">
                   <MdLock size={20} className="text-gray-400" />
                   <input
                     type="text"
@@ -263,7 +282,7 @@ const Login = () => {
                         message: 'Enter a valid 6-digit OTP',
                       },
                     })}
-                    className="outline-0 w-full"
+                    className="outline-0 w-full font-aptos-regular"
                   />
                 </div>
                 {errors.otp && (
@@ -273,7 +292,7 @@ const Login = () => {
                 )}
 
                 {/* Timer and Verify/Resend Button */}
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center font-aptos-regular justify-between mt-2">
                   {!showResend && timeLeft > 0 && (
                     <span className="text-sm text-gray-600">
                       OTP expires in: {formatTime(timeLeft)}
@@ -306,7 +325,7 @@ const Login = () => {
 
             {/* Terms and Conditions */}
             <div className="my-5">
-              <div className="flex justify-start items-center gap-3">
+              <div className="flex justify-start items-center gap-3 font-aptos-regular">
                 <input
                   type="checkbox"
                   {...register('terms', {
@@ -318,7 +337,7 @@ const Login = () => {
                   I accept{' '}
                   <Link
                     to="/terms-of-services"
-                    className="text-[#ff7010] hover:underline"
+                    className="text-orange-600 hover:underline"
                   >
                     Terms and Conditions
                   </Link>
@@ -332,13 +351,13 @@ const Login = () => {
             </div>
 
             {/* Submit Button */}
-            <div className="flex items-center justify-center mt-6">
+            <div className="flex items-center font-aptos-semibold justify-center mt-6">
               <button
                 type="submit"
                 disabled={
                   sendOtpMutation.isPending || verifyOtpMutation.isPending
                 }
-                className="bg-[#ff7010] cursor-pointer hover:bg-[#e5630e] disabled:opacity-50 px-8 py-3 text-white font-aptos-bold text-sm rounded transition-colors flex items-center gap-2"
+                className="bg-[#ff7010] cursor-pointer hover:bg-[#e5630e] disabled:opacity-50 px-8 py-3 text-white text-sm rounded transition-colors flex items-center gap-2"
               >
                 {(sendOtpMutation.isPending || verifyOtpMutation.isPending) && (
                   <FaSpinner className="animate-spin" />
@@ -348,7 +367,7 @@ const Login = () => {
             </div>
 
             {/* new user */}
-            <div className="flex justify-center items-center gap-2 mt-4">
+            <div className="flex justify-center items-center gap-2 font-aptos-regular mt-4">
               <FaUser size={15} />
               <span className="text-gray-600">
                 New user? Just enter your email to get started!

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>500 | Internal Server Error</title>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+        background: #f7f9fc;
+        color: #2d2d2d;
+        text-align: center;
+      }
+
+      .container {
+        max-width: 760px;
+        margin-inline: auto;
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 42px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+      }
+
+      .error-code {
+        font-size: 17px;
+        background: #e5e5e5;
+        padding: 6px 16px;
+        border-radius: 20px;
+        display: inline-block;
+        margin-top: 10px;
+      }
+
+      .status-section {
+        display: flex;
+        justify-content: space-around;
+        margin: 50px 0;
+        flex-wrap: wrap;
+      }
+
+      .status-box {
+        width: 160px;
+        text-align: center;
+        padding: 15px;
+      }
+
+      .status-box img {
+        width: 55px;
+        height: 55px;
+        margin-bottom: 12px;
+      }
+
+      .label {
+        font-size: 18px;
+        margin-bottom: 5px;
+      }
+
+      .green {
+        color: #2ecc71;
+        font-weight: 600;
+      }
+
+      .red {
+        color: #e74c3c;
+        font-weight: 600;
+      }
+
+      p {
+        font-size: 17px;
+        color: #555;
+        line-height: 1.6;
+        margin-top: 12px;
+      }
+
+      .retry-btn {
+        margin-top: 30px;
+        padding: 12px 24px;
+        background: #0078f0;
+        color: white;
+        border: none;
+        font-size: 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: 0.2s ease;
+      }
+
+      .retry-btn:hover {
+        background: #005fcc;
+      }
+
+      footer {
+        margin-top: 15px;
+        font-size: 14px;
+        color: #777;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>Internal Server Error</h1>
+      <div class="error-code">Error code 500</div>
+
+      <div class="status-section">
+        <!-- Browser -->
+        <div class="status-box">
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/545/545674.png"
+            alt="Browser"
+          />
+          <div class="label green">Browser</div>
+          <p>Working</p>
+        </div>
+
+        <!-- Cloudflare Status -->
+        <div class="status-box">
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/4144/4144723.png"
+            alt="Cloudflare"
+          />
+          <div id="cloudflare-label" class="label">Checking...</div>
+          <p id="cloudflare-text">Checking status...</p>
+        </div>
+
+        <!-- AWS Status -->
+        <div class="status-box">
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/1048/1048949.png"
+            alt="AWS"
+          />
+          <div id="aws-label" class="label">Checking...</div>
+          <p id="aws-text">Checking status...</p>
+        </div>
+      </div>
+
+      <h3>What happened?</h3>
+      <p id="explanation">We are checking the source of the issue...</p>
+
+      <h3>What can I do?</h3>
+      <p>Please try again in a few minutes.</p>
+
+      <button class="retry-btn" onclick="location.reload()">Reload Page</button>
+
+      <footer>
+        ©
+        <script>
+          document.write(new Date().getFullYear())
+        </script>
+        DealStreetJournal • Error 500
+      </footer>
+    </div>
+
+    <script>
+      async function runChecks() {
+        let cloudflareStatus = 'Error'
+        let awsStatus = 'Error'
+
+        //---------------------------
+        // CLOUDLFARE / CDN CHECK
+        //---------------------------
+        try {
+          // HEAD request to same domain
+          await fetch('/', { method: 'HEAD', cache: 'no-store' })
+          cloudflareStatus = 'Working'
+        } catch (e) {
+          cloudflareStatus = 'Error'
+        }
+
+        //---------------------------
+        // AWS BACKEND CHECK
+        //---------------------------
+        try {
+          const res = await fetch(
+            'https://web.dealstreetjournal.com/message/health',
+            {
+              cache: 'no-store',
+            }
+          )
+
+          if (res.ok) {
+            awsStatus = 'Working'
+          } else {
+            awsStatus = 'Error'
+          }
+        } catch (e) {
+          awsStatus = 'Error'
+        }
+
+        //---------------------------
+        // UPDATE UI
+        //---------------------------
+
+        // Cloudflare UI
+        const cfLabel = document.getElementById('cloudflare-label')
+        const cfText = document.getElementById('cloudflare-text')
+        if (cloudflareStatus === 'Working') {
+          cfLabel.classList.add('green')
+          cfLabel.textContent = 'Cloudflare'
+          cfText.textContent = 'Working'
+        } else {
+          cfLabel.classList.add('red')
+          cfLabel.textContent = 'Cloudflare'
+          cfText.textContent = 'Error'
+        }
+
+        // AWS UI
+        const awsLabel = document.getElementById('aws-label')
+        const awsText = document.getElementById('aws-text')
+        if (awsStatus === 'Working') {
+          awsLabel.classList.add('green')
+          awsLabel.textContent = 'AWS Server'
+          awsText.textContent = 'Working'
+        } else {
+          awsLabel.classList.add('red')
+          awsLabel.textContent = 'AWS Server'
+          awsText.textContent = 'Error'
+        }
+
+        //---------------------------
+        // Explanation text
+        //---------------------------
+        const explanation = document.getElementById('explanation')
+
+        if (cloudflareStatus === 'Error') {
+          explanation.textContent =
+            "The error is occurring in Cloudflare's network."
+        } else if (awsStatus === 'Error') {
+          explanation.textContent =
+            'Your AWS backend server is experiencing an issue.'
+        } else {
+          explanation.textContent =
+            'There is an unknown issue. Please try again.'
+        }
+      }
+
+      runChecks()
+    </script>
+  </body>
+</html>

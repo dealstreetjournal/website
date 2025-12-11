@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
   // Check for existing user on mount
   useEffect(() => {
     const email = Cookies.get('userEmail')
-    console.log('AuthProvider: Initial email from cookie:', email) // Debug log
+    // console.log('AuthProvider: Initial email from cookie:', email) // Debug log
     if (email) {
       setUser(email)
     }
@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const login = (email) => {
-    console.log('AuthProvider: Login called with:', email) // Debug log
+    // console.log('AuthProvider: Login called with:', email) // Debug log
 
     Cookies.set('userEmail', email, { expires: 1 })
 
@@ -25,10 +25,10 @@ export const AuthProvider = ({ children }) => {
   }
 
   const logout = () => {
-    console.log('AuthProvider: Logout called, current user:', user) // Debug log
+    // console.log('AuthProvider: Logout called, current user:', user) // Debug log
     Cookies.remove('userEmail')
     setUser(null)
-    console.log('AuthProvider: User cleared, cookie removed') // Debug log
+    // console.log('AuthProvider: User cleared, cookie removed') // Debug log
   }
 
   const value = {
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
     loading,
   }
 
-  console.log('AuthProvider: Current user state:', user) // Debug log
+  // console.log('AuthProvider: Current user state:', user) // Debug log
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

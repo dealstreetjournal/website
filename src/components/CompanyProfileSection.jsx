@@ -24,15 +24,16 @@ const CompanyProfileSection = ({
       <div className="flex items-end gap-4 mb-1">
         <img
           src={companyLogoUrl}
-          alt="Blinkit Logo"
-          className="w-15 h-15 rounded object-cover object-center"
+          alt={brandName}
+          loading="lazy"
+          className="w-15 aspect-square object-contain object-center rounded border-2 border-slate-300"
         />
-        <h2 className="text-[#ff7010] text-xl md:text-base lg:text-xl whitespace-nowrap font-aptos-bold">
+        <h2 className="text-[#e66000] text-xl md:text-base lg:text-xl whitespace-wrap font-aptos-bold">
           {brandName}
         </h2>
       </div>
 
-      <hr className="border-t-2 border-[#ff7010] w-full mb-7" />
+      <hr className="text-[#ff7010] w-full my-3" />
 
       {/* Responsive Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-6 text-sm">
@@ -70,7 +71,28 @@ const CompanyProfileSection = ({
           <FaMoneyBillWave size={18} className="text-[#ff7010] mt-1 shrink-0" />
           <div>
             <p className="text-gray-500 font-aptos-regular">Gross Revenue</p>
-            <p className="font-aptos-bold">{grossRevenue}</p>
+            {console.log('grossRevenue', grossRevenue)}
+            {grossRevenue &&
+              (() => {
+                {
+                  /* const start = grossRevenue.indexOf('(')
+                const end = grossRevenue.indexOf(')')
+
+                // Main value (before parentheses)
+                const value = grossRevenue.slice(0, start).trim()
+                // Year with parentheses
+                const year = grossRevenue.slice(start, end + 1) */
+                }
+
+                const [value, year] = grossRevenue.split('(')
+
+                return (
+                  <>
+                    <p className="font-aptos-bold">{value}</p>
+                    {year && <p className="font-aptos-bold">{`(${year}`}</p>}
+                  </>
+                )
+              })()}
           </div>
         </div>
 
@@ -79,13 +101,32 @@ const CompanyProfileSection = ({
           <FaChartLine size={18} className="text-[#ff7010] mt-1 shrink-0" />
           <div>
             <p className="text-gray-500 font-aptos-regular">EBITDA</p>
-            <p
-              className={`${
-                ebitda.charAt(0) === '+' ? 'text-green-700' : 'text-red-600'
-              }  font-aptos-bold`}
-            >
-              &#x20b9;{ebitda.slice(1)}
-            </p>
+
+            {ebitda &&
+              (() => {
+                const start = ebitda.indexOf('(')
+                const end = ebitda.indexOf(')')
+
+                // Main value (before parentheses)
+                const value = ebitda.slice(0, start).trim()
+                // Year with parentheses
+                const year = ebitda.slice(start, end + 1)
+
+                return (
+                  <>
+                    <p
+                      className={`${
+                        ebitda.charAt(0) === '+'
+                          ? 'text-green-700'
+                          : 'text-red-600'
+                      }  font-aptos-bold`}
+                    >
+                      {value.charAt(0) === '+' ? value.slice(1) : value}
+                    </p>
+                    <p className="font-aptos-bold">{year}</p>
+                  </>
+                )
+              })()}
           </div>
         </div>
 
@@ -99,15 +140,31 @@ const CompanyProfileSection = ({
             <p className="text-gray-500 font-aptos-regular">
               Net Profit/(Loss)
             </p>
-            <p
-              className={` ${
-                netProfitLoss.charAt(0) === '-'
-                  ? 'text-red-600'
-                  : 'text-green-700'
-              } font-aptos-bold`}
-            >
-              ₹{netProfitLoss.slice(1)}
-            </p>
+            {netProfitLoss &&
+              (() => {
+                const start = netProfitLoss.indexOf('(')
+                const end = netProfitLoss.indexOf(')')
+
+                // Main value (before parentheses)
+                const value = netProfitLoss.slice(0, start).trim()
+                // Year with parentheses
+                const year = netProfitLoss.slice(start, end + 1)
+
+                return (
+                  <>
+                    <p
+                      className={`${
+                        netProfitLoss.charAt(0) === '+'
+                          ? 'text-green-700'
+                          : 'text-red-600'
+                      }  font-aptos-bold`}
+                    >
+                      {value.charAt(0) === '+' ? value.slice(1) : value}
+                    </p>
+                    <p className="font-aptos-bold">{year}</p>
+                  </>
+                )
+              })()}
           </div>
         </div>
       </div>

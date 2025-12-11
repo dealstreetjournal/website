@@ -23,6 +23,7 @@ const FinancialInsight = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -40,7 +41,7 @@ const FinancialInsight = () => {
           {/* breadcrumb */}
           <div className="font-semibold flex justify-start space-x-1">
             <Link
-              to="/dsj"
+              to="/dsj-insight"
               className="text-black hover:text-slate-700 transition-all duration-300"
             >
               DSJ

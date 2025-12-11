@@ -12,6 +12,7 @@ import Swal from 'sweetalert2'
 import Tippy from '@tippyjs/react'
 import 'tippy.js/dist/tippy.css'
 import Popup from '../components/Popup'
+import SamplePdf from '../components/SamplePdf'
 
 const Funding365Company = () => {
   const location = useLocation()
@@ -20,7 +21,7 @@ const Funding365Company = () => {
 
   const { id } = useParams()
   const [page, setPage] = useState(1)
-  const [open, setOpen] = useState(false)
+  // const [open, setOpen] = useState(false)
   const [showPopup, setShowPopup] = useState(false)
 
   useEffect(() => {
@@ -46,8 +47,8 @@ const Funding365Company = () => {
 
   const mutation = useMutation({
     mutationFn: addToCart,
-    onSuccess: (data) => {
-      console.log('item added to cart :', data)
+    onSuccess: () => {
+      // console.log('item added to cart :', data)
       incrementCartCount()
       Swal.fire({
         title: 'Success!',
@@ -77,6 +78,7 @@ const Funding365Company = () => {
         <img
           src={spinner}
           alt="Loading"
+          loading="lazy"
           className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
         />
       </div>
@@ -114,17 +116,16 @@ const Funding365Company = () => {
             </Link>
           </div>
           <div
-            onClick={() => setOpen(true)}
+            // onClick={() => setOpen(true)}
             className="block sm:hidden bg-[#ff7010] cursor-pointer font-aptos-semibold px-3 py-2 rounded text-white"
           >
-            Sample
+            <SamplePdf url={pdfUrl} />
           </div>
         </div>
 
-        {open && (
+        {/* {open && (
           <div className="fixed inset-0  flex items-center justify-center z-50">
             <div className="bg-white rounded-lg w-11/12 md:w-3/4 lg:w-2/3 relative">
-              {/* Close Button (only tab/element) */}
               <button
                 onClick={() => setOpen(false)}
                 className="absolute top-11 cursor-pointer right-5 border-2 border-red-700 bg-white px-2 text-red-700 rounded-full hover:text-red-800 text-lg font-aptos-bold"
@@ -132,7 +133,6 @@ const Funding365Company = () => {
                 ✕
               </button>
 
-              {/* PDF Viewer */}
               <embed
                 src={pdfUrl}
                 type="application/pdf"
@@ -141,13 +141,14 @@ const Funding365Company = () => {
               />
             </div>
           </div>
-        )}
+        )} */}
 
         {/* search and sample report */}
         <div className="mt-10 flex justify-between items-center">
           <div className="flex gap-2 items-end">
             <img
               src={contents[0].companyId.companyLogoUrl}
+              loading="lazy"
               className="w-15 h-15 rounded-md"
             />
             <h3 className="font-aptos-bold text-xl">
@@ -156,10 +157,10 @@ const Funding365Company = () => {
           </div>
 
           <div
-            onClick={() => setOpen(true)}
+            // onClick={() => setOpen(true)}
             className="hidden md:block bg-[#ff7010] cursor-pointer font-aptos-semibold px-3 py-2 rounded text-white"
           >
-            Sample Report
+            <SamplePdf url={pdfUrl} />
           </div>
         </div>
         {/* table for large device */}
@@ -189,7 +190,7 @@ const Funding365Company = () => {
                   </td>
                   <td className="p-3 flex justify-center items-center">
                     <div className="w-22 h-20">
-                      <img src={pdf} alt="pdf-image" />
+                      <img src={pdf} loading="lazy" alt="sample pdf" />
                     </div>
                   </td>
                   <td className="p-3 text-center font-aptos-semibold xl:font-aptos-bold">
@@ -231,7 +232,8 @@ const Funding365Company = () => {
               <div className="min-h-[100px]">
                 <img
                   src={pdf}
-                  alt="logo"
+                  alt="sample pdf"
+                  loading="lazy"
                   className="w-24 h-24 mr-2 object-contain rounded-md float-left flex-shrink-0"
                 />
                 <p className="text-gray-800 font-aptos-semibold text-sm">

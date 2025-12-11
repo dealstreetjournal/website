@@ -73,25 +73,17 @@ const NavbarMobile = () => {
     setShowSearchResults(false)
   }
 
+  const closeAllMenus = () => {
+    setActiveDropdown(null)
+    setActiveSubmenu(null)
+  }
+
   const renderSearchResults = () => {
     if (!showSearchResults || !debouncedSearch) return null
 
-    // if (isPending) {
-    //   return (
-    //     <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl p-6 min-w-[350px] max-w-[450px] z-50">
-    //       <div className="flex items-center justify-center py-4">
-    //         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ff7010]"></div>
-    //         <span className="ml-3 text-gray-600 font-aptos-semibold">
-    //           Searching...
-    //         </span>
-    //       </div>
-    //     </div>
-    //   )
-    // }
-
     if (isError) {
       return (
-        <div className="absolute top-full right-0 mt-2 bg-white border border-red-200 rounded-xl shadow-2xl p-6 min-w-[350px] max-w-[450px] z-50">
+        <div className="absolute top-full -left-6 mt-20 bg-white border border-red-200 rounded-xl shadow-2xl p-6 min-w-[350px] max-w-[450px] z-50">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center">
               <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
@@ -125,7 +117,7 @@ const NavbarMobile = () => {
 
     if (!hasResults) {
       return (
-        <div className="absolute top-full right-0 mt-5 bg-white border border-gray-200 rounded-xl shadow-2xl p-6 min-w-[350px] max-w-[450px] z-50">
+        <div className="absolute top-full -left-6 mt-20 bg-white border border-gray-200 rounded-xl shadow-2xl p-6 min-w-[350px] max-w-[450px] z-50">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center">
               <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-3">
@@ -160,7 +152,7 @@ const NavbarMobile = () => {
 
     // Render search results
     return (
-      <div className="absolute top-full right-0 mt-5 bg-white border border-gray-200 rounded-xl shadow-2xl p-6 min-w-[400px] max-w-[550px] z-50 max-h-[500px] overflow-y-auto">
+      <div className="absolute top-full -left-6 mt-20 bg-white border border-gray-200 rounded-xl shadow-2xl p-6 w-[90vw] z-50 max-h-[500px] overflow-y-auto">
         <div className="flex justify-between items-center mb-5">
           <div className="flex items-center">
             <div className="w-8 h-8 bg-[#ff7010] bg-opacity-10 rounded-full flex items-center justify-center mr-3">
@@ -363,6 +355,7 @@ const NavbarMobile = () => {
                       <Link
                         key={index}
                         to={item.to}
+                        onClick={closeAllMenus}
                         className="block whitespace-nowrap text-gray-800 font-aptos-semibold py-2 px-4 hover:bg-gray-100 hover:text-[#ff7010] transition-colors border-b border-gray-500 w-28"
                       >
                         {item.label}
@@ -375,6 +368,7 @@ const NavbarMobile = () => {
               {/* IPO */}
               <Link
                 to="/ipo"
+                onClick={closeAllMenus}
                 className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2"
               >
                 <span>IPO</span>
@@ -383,6 +377,7 @@ const NavbarMobile = () => {
               {/* World */}
               <Link
                 to="/world"
+                onClick={closeAllMenus}
                 className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2"
               >
                 <span>World</span>
@@ -413,6 +408,7 @@ const NavbarMobile = () => {
                       <Link
                         key={index}
                         to={item.to}
+                        onClick={closeAllMenus}
                         className="block px-4 py-2 whitespace-nowrap text-gray-700 hover:bg-gray-100 hover:text-[#ff7010] transition-colors border-b border-gray-500 w-36"
                       >
                         {item.label}
@@ -426,19 +422,22 @@ const NavbarMobile = () => {
         </div>
 
         {/* search */}
-        <div
-          className="relative group"
-          onClick={() => {
-            setActiveDropdown(activeDropdown === 'search' ? null : 'search')
-            setActiveSubmenu(null)
-          }}
-        >
-          <div className="hover:text-[#ff7010] transition-colors">
+        <div className="relative group">
+          <div
+            className="hover:text-[#ff7010] transition-colors"
+            onClick={() => {
+              setActiveDropdown(activeDropdown === 'search' ? null : 'search')
+              setActiveSubmenu(null)
+            }}
+          >
             <FaSearch />
           </div>
 
           {activeDropdown === 'search' && (
-            <div className="absolute left-0 top-[46px] border bg-white border-black rounded shadow-lg min-w-[200px] z-50 animate-[slideDown_0.3s_ease-out]">
+            <div
+              className="absolute left-0 top-[46px] border bg-white border-black rounded shadow-lg min-w-[250px] mx-auto z-50 animate-[slideDown_0.3s_ease-out]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="m-1 flex justify-center items-center gap-2">
                 <input
                   type="search"
@@ -460,10 +459,11 @@ const NavbarMobile = () => {
         </div>
 
         {/* logo */}
-        <Link to="/" className="w-[200px] h-auto">
+        <Link to="/" className="w-[200px] h-auto" onClick={closeAllMenus}>
           <img
             src={logo}
             alt="dealstreetjournal"
+            loading="lazy"
             className="mix-blend-multiply"
           />
         </Link>
@@ -471,6 +471,7 @@ const NavbarMobile = () => {
         {/* Shopping Cart */}
         <Link
           to="/cart"
+          onClick={closeAllMenus}
           className="relative flex justify-center items-center hover:text-gray-600 transition-colors"
         >
           <FaShoppingCart className="text-[20px]" />
@@ -488,16 +489,16 @@ const NavbarMobile = () => {
         </Link>
 
         {/* Login */}
-        <Link to={user ? '/user' : '/login'}>
+        <Link to={user ? '/user' : '/login'} onClick={closeAllMenus}>
           {user ? <FaUser size={20} color="#ff7010" /> : <FaUser size={20} />}
         </Link>
       </div>
 
       {/* Backdrop to close search results when clicking outside */}
-      {showSearchResults && (
+      {(activeDropdown || showSearchResults) && (
         <div
-          className="fixed inset-0 bg-transparent z-40"
-          onClick={closeSearchResults}
+          className="fixed inset-0 bg-transparent z-30"
+          onClick={closeAllMenus}
         />
       )}
     </>

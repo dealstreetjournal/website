@@ -57,8 +57,9 @@ const ContactUs = () => {
   return (
     <>
       <div className="w-full bg-slate-50 py-10">
-        <div className="max-w-6xl mx-auto w-[90%] border shadow-xl grid grid-cols-1 md:grid-cols-[70%_30%] rounded-md">
-          <div className="p-6">
+        <div className="max-w-6xl mx-auto w-[90%] overflow-clip border shadow-xl grid grid-cols-1 md:grid-cols-[60%_40%] lg:grid-cols-[70%_30%] rounded-md">
+          {/* send mail */}
+          <div className="order-last md:order-none p-6">
             <h1 className="font-aptos-bold text-2xl sm:text-3xl">
               Get in Touch
             </h1>
@@ -132,6 +133,8 @@ const ContactUs = () => {
                   className="border-2 border-gray-300 rounded-md p-1.5"
                 >
                   <option value="">Select Subject</option>
+                  <option>Investor</option>
+                  <option>Founder</option>
                   <option>Support</option>
                   <option>Advertising</option>
                   <option>Customise Report</option>
@@ -148,7 +151,13 @@ const ContactUs = () => {
                 <label>Message</label>
                 <textarea
                   rows={5}
-                  {...register('message', { required: 'Message is required' })}
+                  {...register('message', {
+                    required: 'Message is required',
+                    maxLength: {
+                      value: 2000,
+                      message: 'Maximum length is 2000 characters',
+                    },
+                  })}
                   className="border-2 border-gray-300 p-1.5 rounded-md"
                 ></textarea>
                 {errors.message && (
@@ -170,7 +179,7 @@ const ContactUs = () => {
           </div>
 
           {/* Contact Info */}
-          <div className="bg-slate-200 p-8 rounded-bl-md rounded-br-md md:rounded-tr-md md:rounded-br-md">
+          <div className="order-first md:order-none overflow-clip bg-slate-200 p-8">
             <h1 className="font-aptos-bold text-2xl xl:text-3xl lg:whitespace-nowrap">
               Contact Information
             </h1>
@@ -179,14 +188,14 @@ const ContactUs = () => {
                 <MdEmail size={24} className="text-[#ff7010]" />
                 <div>
                   <h5 className="font-aptos-bold text-gray-700">Email</h5>
-                  <p>support@dealstreetjournal.com</p>
+                  <p className="">support@dealstreetjournal.com</p>
                 </div>
               </div>
               <div className="font-aptos-regular flex gap-3 mt-8">
                 <MdPhone size={24} className="text-[#ff7010]" />
                 <div>
                   <h5 className="font-aptos-bold text-gray-700">Phone</h5>
-                  <p>+91 9876-5432-10</p>
+                  <p>+91 9560-7143-99</p>
                 </div>
               </div>
               <div className="font-aptos-regular flex gap-3 mt-8">

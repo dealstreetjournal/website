@@ -25,17 +25,43 @@
   }
 }
 
-@keyframes marquee {
+/* @keyframes marquee {
   0% {
-    transform: translateX(100%);
+    transform: translateX(0);
   }
   100% {
-    transform: translateX(-100%);
+    transform: translateX(-50%);
+  }
+} */
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.333%);
   }
 }
 
+.marquee-container {
+  overflow: hidden;
+}
+
+.marquee-content {
+  animation: marquee 70s linear infinite;
+}
+
+.marquee-content-fast {
+  animation: marquee 20s linear infinite;
+}
+
+.marquee-content:hover {
+  animation-play-state: paused;
+}
+
 @keyframes move {
-  0% {
+  0%,
+  100% {
     transform: translateX(0);
   }
   20% {
@@ -50,8 +76,24 @@
   80% {
     transform: translateX(4px);
   }
+}
+
+@keyframes demove {
+  0%,
   100% {
     transform: translateX(0);
+  }
+  20% {
+    transform: translateX(8px);
+  }
+  40% {
+    transform: translateX(-8px);
+  }
+  60% {
+    transform: translateX(4px);
+  }
+  80% {
+    transform: translateX(-4px);
   }
 }
 
@@ -76,6 +118,18 @@
   }
 }
 
+@keyframes glowBorder {
+  0%,
+  100% {
+    box-shadow: 0 0 5px #ff7010, 0 0 8px #ff7010, inset 0 0 5px #ff7010;
+    border-color: #ff7010;
+  }
+  50% {
+    box-shadow: 0 0 10px #ffa94d, 0 0 15px #ff7010, inset 0 0 5px #ff7010;
+    border-color: #ffa94d;
+  }
+}
+
 .swal2-popup {
   border: 2px solid #ff7010 !important;
   background-color: #f8f9fa !important;
@@ -90,3 +144,12 @@
 /* .tippy-arrow {
   color: #4b5563 !important;
 } */
+
+.drop-cap {
+  font-size: 3em;
+  font-weight: bold;
+  color: #ff7010;
+  float: left;
+  line-height: 1;
+  padding-right: 9px;
+}
