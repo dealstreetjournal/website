@@ -8,7 +8,7 @@ import { handleDate } from '../handleDate'
 import { stateCodes } from './stateCodes'
 
 const CreatePdf = () => {
-  const date = new Date()
+  // const date = new Date()
   const { state } = useLocation()
 
   const code = stateCodes[state.state]
@@ -52,7 +52,7 @@ const CreatePdf = () => {
         <div style={{ fontSize: '18px' }}>
           <p>
             <span>Invoice Date: </span>
-            <span>{handleDate(date)}</span>
+            <span>{handleDate(state?.date)}</span>
           </p>
           <p>
             <span>Invoice No: </span>

@@ -126,6 +126,7 @@ const Invoice = () => {
                       orderId: row.orderId,
                       phone: row.phone,
                       state: row.state,
+                      date: row.date,
                     }}
                     className="flex items-center cursor-pointer justify-center mx-auto w-10 h-10 rounded-full hover:bg-[#ff7010]/10 text-[#ff7010] hover:text-[#e65c00] transition"
                     title="Download Invoice"

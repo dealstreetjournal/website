@@ -223,15 +223,15 @@ const DealDetails = () => {
   }, [finalHtml])
 
   // Social sharing handlers
-  // const handleWhatsAppShare = () => {
-  //   const text = encodeURIComponent(`${shareTitle}\n\n${shareDescription}`)
-  //   const url = encodeURIComponent(currentUrl)
-  //   window.open(
-  //     `https://wa.me/?text=${text}%20${url}`,
-  //     '_blank',
-  //     'noopener,noreferrer'
-  //   )
-  // }
+  const handleWhatsAppShare = () => {
+    const text = encodeURIComponent(`${shareTitle}\n\n${shareDescription}`)
+    const url = encodeURIComponent(currentUrl)
+    window.open(
+      `https://wa.me/?text=${text}%20${url}`,
+      '_blank',
+      'noopener,noreferrer'
+    )
+  }
 
   // const handleFacebookShare = () => {
   //   const url = encodeURIComponent(currentUrl)
@@ -281,19 +281,43 @@ const DealDetails = () => {
   return (
     <>
       <Helmet>
-        <title>{deal?.brandName} Article</title>
-        <meta name="description" content={shareDescription} />
-        <meta property="og:title" content={shareTitle} />
-        <meta property="og:description" content={shareDescription} />
-        <meta property="og:image" content={shareImage} />
+        <title>
+          {deal?.brandName ? `${deal.brandName} Article` : 'DSJ Article'}
+        </title>
+        <meta
+          name="description"
+          content={shareDescription || 'Default description'}
+        />
+
+        {/* Open Graph */}
+        <meta property="og:title" content={shareTitle || 'DSJ'} />
+        <meta
+          property="og:description"
+          content={shareDescription || 'Default description'}
+        />
+        <meta
+          property="og:image"
+          content={shareImage || '/default-image.jpg'}
+        />
         <meta property="og:url" content={currentUrl} />
         <meta property="og:type" content="article" />
         <meta property="og:site_name" content="DSJ" />
+
+        {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={shareTitle} />
-        <meta name="twitter:description" content={shareDescription} />
-        <meta name="twitter:image" content={shareImage} />
-        <meta name="twitter:site" content="@yourtwitterhandle" />
+        <meta name="twitter:title" content={shareTitle || 'DSJ'} />
+        <meta
+          name="twitter:description"
+          content={shareDescription || 'Default description'}
+        />
+        <meta
+          name="twitter:image"
+          content={shareImage || '/default-image.jpg'}
+        />
+        <meta name="twitter:site" content="@YourActualHandle" />
+
+        {/* Canonical URL */}
+        <link rel="canonical" href={currentUrl} />
       </Helmet>
 
       <div className="bg-slate-50 pb-5 w-full mx-auto">
@@ -341,21 +365,21 @@ const DealDetails = () => {
                     {handleDate(deal.articleDate)}
                   </p>
                 </div>
-                {/* <div className="flex gap-4 mr-2"> */}
-                <div class="sharethis-inline-share-buttons"></div>
+                <div className="flex mr-2">
+                  <div class="sharethis-inline-share-buttons"></div>
 
-                {/* <button
+                  <button
                     onClick={handleWhatsAppShare}
                     aria-label="Share on WhatsApp"
                     title="Share on WhatsApp"
                     className="hover:scale-110 transition-transform duration-200"
                   >
                     <FaWhatsapp
-                      size={22}
+                      size={30}
                       className="text-[#25D366] hover:text-[#ff7010] transition-all duration-300"
                     />
                   </button>
-                  <button
+                  {/* <button
                     onClick={handleFacebookShare}
                     aria-label="Share on Facebook"
                     title="Share on Facebook"
@@ -379,7 +403,7 @@ const DealDetails = () => {
                   >
                     <FaLinkedin className="text-[#0077B5] hover:text-[#ff7010] transition-all duration-300" />
                   </button> */}
-                {/* </div> */}
+                </div>
               </div>
 
               <hr className="text-orange-400 mt-2" />
