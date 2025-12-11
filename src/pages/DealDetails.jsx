@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import {
   FaCaretDown,
   FaWhatsapp,
-  FaFacebook,
+  FaInstagram,
   FaXTwitter,
   FaLinkedin,
 } from 'react-icons/fa6'
@@ -74,13 +74,13 @@ const DealDetails = () => {
 
   const deal4Article = dealSorted?.slice(0, 4)
 
-  useEffect(() => {
-    if (deal && window.__sharethis__) {
-      setTimeout(() => {
-        window.__sharethis__.initialize()
-      }, 500)
-    }
-  }, [deal])
+  // useEffect(() => {
+  //   if (deal && window.__sharethis__) {
+  //     setTimeout(() => {
+  //       window.__sharethis__.initialize()
+  //     }, 500)
+  //   }
+  // }, [deal])
 
   // Calculate available space and determine number of cards to show
   useEffect(() => {
@@ -223,15 +223,15 @@ const DealDetails = () => {
   }, [finalHtml])
 
   // Social sharing handlers
-  const handleWhatsAppShare = () => {
-    const text = encodeURIComponent(`${shareTitle}\n\n${shareDescription}`)
-    const url = encodeURIComponent(currentUrl)
-    window.open(
-      `https://wa.me/?text=${text}%20${url}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // const handleWhatsAppShare = () => {
+  //   const text = encodeURIComponent(`${shareTitle}\n\n${shareDescription}`)
+  //   const url = encodeURIComponent(currentUrl)
+  //   window.open(
+  //     `https://wa.me/?text=${text}%20${url}`,
+  //     '_blank',
+  //     'noopener,noreferrer'
+  //   )
+  // }
 
   // const handleFacebookShare = () => {
   //   const url = encodeURIComponent(currentUrl)
@@ -260,6 +260,52 @@ const DealDetails = () => {
   //     'noopener,noreferrer'
   //   )
   // }
+
+  // Create dynamic full text for sharing
+  // ---- SHARE TEXT BUILDER ----
+  const fullShareText = `${deal?.title}\n\n${shareDescription}\n\n${currentUrl}`
+
+  // WhatsApp
+  const handleWhatsAppShare = () => {
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(fullShareText)}`,
+      '_blank',
+      'noopener,noreferrer'
+    )
+  }
+
+  // Facebook
+  const handleInstagramShare = () => {
+    window.open(
+      `https://www.instagram.com/sharer/sharer.php?u=${encodeURIComponent(
+        currentUrl
+      )}`,
+      '_blank',
+      'noopener,noreferrer'
+    )
+  }
+
+  // Twitter
+  const handleTwitterShare = () => {
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+        deal?.title
+      )}&url=${encodeURIComponent(currentUrl)}`,
+      '_blank',
+      'noopener,noreferrer'
+    )
+  }
+
+  // LinkedIn
+  const handleLinkedInShare = () => {
+    window.open(
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+        currentUrl
+      )}`,
+      '_blank',
+      'noopener,noreferrer'
+    )
+  }
 
   if (isPending) {
     return (
@@ -365,21 +411,21 @@ const DealDetails = () => {
                     {handleDate(deal.articleDate)}
                   </p>
                 </div>
-                <div className="flex mr-2">
-                  <div class="sharethis-inline-share-buttons"></div>
+                {/* <div className="flex gap-4 mr-2"> */}
+                {/* <div class="sharethis-inline-share-buttons"></div> */}
 
-                  <button
-                    onClick={handleWhatsAppShare}
-                    aria-label="Share on WhatsApp"
-                    title="Share on WhatsApp"
-                    className="hover:scale-110 transition-transform duration-200"
-                  >
-                    <FaWhatsapp
-                      size={30}
-                      className="text-[#25D366] hover:text-[#ff7010] transition-all duration-300"
-                    />
-                  </button>
-                  {/* <button
+                <button
+                  onClick={handleWhatsAppShare}
+                  aria-label="Share on WhatsApp"
+                  title="Share on WhatsApp"
+                  className="hover:scale-110 transition-transform duration-200"
+                >
+                  <FaWhatsapp
+                    size={30}
+                    className="text-[#25D366] hover:text-[#ff7010] transition-all duration-300"
+                  />
+                </button>
+                {/* <button
                     onClick={handleFacebookShare}
                     aria-label="Share on Facebook"
                     title="Share on Facebook"
@@ -403,6 +449,40 @@ const DealDetails = () => {
                   >
                     <FaLinkedin className="text-[#0077B5] hover:text-[#ff7010] transition-all duration-300" />
                   </button> */}
+                {/* </div> */}
+
+                <div className="flex gap-4 mr-2">
+                  <button
+                    onClick={handleWhatsAppShare}
+                    aria-label="Share on WhatsApp"
+                    className="hover:scale-110 transition-transform duration-200"
+                  >
+                    <FaWhatsapp size={22} className="text-[#25D366]" />
+                  </button>
+
+                  <button
+                    onClick={handleInstagramShare}
+                    aria-label="Share on Instagram"
+                    className="hover:scale-110 transition-transform duration-200"
+                  >
+                    <FaInstagram size={22} className="text-[#1877F2]" />
+                  </button>
+
+                  <button
+                    onClick={handleTwitterShare}
+                    aria-label="Share on Twitter"
+                    className="hover:scale-110 transition-transform duration-200"
+                  >
+                    <FaXTwitter size={22} className="text-black" />
+                  </button>
+
+                  <button
+                    onClick={handleLinkedInShare}
+                    aria-label="Share on LinkedIn"
+                    className="hover:scale-110 transition-transform duration-200"
+                  >
+                    <FaLinkedin size={22} className="text-[#0077B5]" />
+                  </button>
                 </div>
               </div>
 
