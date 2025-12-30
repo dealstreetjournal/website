@@ -300,7 +300,7 @@ const LatestDeal = () => {
                     src={row.companyLogoUrl}
                     alt="logo"
                     loading="lazy"
-                    className="w-24 h-24 object-cover rounded-sm mr-3 float-left flex-shrink-0"
+                    className="w-24 h-24 object-contain rounded-sm mr-3 float-left flex-shrink-0"
                   />
                   <p className="text-gray-800 font-aptos-semibold text-sm">
                     {row.fundingDetails}
