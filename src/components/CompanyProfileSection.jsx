@@ -71,7 +71,7 @@ const CompanyProfileSection = ({
           <FaMoneyBillWave size={18} className="text-[#ff7010] mt-1 shrink-0" />
           <div>
             <p className="text-gray-500 font-aptos-regular">Gross Revenue</p>
-            {console.log('grossRevenue', grossRevenue)}
+            {/* {console.log('grossRevenue', grossRevenue)} */}
             {grossRevenue &&
               (() => {
                 {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useLayoutEffect } from 'react'
 import {
   FaCaretDown,
   FaWhatsapp,
@@ -34,7 +34,11 @@ const DealDetails = () => {
   const path = location.pathname.split('/')[1].toLowerCase()
 
   const leftColRef = useRef(null)
-  const rightColRef = useRef(null)
+  const unlockRef = useRef(null)
+  const companyRef = useRef(null)
+  const fundRaiseChartRef = useRef(null)
+  const compareBoxRef = useRef(null)
+  const BoxRef = useRef(null)
 
   // Get current URL after component mounts
   useEffect(() => {
@@ -83,33 +87,72 @@ const DealDetails = () => {
   // }, [deal])
 
   // Calculate available space and determine number of cards to show
-  useEffect(() => {
-    const calculateVisibleCards = () => {
-      if (!leftColRef.current || !rightColRef.current) return
 
-      const leftHeight = leftColRef.current.scrollHeight
-      const rightHeight = rightColRef.current.scrollHeight
+  const getHeightIfVisible = (ref) => {
+    if (!ref?.current) return 0
 
-      const remainingSpace = leftHeight - rightHeight
-      // console.log('leftHeight', leftHeight)
-      // console.log('rightHeight', rightHeight)
-      // console.log('reamingSpace', remainingSpace)
-      const cardHeight = 150
-      const cardsToShow = Math.floor(remainingSpace / cardHeight)
+    const el = ref.current
+    const style = window.getComputedStyle(el)
 
-      setVisibleSidebarCards(
-        Math.max(0, Math.min(cardsToShow, dealSorted?.length || 0))
-      )
+    if (
+      style.display === 'none' ||
+      style.visibility === 'hidden' ||
+      el.offsetParent === null
+    ) {
+      return 0
     }
 
-    const timer = setTimeout(calculateVisibleCards, 2000)
-    window.addEventListener('resize', calculateVisibleCards)
+    return el.scrollHeight || 0
+  }
+
+  useLayoutEffect(() => {
+    if (!leftColRef.current) return
+
+    const calculate = () => {
+      const leftHeight = leftColRef.current.scrollHeight
+
+      const sidebarHeight =
+        getHeightIfVisible(unlockRef) +
+        getHeightIfVisible(companyRef) +
+        getHeightIfVisible(fundRaiseChartRef) +
+        getHeightIfVisible(compareBoxRef) +
+        getHeightIfVisible(BoxRef)
+
+      const remainingSpace = leftHeight - sidebarHeight
+      const cardHeight = 150
+
+      const cardsToShow =
+        Math.floor(remainingSpace / cardHeight) +
+        ((deal?.grossGraphBox || deal?.fundRaiseBox) && 4)
+
+      setVisibleSidebarCards((prev) =>
+        prev === cardsToShow ? prev : Math.max(0, cardsToShow)
+      )
+
+      console.log('start from here haif jeow fjsfwo fa ')
+      console.log('leftHeigh', leftHeight)
+      console.log('sidebarHeight', sidebarHeight)
+      console.log('remainingSpace', remainingSpace)
+      console.log('cardsToShow', cardsToShow)
+    }
+
+    const ro = new ResizeObserver(calculate)
+
+    ro.observe(leftColRef.current)
+    unlockRef.current && ro.observe(unlockRef.current)
+    companyRef.current && ro.observe(companyRef.current)
+    fundRaiseChartRef.current && ro.observe(fundRaiseChartRef.current)
+    compareBoxRef.current && ro.observe(compareBoxRef.current)
+    BoxRef.current && ro.observe(BoxRef.current)
+
+    window.addEventListener('resize', calculate)
+    calculate()
 
     return () => {
-      clearTimeout(timer)
-      window.removeEventListener('resize', calculateVisibleCards)
+      ro.disconnect()
+      window.removeEventListener('resize', calculate)
     }
-  }, [deal, graph, showGraph])
+  }, [dealSorted, showGraph])
 
   const handleGraph = (brandName) => {
     const selected = deal?.competitorGrossGraph?.find(
@@ -373,6 +416,7 @@ const DealDetails = () => {
 
         <div className="max-w-6xl w-[90%] lg:w-[90%] mx-auto py-5">
           <div className="md:grid md:grid-cols-[70%_30%] md:gap-6">
+            {/* left side */}
             <div ref={leftColRef} className="h-fit">
               <div className="flex justify-start items-start text-[15px]">
                 <Link
@@ -512,7 +556,7 @@ const DealDetails = () => {
                   </div>
 
                   <div
-                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6`}
+                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6`}
                   >
                     {deal4Article.map((content) => (
                       <DetailsDealsSubCard
@@ -531,22 +575,25 @@ const DealDetails = () => {
               )}
             </div>
 
-            <div ref={rightColRef} className="mt-10 sm:mt-0 h-fit">
-              <div className="flex flex-col justify-center items-center">
-                <hr className="w-[80%]" />
-                <h4 className="font-aptos-bold text-2xl text-[#ff7010]">
-                  Unlock Insights
-                </h4>
-                <hr className="w-[80%]" />
-                <FaCaretDown />
+            {/* right side */}
+            <div className="mt-10 sm:mt-0 h-fit">
+              <div ref={unlockRef}>
+                <div className="flex flex-col justify-center items-center">
+                  <hr className="w-[80%]" />
+                  <h4 className="font-aptos-bold text-2xl text-[#ff7010]">
+                    Unlock Insights
+                  </h4>
+                  <hr className="w-[80%]" />
+                  <FaCaretDown />
+                </div>
+
+                <DsjInsight />
+
+                <hr className="text-gray-400 mt-2 mb-4" />
               </div>
 
-              <DsjInsight />
-
-              <hr className="text-gray-400 mt-2 mb-4" />
-
               {deal?.companyInfoBox && (
-                <>
+                <div ref={companyRef}>
                   <CompanyProfileSection
                     brandName={deal.companyInfo?.brandName}
                     companyLogoUrl={deal.companyInfo?.imageUrl}
@@ -557,11 +604,11 @@ const DealDetails = () => {
                     netProfitLoss={deal.companyInfo?.netProfitLoss}
                     yearIncorporation={deal.companyInfo?.yearIncorporation}
                   />
-                </>
+                </div>
               )}
 
               {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
-                <>
+                <div ref={BoxRef}>
                   <hr className="text-gray-400 my-6" />
 
                   <div className="flex justify-start items-center flex-wrap gap-y-3 gap-x-0 mb-5">
@@ -596,11 +643,11 @@ const DealDetails = () => {
                     )}
                   </div>
                   {/* <hr className="text-gray-400 my-5" /> */}
-                </>
+                </div>
               )}
 
               {showGraph && (
-                <>
+                <div ref={compareBoxRef}>
                   {deal?.grossGraphBox && (
                     <>
                       <FinancialChart
@@ -708,13 +755,13 @@ const DealDetails = () => {
                       <hr className="text-gray-400 my-5" />
                     </>
                   )}
-                </>
+                </div>
               )}
 
               {!showGraph && (
                 <>
                   {deal?.fundRaiseBox && (
-                    <>
+                    <div ref={fundRaiseChartRef}>
                       <FundRaiseChart
                         title={`${deal.fundRaise?.brandName}`}
                         heading="Overview of Fund Raising"
@@ -734,7 +781,7 @@ const DealDetails = () => {
                         ]}
                         fundRaiseRound={deal.fundRaise?.fundRaiseRound}
                       />
-                    </>
+                    </div>
                   )}
                 </>
               )}
@@ -743,7 +790,7 @@ const DealDetails = () => {
               <div>
                 {dealSorted
                   ?.slice(
-                    0,
+                    deal?.grossGraphBox || deal?.fundRaiseBox ? 4 : 0,
                     window.innerWidth < 768
                       ? dealSorted.length
                       : visibleSidebarCards
