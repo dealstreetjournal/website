@@ -1,13 +1,19 @@
 import React, { useEffect, useState, useRef, useLayoutEffect } from 'react'
-import {
-  FaCaretDown,
-  FaWhatsapp,
-  FaInstagram,
-  FaXTwitter,
-  FaLinkedin,
-} from 'react-icons/fa6'
+import { FaCaretDown } from 'react-icons/fa6'
+import { FaCalendarAlt, FaUserCircle } from 'react-icons/fa'
+
 import { TbSeparator } from 'react-icons/tb'
 import { Link, useLocation, useParams } from 'react-router-dom'
+import {
+  WhatsappShareButton,
+  TwitterShareButton,
+  LinkedinShareButton,
+  WhatsappIcon,
+  TwitterIcon,
+  LinkedinIcon,
+  FacebookShareButton,
+  FacebookIcon,
+} from 'react-share'
 import spinner from '../assets/spinner.png'
 import DsjInsight from '../components/DsjInsight'
 import CompanyProfileSection from '../components/CompanyProfileSection'
@@ -16,8 +22,6 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchDealById } from '../api/dealApi'
 import DOMPurify from 'dompurify'
 import { handleDate } from '../handleDate'
-import { Helmet } from 'react-helmet-async'
-import { FaCalendarAlt, FaUserCircle } from 'react-icons/fa'
 import FundRaiseChart from '../components/FundRaiseChart'
 import FinancialChart from '../components/FinancialChart'
 import DetailsDealsSubCard from '../components/DetailsDealsSubCard'
@@ -42,8 +46,8 @@ const DealDetails = () => {
 
   // Get current URL after component mounts
   useEffect(() => {
-    setCurrentUrl(window.location.href)
-  }, [])
+    setCurrentUrl(`https://web.dealstreetjournal.com/dsj/deal/${path}/${id}`)
+  }, [path, id])
 
   // Mapping
   const dealTypeMap = {
@@ -78,16 +82,7 @@ const DealDetails = () => {
 
   const deal4Article = dealSorted?.slice(0, 4)
 
-  // useEffect(() => {
-  //   if (deal && window.__sharethis__) {
-  //     setTimeout(() => {
-  //       window.__sharethis__.initialize()
-  //     }, 500)
-  //   }
-  // }, [deal])
-
   // Calculate available space and determine number of cards to show
-
   const getHeightIfVisible = (ref) => {
     if (!ref?.current) return 0
 
@@ -128,12 +123,6 @@ const DealDetails = () => {
       setVisibleSidebarCards((prev) =>
         prev === cardsToShow ? prev : Math.max(0, cardsToShow)
       )
-
-      console.log('start from here haif jeow fjsfwo fa ')
-      console.log('leftHeigh', leftHeight)
-      console.log('sidebarHeight', sidebarHeight)
-      console.log('remainingSpace', remainingSpace)
-      console.log('cardsToShow', cardsToShow)
     }
 
     const ro = new ResizeObserver(calculate)
@@ -152,7 +141,7 @@ const DealDetails = () => {
       ro.disconnect()
       window.removeEventListener('resize', calculate)
     }
-  }, [dealSorted, showGraph])
+  }, [dealSorted, showGraph, deal])
 
   const handleGraph = (brandName) => {
     const selected = deal?.competitorGrossGraph?.find(
@@ -169,13 +158,7 @@ const DealDetails = () => {
     }
   }, [deal])
 
-  // Prepare share data
-  const shareTitle = deal?.title || 'Check this out!'
-  const shareDescription =
-    deal?.description?.replace(/<[^>]*>/g, '').slice(0, 200) || ''
-  const shareImage = deal?.imageUrl || ''
-
-  // show image at center when click
+  // Show image at center when clicked
   function showPopup(src) {
     const popup = document.createElement('div')
 
@@ -191,15 +174,15 @@ const DealDetails = () => {
     popup.style.zIndex = '9999'
 
     popup.innerHTML = `
-    <img src="${src}" style="max-width:90%; max-height:90%; border-radius:6px;" />
-  `
+      <img src="${src}" style="max-width:90%; max-height:90%; border-radius:6px;" />
+    `
 
     popup.addEventListener('click', () => popup.remove())
 
     document.body.appendChild(popup)
   }
 
-  // handle image border and first letter bold and bigger
+  // Handle image border and first letter bold and bigger
   useEffect(() => {
     if (!deal?.description) return
 
@@ -223,15 +206,15 @@ const DealDetails = () => {
         const originalText = textNode.nodeValue
         const firstChar = originalText.trim().charAt(0)
 
-        // remove only first visible character
+        // Remove only first visible character
         textNode.nodeValue = originalText.replace(firstChar, '')
 
-        // create drop cap span
+        // Create drop cap span
         const span = document.createElement('span')
         span.className = 'drop-cap'
         span.textContent = firstChar
 
-        // insert before the textNode
+        // Insert before the textNode
         textNode.parentNode.insertBefore(span, textNode)
       }
     }
@@ -246,7 +229,7 @@ const DealDetails = () => {
     setFinalHtml(updatedHtml)
   }, [deal])
 
-  // handle image zoom
+  // Handle image zoom
   useEffect(() => {
     const container = document.getElementById('article-content')
 
@@ -265,90 +248,10 @@ const DealDetails = () => {
     return () => container.removeEventListener('click', handleClick)
   }, [finalHtml])
 
-  // Social sharing handlers
-  // const handleWhatsAppShare = () => {
-  //   const text = encodeURIComponent(`${shareTitle}\n\n${shareDescription}`)
-  //   const url = encodeURIComponent(currentUrl)
-  //   window.open(
-  //     `https://wa.me/?text=${text}%20${url}`,
-  //     '_blank',
-  //     'noopener,noreferrer'
-  //   )
-  // }
-
-  // const handleFacebookShare = () => {
-  //   const url = encodeURIComponent(currentUrl)
-  //   window.open(
-  //     `https://www.facebook.com/sharer/sharer.php?u=${url}`,
-  //     '_blank',
-  //     'noopener,noreferrer'
-  //   )
-  // }
-
-  // const handleTwitterShare = () => {
-  //   const text = encodeURIComponent(shareTitle)
-  //   const url = encodeURIComponent(currentUrl)
-  //   window.open(
-  //     `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
-  //     '_blank',
-  //     'noopener,noreferrer'
-  //   )
-  // }
-
-  // const handleLinkedInShare = () => {
-  //   const url = encodeURIComponent(currentUrl)
-  //   window.open(
-  //     `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
-  //     '_blank',
-  //     'noopener,noreferrer'
-  //   )
-  // }
-
-  // Create dynamic full text for sharing
-  // ---- SHARE TEXT BUILDER ----
-  const fullShareText = `${deal?.title}\n\n${shareDescription}\n\n${currentUrl}`
-
-  // WhatsApp
-  const handleWhatsAppShare = () => {
-    window.open(
-      `https://wa.me/?text=${encodeURIComponent(fullShareText)}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
-
-  // Facebook
-  const handleInstagramShare = () => {
-    window.open(
-      `https://www.instagram.com/sharer/sharer.php?u=${encodeURIComponent(
-        currentUrl
-      )}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
-
-  // Twitter
-  const handleTwitterShare = () => {
-    window.open(
-      `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-        deal?.title
-      )}&url=${encodeURIComponent(currentUrl)}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
-
-  // LinkedIn
-  const handleLinkedInShare = () => {
-    window.open(
-      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
-        currentUrl
-      )}`,
-      '_blank',
-      'noopener,noreferrer'
-    )
-  }
+  // Prepare share data
+  const shareTitle = deal?.title || 'Check this out!'
+  const shareDescription =
+    deal?.description?.replace(/<[^>]*>/g, '').slice(0, 200) || ''
 
   if (isPending) {
     return (
@@ -369,46 +272,6 @@ const DealDetails = () => {
 
   return (
     <>
-      <Helmet>
-        <title>
-          {deal?.brandName ? `${deal.brandName} Article` : 'DSJ Article'}
-        </title>
-        <meta
-          name="description"
-          content={shareDescription || 'Default description'}
-        />
-
-        {/* Open Graph */}
-        <meta property="og:title" content={shareTitle || 'DSJ'} />
-        <meta
-          property="og:description"
-          content={shareDescription || 'Default description'}
-        />
-        <meta
-          property="og:image"
-          content={shareImage || '/default-image.jpg'}
-        />
-        <meta property="og:url" content={currentUrl} />
-        <meta property="og:type" content="article" />
-        <meta property="og:site_name" content="DSJ" />
-
-        {/* Twitter Card */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={shareTitle || 'DSJ'} />
-        <meta
-          name="twitter:description"
-          content={shareDescription || 'Default description'}
-        />
-        <meta
-          name="twitter:image"
-          content={shareImage || '/default-image.jpg'}
-        />
-        <meta name="twitter:site" content="@YourActualHandle" />
-
-        {/* Canonical URL */}
-        <link rel="canonical" href={currentUrl} />
-      </Helmet>
-
       <div className="bg-slate-50 pb-5 w-full mx-auto">
         <div className="bg-gray-200 h-48">
           <div className="max-w-6xl mx-auto h-full"></div>
@@ -416,7 +279,7 @@ const DealDetails = () => {
 
         <div className="max-w-6xl w-[90%] lg:w-[90%] mx-auto py-5">
           <div className="md:grid md:grid-cols-[70%_30%] md:gap-6">
-            {/* left side */}
+            {/* LEFT SIDE */}
             <div ref={leftColRef} className="h-fit">
               <div className="flex justify-start items-start text-[15px]">
                 <Link
@@ -444,7 +307,7 @@ const DealDetails = () => {
 
               <hr className="text-orange-400 mt-5" />
 
-              {/* social share */}
+              {/* SOCIAL SHARE with react-share */}
               <div className="flex justify-between items-center mt-2">
                 <div>
                   <p className="flex justify-start items-center gap-1 font-aptos-semibold text-regular text-gray-800">
@@ -455,83 +318,52 @@ const DealDetails = () => {
                     {handleDate(deal.articleDate)}
                   </p>
                 </div>
-                {/* <div className="flex gap-4 mr-2"> */}
-                {/* <div class="sharethis-inline-share-buttons"></div> */}
 
-                {/* <button
-                  onClick={handleWhatsAppShare}
-                  aria-label="Share on WhatsApp"
-                  title="Share on WhatsApp"
-                  className="hover:scale-110 transition-transform duration-200"
-                >
-                  <FaWhatsapp
-                    size={30}
-                    className="text-[#25D366] hover:text-[#ff7010] transition-all duration-300"
-                  />
-                </button> */}
-                {/* <button
-                    onClick={handleFacebookShare}
-                    aria-label="Share on Facebook"
-                    title="Share on Facebook"
+                <div className="flex gap-2 items-center">
+                  {/* WhatsApp Share */}
+                  <WhatsappShareButton
+                    url={currentUrl}
+                    title={shareTitle}
+                    separator=" - "
                     className="hover:scale-110 transition-transform duration-200"
                   >
-                    <FaFacebook className="text-[#1877F2] hover:text-[#ff7010] transition-all duration-300" />
-                  </button>
-                  <button
-                    onClick={handleTwitterShare}
-                    aria-label="Share on Twitter"
-                    title="Share on Twitter"
-                    className="hover:scale-110 transition-transform duration-200"
-                  >
-                    <FaXTwitter className="text-black hover:text-[#ff7010] transition-all duration-300" />
-                  </button>
-                  <button
-                    onClick={handleLinkedInShare}
-                    aria-label="Share on LinkedIn"
-                    title="Share on LinkedIn"
-                    className="hover:scale-110 transition-transform duration-200"
-                  >
-                    <FaLinkedin className="text-[#0077B5] hover:text-[#ff7010] transition-all duration-300" />
-                  </button> */}
-                {/* </div> */}
+                    <WhatsappIcon size={32} round />
+                  </WhatsappShareButton>
 
-                <div className="flex gap-4 mr-2">
-                  <button
-                    onClick={handleWhatsAppShare}
-                    aria-label="Share on WhatsApp"
+                  {/* Twitter Share */}
+                  <TwitterShareButton
+                    url={currentUrl}
+                    title={shareTitle}
+                    hashtags={['DealStreetJournal', 'Startup']}
                     className="hover:scale-110 transition-transform duration-200"
                   >
-                    <FaWhatsapp size={22} className="text-[#25D366]" />
-                  </button>
+                    <TwitterIcon size={32} round />
+                  </TwitterShareButton>
 
-                  <button
-                    onClick={handleInstagramShare}
-                    aria-label="Share on Instagram"
+                  {/* LinkedIn Share */}
+                  <LinkedinShareButton
+                    url={currentUrl}
+                    title={shareTitle}
+                    summary={shareDescription}
+                    source="Deal Street Journal"
                     className="hover:scale-110 transition-transform duration-200"
                   >
-                    <FaInstagram size={22} className="text-[#1877F2]" />
-                  </button>
+                    <LinkedinIcon size={32} round />
+                  </LinkedinShareButton>
 
-                  <button
-                    onClick={handleTwitterShare}
-                    aria-label="Share on Twitter"
+                  {/* Copy Link Button */}
+                  <FacebookShareButton
+                    url={currentUrl}
                     className="hover:scale-110 transition-transform duration-200"
                   >
-                    <FaXTwitter size={22} className="text-black" />
-                  </button>
-
-                  <button
-                    onClick={handleLinkedInShare}
-                    aria-label="Share on LinkedIn"
-                    className="hover:scale-110 transition-transform duration-200"
-                  >
-                    <FaLinkedin size={22} className="text-[#0077B5]" />
-                  </button>
+                    <FacebookIcon size={32} round />
+                  </FacebookShareButton>
                 </div>
               </div>
 
               <hr className="text-orange-400 mt-2" />
 
+              {/* ARTICLE CONTENT */}
               <p
                 id="article-content"
                 className="font-aptos-regular text-lg mt-7 text-left"
@@ -541,6 +373,8 @@ const DealDetails = () => {
               ></p>
 
               <hr className="text-[#ff7010] my-5" />
+
+              {/* RECOMMENDED ARTICLES */}
               {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
                 <div
                   className={`mb-6 ${
@@ -575,7 +409,7 @@ const DealDetails = () => {
               )}
             </div>
 
-            {/* right side */}
+            {/* RIGHT SIDE */}
             <div className="mt-10 sm:mt-0 h-fit">
               <div ref={unlockRef}>
                 <div className="flex flex-col justify-center items-center">
@@ -592,6 +426,7 @@ const DealDetails = () => {
                 <hr className="text-gray-400 mt-2 mb-4" />
               </div>
 
+              {/* COMPANY PROFILE */}
               {deal?.companyInfoBox && (
                 <div ref={companyRef}>
                   <CompanyProfileSection
@@ -607,6 +442,7 @@ const DealDetails = () => {
                 </div>
               )}
 
+              {/* TOGGLE BUTTONS */}
               {(deal?.grossGraphBox || deal?.fundRaiseBox) && (
                 <div ref={BoxRef}>
                   <hr className="text-gray-400 my-6" />
@@ -616,12 +452,11 @@ const DealDetails = () => {
                       <div
                         onClick={() => setShowGraph(true)}
                         className={`font-aptos-regular px-3 py-1 rounded-lg w-fit mx-auto cursor-pointer
-       relative border-2   ${
-         showGraph
-           ? 'text-white bg-[#D97706]'
-           : 'border-gray-500 bg-slate-300 text-slate-700 hover:scale-105 transition-transform duration-300'
-       }
-     `}
+                          relative border-2 ${
+                            showGraph
+                              ? 'text-white bg-[#D97706]'
+                              : 'border-gray-500 bg-slate-300 text-slate-700 hover:scale-105 transition-transform duration-300'
+                          }`}
                       >
                         Financial Performance
                       </div>
@@ -631,21 +466,20 @@ const DealDetails = () => {
                       <div
                         onClick={() => setShowGraph(false)}
                         className={`font-aptos-regular px-3 py-1 rounded-lg w-fit mx-auto cursor-pointer
-                  relative border-2 ${
-                    !showGraph
-                      ? 'text-white bg-[#D97706]'
-                      : 'border-gray-500 bg-slate-300 text-slate-700 hover:scale-105 transition-transform duration-300'
-                  }
-     `}
+                          relative border-2 ${
+                            !showGraph
+                              ? 'text-white bg-[#D97706]'
+                              : 'border-gray-500 bg-slate-300 text-slate-700 hover:scale-105 transition-transform duration-300'
+                          }`}
                       >
                         Fund Raise
                       </div>
                     )}
                   </div>
-                  {/* <hr className="text-gray-400 my-5" /> */}
                 </div>
               )}
 
+              {/* FINANCIAL CHARTS */}
               {showGraph && (
                 <div ref={compareBoxRef}>
                   {deal?.grossGraphBox && (
@@ -689,6 +523,8 @@ const DealDetails = () => {
                       <hr className="text-gray-400 my-5" />
                     </>
                   )}
+
+                  {/* COMPETITOR COMPARISON */}
                   {deal?.competitorGrossGraph?.length > 0 && (
                     <h5 className="text-gray-700 font-aptos-bold text-[20px] text-center mb-2">
                       Compare Financial Performance
@@ -702,7 +538,7 @@ const DealDetails = () => {
                         <p
                           key={compe?.brandName}
                           onClick={() => handleGraph(compe?.brandName)}
-                          className={`px-2 py-1 rounded-lg  font-aptos-semibold  w-fit cursor-pointer ${
+                          className={`px-2 py-1 rounded-lg font-aptos-semibold w-fit cursor-pointer ${
                             graph?.brandName == compe?.brandName
                               ? 'text-orange-800 bg-orange-200 border border-orange-800'
                               : 'text-gray-500 bg-slate-300'
@@ -712,7 +548,8 @@ const DealDetails = () => {
                         </p>
                       ))}
                   </div>
-                  <br></br>
+                  <br />
+
                   {graph && (
                     <>
                       <FinancialChart
@@ -758,6 +595,7 @@ const DealDetails = () => {
                 </div>
               )}
 
+              {/* FUND RAISE CHART */}
               {!showGraph && (
                 <>
                   {deal?.fundRaiseBox && (
@@ -786,7 +624,7 @@ const DealDetails = () => {
                 </>
               )}
 
-              {/* Dynamically show DealsSubCard based on available space */}
+              {/* SIDEBAR DEALS */}
               <div>
                 {dealSorted
                   ?.slice(
