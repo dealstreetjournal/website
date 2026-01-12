@@ -12,6 +12,7 @@ import spinner from './assets/spinner.png'
 import ProtectedRoute from './components/ProtectedRoute'
 import { CartProvider } from './context/cart/CartProvider'
 import { AuthProvider } from './context/auth/AuthProvider'
+import useContentProtection from './components/useContentProtection'
 
 // Lazy load pages
 const Home = lazy(() => import('./pages/Home'))
@@ -637,6 +638,8 @@ const router = createBrowserRouter(
 )
 
 function App() {
+  useContentProtection()
+
   return (
     <AuthProvider>
       <CartProvider>
