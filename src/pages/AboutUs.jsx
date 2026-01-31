@@ -26,7 +26,7 @@ const AboutUs = () => {
             <br />
             <br />
             In addition to news, DSJ offers in depth and insightful data reports
-            that provides lates information on fund raising, investor
+            that provides latest information on fund raising, investor
             participation, valuation multiples and financial information related
             to emerging companies. Our uniquely design data product “
             <Link to="/dsj-insight">
