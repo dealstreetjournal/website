@@ -82,6 +82,23 @@ const FinancialCompany = () => {
     setPdfSrc('')
   }
 
+  // Separate reports
+  const bottomReports = financialData.filter(
+    (report) =>
+      report.reportTitle.trim() === 'Investor Metrics' ||
+      report.reportTitle.trim() === 'Return on Investment Analysis'
+  )
+
+  console.log('bottomReports', bottomReports)
+
+  const normalReports = financialData.filter(
+    (report) =>
+      report.reportTitle.trim() !== 'Investor Metrics' &&
+      report.reportTitle.trim() !== 'Return on Investment Analysis'
+  )
+
+  console.log('normalReports', normalReports)
+
   return (
     <div className="bg-[#F8F9FA] pb-5 w-full mx-auto">
       {/* Header */}
@@ -140,7 +157,7 @@ const FinancialCompany = () => {
 
         {/* Reports Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {financialData.map((report) => {
+          {normalReports.map((report) => {
             const pdf = samples.find(
               (sample) =>
                 normalize(sample.title) === normalize(report.reportTitle)
@@ -153,6 +170,24 @@ const FinancialCompany = () => {
                 samplePdf={pdf}
                 openPdf={() => openPdfPreview(pdf)}
               />
+            )
+          })}
+
+          {/* Bottom Cards */}
+          {bottomReports.map((report) => {
+            const pdf = samples.find(
+              (sample) =>
+                normalize(sample.title) === normalize(report.reportTitle)
+            )?.pdf
+
+            return (
+              <div key={report.id} className="bg-orange-500/20 p-2 rounded-lg">
+                <FinancialCompanyCard
+                  report={report}
+                  samplePdf={pdf}
+                  openPdf={() => openPdfPreview(pdf)}
+                />
+              </div>
             )
           })}
         </div>

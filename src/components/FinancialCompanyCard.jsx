@@ -11,6 +11,8 @@ const FinancialCompanyCard = ({ report, samplePdf, openPdf }) => {
   const { incrementCartCount } = useCart()
   const navigate = useNavigate()
 
+  console.log('report:', report)
+
   const mutation = useMutation({
     mutationFn: addToCart,
     onSuccess: () => {
