@@ -404,24 +404,30 @@ const NavbarDesktop = () => {
                 >
                   M&A
                 </Link>
+                <Link
+                  to="/ipo"
+                  className="block px-4 py-2 hover:bg-gray-100 hover:text-[#ff7010] transition-colors"
+                >
+                  IPO
+                </Link>
               </div>
             )}
           </div>
 
           {/* IPO */}
           <Link
-            to="/ipo"
-            className="cursor-pointer hover:text-[#ff7010] transition-colors"
-          >
-            <span>IPO</span>
-          </Link>
-
-          {/* World */}
-          <Link
             to="/world"
             className="cursor-pointer hover:text-[#ff7010] transition-colors"
           >
             <span>World</span>
+          </Link>
+
+          {/* World */}
+          <Link
+            to="/blog"
+            className="cursor-pointer hover:text-[#ff7010] transition-colors"
+          >
+            <span>Blog</span>
           </Link>
 
           {/* DSJ Insights Dropdown */}

@@ -18,10 +18,12 @@ import useContentProtection from './components/useContentProtection'
 const Home = lazy(() => import('./pages/Home'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Deal = lazy(() => import('./pages/Deal'))
+const Blog = lazy(() => import('./pages/Blog'))
 const Funding365 = lazy(() => import('./pages/Funding365'))
 const LatestDeal = lazy(() => import('./pages/LatestDeal'))
 const FinancialInsight = lazy(() => import('./pages/FinancialInsight'))
 const DealDetails = lazy(() => import('./pages/DealDetails'))
+const BlogDetails = lazy(() => import('./pages/BlogDetails'))
 const Funding365Company = lazy(() => import('./pages/Funding365Company'))
 const FinancialCompany = lazy(() => import('./pages/FinancialCompany'))
 const DsjInsight = lazy(() => import('./pages/DsjInsight'))
@@ -169,6 +171,25 @@ const router = createBrowserRouter(
             }
           >
             <Deal />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/blog"
+        element={
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-[80vh]">
+                <img
+                  src={spinner}
+                  alt="Loading"
+                  className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+                />
+              </div>
+            }
+          >
+            <Blog />
           </Suspense>
         }
       />
@@ -340,6 +361,25 @@ const router = createBrowserRouter(
             }
           >
             <DealDetails />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/blog/:id"
+        element={
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-[80vh]">
+                <img
+                  src={spinner}
+                  alt="Loading"
+                  className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+                />
+              </div>
+            }
+          >
+            <BlogDetails />
           </Suspense>
         }
       />

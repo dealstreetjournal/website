@@ -1,52 +1,30 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import DealsCard from '../components/DealsCard'
 import Pagination from '../components/Pagination'
 import { useQuery } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
-import { fetchDeal } from '../api/dealApi'
-import { useLocation } from 'react-router-dom'
-import DealsRightCard from '../components/DealsRightCard'
+import BlogRightCard from '../components/BlogRightCard'
+import BlogCard from '../components/BlogCard'
+import { fetchBlog } from '../api/blogApi'
 
-const Deal = () => {
+const Blog = () => {
   const categories = []
   const [clickedCategory, setClickedCategory] = useState(null)
-
-  const location = useLocation()
-
-  const path = location.pathname.split('/')[1]?.toLowerCase()
-
-  useEffect(() => {
-    setPage(1) // reset to first page whenever path changes
-  }, [path])
-
-  // Mapping
-  const dealTypeMap = {
-    preseed: 'Pre seed',
-    seed: 'Seed',
-    growth: 'Growth',
-    ma: 'M&A',
-    ipo: 'IPO',
-    world: 'World',
-  }
-
-  const dealTitle = dealTypeMap[path] || ''
-
-  document.title = `${dealTitle}`
 
   const [page, setPage] = useState(1)
 
   const { isPending, isError, data, error } = useQuery({
-    queryKey: ['deal', path, page],
-    queryFn: () => fetchDeal(path, page),
+    queryKey: ['blogs', page],
+    queryFn: () => fetchBlog(page),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
 
-  console.log('Fetched deal data:', data)
+  console.log('Fetched blog data:', data)
 
-  data?.deals?.forEach((deal) => {
-    if (deal.category && !categories.includes(deal.category)) {
-      categories.push(deal.category)
+  data?.blogs?.forEach((blog) => {
+    if (blog.category && !categories.includes(blog.category)) {
+      categories.push(blog.category)
     }
   })
 
@@ -54,21 +32,21 @@ const Deal = () => {
 
   const leftContents =
     clickedCategory === 'all' || clickedCategory === null
-      ? data?.deals.slice(0, 10) || []
-      : data?.deals.slice(0, 10).filter((deal) => {
-          return deal.category === clickedCategory
+      ? data?.blogs.slice(0, 10) || []
+      : data?.blogs.slice(0, 10).filter((blog) => {
+          return blog.category === clickedCategory
         })
 
-  // const leftContents = data?.deals.slice(0, 10) || []
+  // const leftContents = data?.blogs.slice(0, 10) || []
 
   const rightContents =
     clickedCategory === 'all' || clickedCategory === null
-      ? data?.deals.slice(10) || []
-      : data?.deals.slice(10).filter((deal) => {
-          return deal.category === clickedCategory
+      ? data?.blogs.slice(10) || []
+      : data?.blogs.slice(10).filter((blog) => {
+          return blog.category === clickedCategory
         })
 
-  // const rightContents = data?.deals.slice(10) || []
+  // const rightContents = data?.blogs.slice(10) || []
   const totalPages = Math.ceil((data?.totalCount || 0) / 20)
 
   if (isPending) {
@@ -97,7 +75,7 @@ const Deal = () => {
 
         <div className="max-w-6xl w-[90%] lg:w-[90%] mx-auto py-5">
           <h1 className="font-aptos-bold text-4xl text-gray-800 mt-5 mb-2">
-            {dealTitle}
+            Blogs
           </h1>
 
           <span
@@ -120,12 +98,11 @@ const Deal = () => {
           <div className="md:grid md:grid-cols-[70%_30%] md:gap-5 lg:gap-10">
             <div className="">
               {leftContents.map((content, index, arr) => (
-                <DealsCard
+                <BlogCard
                   key={content.id}
                   index={index}
                   array={arr}
-                  url={`/${path}/${content.id}`}
-                  deal={dealTitle}
+                  url={`/blog/${content.id}`}
                   company={content.brandName}
                   image={content.imageUrl}
                   heading={content.title}
@@ -146,12 +123,12 @@ const Deal = () => {
                   </div>
 
                   {rightContents.map((content, index, arr) => (
-                    <DealsRightCard
+                    <BlogRightCard
                       key={content.id}
-                      url={`/${path}/${content.id}`}
+                      url={`/blog/${content.id}`}
                       index={index}
                       array={arr}
-                      deal={dealTitle}
+                      // deal={dealTitle}
                       company={content.brandName}
                       image={content.imageUrl}
                       desc={content.description}
@@ -173,4 +150,4 @@ const Deal = () => {
   )
 }
 
-export default Deal
+export default Blog

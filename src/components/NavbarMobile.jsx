@@ -351,6 +351,7 @@ const NavbarMobile = () => {
                       { to: '/seed', label: 'Seed' },
                       { to: '/growth', label: 'growth' },
                       { to: '/ma', label: 'M&A' },
+                      { to: '/ipo', label: 'IPO' },
                     ].map((item, index) => (
                       <Link
                         key={index}
@@ -367,20 +368,20 @@ const NavbarMobile = () => {
 
               {/* IPO */}
               <Link
-                to="/ipo"
-                onClick={closeAllMenus}
-                className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2"
-              >
-                <span>IPO</span>
-              </Link>
-
-              {/* World */}
-              <Link
                 to="/world"
                 onClick={closeAllMenus}
                 className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2"
               >
                 <span>World</span>
+              </Link>
+
+              {/* World */}
+              <Link
+                to="/blog"
+                onClick={closeAllMenus}
+                className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2"
+              >
+                <span>Blog</span>
               </Link>
 
               {/* DSJ Insights Dropdown */}
