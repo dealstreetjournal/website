@@ -326,7 +326,7 @@ const BlogDetails = () => {
             </div>
 
             {/* RIGHT SIDE */}
-            <div className="mt-10 sm:mt-0 h-fit">
+            <div className="mt-10 sm:mt-0 h-fit sticky top-5">
               <div ref={unlockRef}>
                 <div className="flex flex-col justify-center items-center">
                   <hr className="w-[80%]" />

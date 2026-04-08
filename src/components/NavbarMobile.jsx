@@ -316,7 +316,7 @@ const NavbarMobile = () => {
 
   return (
     <>
-      <div className="font-aptos-bold text-gray-800 h-18 px-2 flex justify-between items-center relative border-b-2 border-[#ff7010]">
+      <div className="font-aptos-bold text-gray-800 h-18 px-2 flex justify-between items-center fixed top-0 w-full z-50 bg-white border-b-2 border-[#ff7010]">
         {/* bar */}
         <div
           className="relative group"

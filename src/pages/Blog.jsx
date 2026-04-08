@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import DealsCard from '../components/DealsCard'
 import Pagination from '../components/Pagination'
 import { useQuery } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
@@ -8,7 +7,7 @@ import BlogCard from '../components/BlogCard'
 import { fetchBlog } from '../api/blogApi'
 
 const Blog = () => {
-  const categories = []
+  const categories = ['All']
   const [clickedCategory, setClickedCategory] = useState(null)
 
   const [page, setPage] = useState(1)
@@ -31,7 +30,7 @@ const Blog = () => {
   console.log('Unique categories:', categories)
 
   const leftContents =
-    clickedCategory === 'all' || clickedCategory === null
+    clickedCategory === 'All' || clickedCategory === null
       ? data?.blogs.slice(0, 10) || []
       : data?.blogs.slice(0, 10).filter((blog) => {
           return blog.category === clickedCategory
@@ -40,7 +39,7 @@ const Blog = () => {
   // const leftContents = data?.blogs.slice(0, 10) || []
 
   const rightContents =
-    clickedCategory === 'all' || clickedCategory === null
+    clickedCategory === 'All' || clickedCategory === null
       ? data?.blogs.slice(10) || []
       : data?.blogs.slice(10).filter((blog) => {
           return blog.category === clickedCategory
@@ -78,12 +77,12 @@ const Blog = () => {
             Blogs
           </h1>
 
-          <span
+          {/* <span
             onClick={() => setClickedCategory('all')}
             className="cursor-pointer inline-block bg-orange-300/50 text-orange-700 px-3 pt-1 pb-1.5 rounded-full mr-2 mb-5 text-base font-aptos-semibold"
           >
             All
-          </span>
+          </span> */}
 
           {categories.length > 0 &&
             categories.map((cat, idx) => (
@@ -95,6 +94,7 @@ const Blog = () => {
                 {cat}
               </span>
             ))}
+
           <div className="md:grid md:grid-cols-[70%_30%] md:gap-5 lg:gap-10">
             <div className="">
               {leftContents.map((content, index, arr) => (

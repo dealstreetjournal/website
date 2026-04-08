@@ -44,6 +44,8 @@ const FinancialCompany = () => {
     refetchOnMount: false,
   })
 
+  // console.log('financial query data', data)
+
   if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
@@ -89,7 +91,7 @@ const FinancialCompany = () => {
       report.reportTitle.trim() === 'Return on Investment Analysis'
   )
 
-  console.log('bottomReports', bottomReports)
+  // console.log('bottomReports', bottomReports)
 
   const normalReports = financialData.filter(
     (report) =>
@@ -97,7 +99,7 @@ const FinancialCompany = () => {
       report.reportTitle.trim() !== 'Return on Investment Analysis'
   )
 
-  console.log('normalReports', normalReports)
+  // console.log('normalReports', normalReports)
 
   return (
     <div className="bg-[#F8F9FA] pb-5 w-full mx-auto">
@@ -158,11 +160,10 @@ const FinancialCompany = () => {
         {/* Reports Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {normalReports.map((report) => {
-            const pdf = samples.find(
+            const pdf = samples?.find(
               (sample) =>
                 normalize(sample.title) === normalize(report.reportTitle)
             )?.pdf
-
             return (
               <FinancialCompanyCard
                 key={report.id}

@@ -8,7 +8,7 @@ import { useLocation } from 'react-router-dom'
 import DealsRightCard from '../components/DealsRightCard'
 
 const Deal = () => {
-  const categories = []
+  const categories = ['All']
   const [clickedCategory, setClickedCategory] = useState(null)
 
   const location = useLocation()
@@ -53,7 +53,7 @@ const Deal = () => {
   console.log('Unique categories:', categories)
 
   const leftContents =
-    clickedCategory === 'all' || clickedCategory === null
+    clickedCategory === 'All' || clickedCategory === null
       ? data?.deals.slice(0, 10) || []
       : data?.deals.slice(0, 10).filter((deal) => {
           return deal.category === clickedCategory
@@ -62,7 +62,7 @@ const Deal = () => {
   // const leftContents = data?.deals.slice(0, 10) || []
 
   const rightContents =
-    clickedCategory === 'all' || clickedCategory === null
+    clickedCategory === 'All' || clickedCategory === null
       ? data?.deals.slice(10) || []
       : data?.deals.slice(10).filter((deal) => {
           return deal.category === clickedCategory
@@ -96,27 +96,32 @@ const Deal = () => {
         </div>
 
         <div className="max-w-6xl w-[90%] lg:w-[90%] mx-auto py-5">
-          <h1 className="font-aptos-bold text-4xl text-gray-800 mt-5 mb-2">
+          <h1 className="font-aptos-bold text-4xl text-gray-800 mt-5">
             {dealTitle}
           </h1>
 
-          <span
-            onClick={() => setClickedCategory('all')}
-            className="cursor-pointer inline-block bg-orange-300/50 text-orange-700 px-3 pt-1 pb-1.5 rounded-full mr-2 mb-5 text-base font-aptos-semibold"
+          <div
+            className="w-full overflow-x-scroll mx-auto whitespace-nowrap smooth-scroll my-3"
+            style={{ scrollbarWidth: 'none' }}
           >
-            All
-          </span>
+            {/* <span
+              onClick={() => setClickedCategory('all')}
+              className="cursor-pointer inline-block bg-gray-300/50 text-gray-700 px-3 pt-1 pb-1.5 rounded-full mr-2 mb-5 text-base font-aptos-semibold"
+            >
+              All
+            </span> */}
 
-          {categories.length > 0 &&
-            categories.map((cat, idx) => (
-              <span
-                key={idx}
-                onClick={() => setClickedCategory(cat)}
-                className="cursor-pointer inline-block bg-orange-300/50 text-orange-700 px-3 pt-1 pb-1.5 rounded-full mr-2 mb-5 text-base font-aptos-semibold"
-              >
-                {cat}
-              </span>
-            ))}
+            {categories.length > 0 &&
+              categories.map((cat, idx) => (
+                <span
+                  key={idx}
+                  onClick={() => setClickedCategory(cat)}
+                  className="cursor-pointer inline-block bg-gray-300/50 text-gray-700 px-3 pt-1 pb-1.5 rounded-full mr-2 mb-5 text-base font-aptos-semibold"
+                >
+                  {cat}
+                </span>
+              ))}
+          </div>
           <div className="md:grid md:grid-cols-[70%_30%] md:gap-5 lg:gap-10">
             <div className="">
               {leftContents.map((content, index, arr) => (
