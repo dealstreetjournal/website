@@ -89,7 +89,7 @@ const CompanyCard = ({ content, url, title }) => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <Link
-        to={`/${url}/${content.id}`}
+        to={`/${url}/${content.slug}`}
         state={{ companyName: content.companyName }}
         className="relative w-full h-full block"
         style={{

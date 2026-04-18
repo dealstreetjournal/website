@@ -427,7 +427,7 @@ const NavbarDesktop = () => {
             to="/blog"
             className="cursor-pointer hover:text-[#ff7010] transition-colors"
           >
-            <span>Blog</span>
+            <span>Opinion</span>
           </Link>
 
           {/* DSJ Insights Dropdown */}

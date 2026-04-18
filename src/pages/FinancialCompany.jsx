@@ -5,6 +5,7 @@ import spinner from '../assets/spinner.png'
 import { fetchFinancial } from '../api/dsjApi'
 import FinancialCompanyCard from '../components/FinancialCompanyCard'
 import Popup from '../components/Popup'
+import ErrorPage from './ErrorPages'
 
 const FinancialCompany = () => {
   const location = useLocation()
@@ -13,7 +14,7 @@ const FinancialCompany = () => {
   document.title = `${companyName} | DealStreetJournal`
 
   const [year, setYear] = useState('')
-  const { id } = useParams()
+  const { slug } = useParams()
   const [showPopup, setShowPopup] = useState(false)
 
   // PDF modal states (Same style as SamplePdf)
@@ -38,8 +39,8 @@ const FinancialCompany = () => {
   }, [])
 
   const { isPending, isError, data, error } = useQuery({
-    queryKey: ['financial', id, year],
-    queryFn: () => fetchFinancial(id, year),
+    queryKey: ['financial', slug, year],
+    queryFn: () => fetchFinancial(slug, year),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   })
@@ -60,7 +61,7 @@ const FinancialCompany = () => {
   }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return <ErrorPage data={error.message} />
   }
 
   const financialData = data?.data
@@ -121,7 +122,7 @@ const FinancialCompany = () => {
           </Link>
 
           <Link
-            to={`/financial/${id}`}
+            to={`/financial/${slug}`}
             className="text-[#ff7010] hover:text-[#cc5200] transition-all duration-300"
           >
             &nbsp;/&nbsp;{companyInfo.company} Financial Information

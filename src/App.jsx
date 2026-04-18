@@ -252,7 +252,7 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/preseed/:id"
+        path="/preseed/:slug"
         element={
           <Suspense
             fallback={
@@ -271,7 +271,7 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/seed/:id"
+        path="/seed/:slug"
         element={
           <Suspense
             fallback={
@@ -290,7 +290,7 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/growth/:id"
+        path="/growth/:slug"
         element={
           <Suspense
             fallback={
@@ -309,7 +309,7 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/ma/:id"
+        path="/ma/:slug"
         element={
           <Suspense
             fallback={
@@ -328,7 +328,7 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/ipo/:id"
+        path="/ipo/:slug"
         element={
           <Suspense
             fallback={
@@ -347,7 +347,7 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/world/:id"
+        path="/world/:slug"
         element={
           <Suspense
             fallback={
@@ -366,7 +366,7 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/blog/:id"
+        path="/blog/:slug"
         element={
           <Suspense
             fallback={
@@ -385,7 +385,7 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/funding/:id"
+        path="/funding/:slug"
         element={
           <Suspense
             fallback={
@@ -403,7 +403,7 @@ const router = createBrowserRouter(
         }
       />
       <Route
-        path="/financial/:id"
+        path="/financial/:slug"
         element={
           <Suspense
             fallback={

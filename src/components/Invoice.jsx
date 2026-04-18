@@ -7,6 +7,7 @@ import spinner from '../assets/spinner.png'
 import { handleDate } from '../handleDate'
 import { Link } from 'react-router-dom'
 import Pagination from './Pagination'
+import ErrorPage from '../pages/ErrorPages'
 
 const Invoice = () => {
   document.title = 'Invoice | Dealstreetjournal'
@@ -37,7 +38,7 @@ const Invoice = () => {
   }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return (<ErrorPage data={error.message} />)
   }
 
   return (

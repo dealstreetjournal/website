@@ -241,8 +241,9 @@ const Footer = () => {
                 <Link to="ma">M&A</Link>
               </div>
               <div className="flex flex-col text-gray-600 gap-2">
-                <Link to="ipo">IPO</Link>
+                <Link to="ipo">Ipo</Link>
                 <Link to="world">World</Link>
+                <Link to="blog">Opinion</Link>
                 <Link to="login">Login</Link>
               </div>
             </div>

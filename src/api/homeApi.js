@@ -4,6 +4,7 @@ export const home = async () => {
   try {
     const response = await axios.get('/dsj/home')
     // console.log('Fetched home:', response.data)
+    console.log('Fetched home data:', response.data)
     return response.data
   } catch (error) {
     // console.error('Error fetching home:', error)

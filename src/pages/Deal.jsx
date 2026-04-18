@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import DealsCard from '../components/DealsCard'
-import Pagination from '../components/Pagination'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
 import { fetchDeal } from '../api/dealApi'
 import { useLocation } from 'react-router-dom'
 import DealsRightCard from '../components/DealsRightCard'
+import { FiCheckCircle } from 'react-icons/fi'
+import ErrorPage from './ErrorPages'
 
 const Deal = () => {
   const categories = ['All']
@@ -14,10 +15,6 @@ const Deal = () => {
   const location = useLocation()
 
   const path = location.pathname.split('/')[1]?.toLowerCase()
-
-  useEffect(() => {
-    setPage(1) // reset to first page whenever path changes
-  }, [path])
 
   // Mapping
   const dealTypeMap = {
@@ -33,59 +30,77 @@ const Deal = () => {
 
   document.title = `${dealTitle}`
 
-  const [page, setPage] = useState(1)
-
-  const { isPending, isError, data, error } = useQuery({
-    queryKey: ['deal', path, page],
-    queryFn: () => fetchDeal(path, page),
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    status,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ['allDeals', path],
+    queryFn: ({ pageParam = 1 }) => fetchDeal(path, { pageParam }),
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextPage : undefined,
   })
 
-  console.log('Fetched deal data:', data)
+  console.log('allDeal', data)
 
-  data?.deals?.forEach((deal) => {
+  const loaderRef = useRef(null)
+
+  useEffect(() => {
+    const node = loaderRef.current
+    if (!node) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 1 }
+    )
+
+    observer.observe(node)
+
+    return () => {
+      if (node) observer.unobserve(node)
+    }
+  }, [fetchNextPage, hasNextPage])
+
+  // ✅ Flatten all pages into a single jobs array
+  const allDeals = useMemo(
+    () => data?.pages.flatMap((page) => page.deals) ?? [],
+    [data]
+  )
+
+  // console.log('Fetched deal data:', allDeals)
+
+  allDeals.forEach((deal) => {
     if (deal.category && !categories.includes(deal.category)) {
       categories.push(deal.category)
     }
   })
 
-  console.log('Unique categories:', categories)
+  // console.log('Unique categories:', categories)
 
-  const leftContents =
+  const filteredDeals =
     clickedCategory === 'All' || clickedCategory === null
-      ? data?.deals.slice(0, 10) || []
-      : data?.deals.slice(0, 10).filter((deal) => {
-          return deal.category === clickedCategory
-        })
+      ? allDeals
+      : allDeals.filter((deal) => deal.category === clickedCategory)
 
-  // const leftContents = data?.deals.slice(0, 10) || []
-
-  const rightContents =
-    clickedCategory === 'All' || clickedCategory === null
-      ? data?.deals.slice(10) || []
-      : data?.deals.slice(10).filter((deal) => {
-          return deal.category === clickedCategory
-        })
-
-  // const rightContents = data?.deals.slice(10) || []
-  const totalPages = Math.ceil((data?.totalCount || 0) / 20)
-
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <img
-          src={spinner}
-          alt="Loading"
-          loading="lazy"
-          className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
-        />
-      </div>
-    )
+  let leftContents = []
+  let rightContents = []
+  if (filteredDeals.length < allDeals.length) {
+    leftContents = filteredDeals
+  } else {
+    const halfCount = Math.ceil(filteredDeals.length / 2)
+    leftContents = filteredDeals.filter((_, i) => i < halfCount)
+    rightContents = filteredDeals.filter((_, i) => i >= halfCount)
   }
 
-  if (isError) {
-    return <span>Error: {error.message}</span>
+  if (status === 'error') {
+    return <ErrorPage data={error.message} />
   }
 
   return (
@@ -100,17 +115,21 @@ const Deal = () => {
             {dealTitle}
           </h1>
 
+          {status === 'pending' && (
+            <div className="flex items-center justify-center">
+              <img
+                src={spinner}
+                alt="Loading"
+                loading="lazy"
+                className="w-12 h-12 animate-spin mix-blend-multiply"
+              />
+            </div>
+          )}
+
           <div
             className="w-full overflow-x-scroll mx-auto whitespace-nowrap smooth-scroll my-3"
             style={{ scrollbarWidth: 'none' }}
           >
-            {/* <span
-              onClick={() => setClickedCategory('all')}
-              className="cursor-pointer inline-block bg-gray-300/50 text-gray-700 px-3 pt-1 pb-1.5 rounded-full mr-2 mb-5 text-base font-aptos-semibold"
-            >
-              All
-            </span> */}
-
             {categories.length > 0 &&
               categories.map((cat, idx) => (
                 <span
@@ -126,10 +145,10 @@ const Deal = () => {
             <div className="">
               {leftContents.map((content, index, arr) => (
                 <DealsCard
-                  key={content.id}
+                  key={index}
                   index={index}
                   array={arr}
-                  url={`/${path}/${content.id}`}
+                  url={`/${path}/${content.slug}`}
                   deal={dealTitle}
                   company={content.brandName}
                   image={content.imageUrl}
@@ -152,8 +171,8 @@ const Deal = () => {
 
                   {rightContents.map((content, index, arr) => (
                     <DealsRightCard
-                      key={content.id}
-                      url={`/${path}/${content.id}`}
+                      key={index}
+                      url={`/${path}/${content.slug}`}
                       index={index}
                       array={arr}
                       deal={dealTitle}
@@ -169,9 +188,22 @@ const Deal = () => {
               </div>
             )}
           </div>
-          <div className="flex justify-center items-center">
-            <Pagination page={page} setPage={setPage} totalPages={totalPages} />
+
+          <div
+            ref={loaderRef}
+            className="h-20 flex justify-center items-center"
+          >
+            {isFetchingNextPage && <p>Loading more...</p>}
           </div>
+
+          {!hasNextPage && (
+            <div className="text-center mt-8">
+              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-full text-sm text-slate-400">
+                <FiCheckCircle size={14} className="text-orange-500" />
+                You've seen {filteredDeals.length} articles in {dealTitle}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

@@ -37,7 +37,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
             </h1>
             {Seeds && Seeds.length > 0 && (
               <>
-                <Link to={`seed/${Seeds[0].id}`}>
+                <Link to={`seed/${Seeds[0].slug}`}>
                   <div
                     key={Seeds[0].id}
                     className="bg-white rounded-md p-4 mb-5 shadow overflow-hidden"
@@ -63,7 +63,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                     Seeds.slice(1).map((content) => {
                       return (
                         <Link
-                          to={`seed/${content.id}`}
+                          to={`seed/${content.slug}`}
                           key={content.id}
                           className=" bg-white rounded-lg shadow overflow-clip"
                         >
@@ -102,7 +102,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
             </h1>
             {growths && growths.length > 0 && (
               <>
-                <Link to={`growth/${growths[0].id}`}>
+                <Link to={`growth/${growths[0].slug}`}>
                   <div
                     key={growths[0].id}
                     className="bg-white rounded-md p-4 mb-5 shadow overflow-hidden"
@@ -129,7 +129,7 @@ const HomeSeedAndGrowthSection = ({ seedData, growthData }) => {
                       {visibleItems.map((content, index, arr) => (
                         <React.Fragment key={content.id}>
                           <Link
-                            to={`growth/${content.id}`}
+                            to={`growth/${content.slug}`}
                             className="flex items-center gap-2 w-full"
                           >
                             <img

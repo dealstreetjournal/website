@@ -16,7 +16,7 @@ const HomeIpoAndDsjSection = ({ data }) => {
               IPO
             </h1>
             {ipo && ipo.length > 0 && (
-              <Link to={`ipo/${ipo[0].id}`} className="mb-5">
+              <Link to={`ipo/${ipo[0].slug}`} className="mb-5">
                 <p
                   className="font-aptos-regular line-clamp-3 md:line-clamp-2 xl:line-clamp-2 mb-1 md:mb-4 xl:mb-1"
                   title={ipo[0]?.title}

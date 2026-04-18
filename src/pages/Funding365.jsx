@@ -4,6 +4,7 @@ import CompanyCard from '../components/CompanyCard'
 import { fetchFundingCompany } from '../api/dsjApi'
 import spinner from '../assets/spinner.png'
 import { useQuery } from '@tanstack/react-query'
+import ErrorPage from './ErrorPages'
 
 const Funding365 = () => {
   document.title = 'Funding 365 | DealStreetJournal'
@@ -17,21 +18,21 @@ const Funding365 = () => {
 
   const contents = data?.fundingCompanies || []
 
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <img
-          src={spinner}
-          alt="Loading"
-          loading="lazy"
-          className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
-        />
-      </div>
-    )
-  }
+  // if (isPending) {
+  //   return (
+  //     <div className="flex items-center justify-center min-h-[80vh]">
+  //       <img
+  //         src={spinner}
+  //         alt="Loading"
+  //         loading="lazy"
+  //         className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+  //       />
+  //     </div>
+  //   )
+  // }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return <ErrorPage data={error.message} />
   }
 
   return (
@@ -70,6 +71,17 @@ const Funding365 = () => {
               investor&nbsp;by&nbsp;investor.
             </p>
           </div>
+
+          {isPending && (
+            <div className="flex items-center justify-center min-h-[80vh]">
+              <img
+                src={spinner}
+                alt="Loading"
+                loading="lazy"
+                className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+              />
+            </div>
+          )}
 
           {/* company card */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-10 justify-items-center">

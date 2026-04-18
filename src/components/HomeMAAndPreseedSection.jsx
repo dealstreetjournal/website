@@ -28,7 +28,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                   {mas[0]?.title}
                 </h1>
 
-                <Link to={`ma/${mas[0]?.id}`}>
+                <Link to={`ma/${mas[0]?.slug}`}>
                   <img
                     src={mas[0]?.imageUrl}
                     alt={mas[0]?.title || 'Article image'}
@@ -69,7 +69,7 @@ const HomeMAAndPreeseedSection = ({ maData, preseedData }) => {
                 preseeds.length > 0 &&
                 preseeds.map((content) => (
                   <Link
-                    to={`preseed/${content.id}`}
+                    to={`preseed/${content.slug}`}
                     key={content.id}
                     className="bg-white overflow-clip rounded-lg shadow"
                   >

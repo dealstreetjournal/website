@@ -9,6 +9,7 @@ import { useCart } from '../hooks/useCart'
 import Swal from 'sweetalert2'
 import { MdDelete } from 'react-icons/md'
 import { MdOutlineRemoveShoppingCart } from 'react-icons/md'
+import ErrorPage from './ErrorPages'
 
 const Cart = () => {
   document.title = 'Cart | DealStreetjournal'
@@ -78,30 +79,21 @@ const Cart = () => {
     return data.reduce((total, item) => total + (item.pdfPrice || 0), 0)
   }, [data])
 
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <img
-          src={spinner}
-          alt="Loading"
-          loading="lazy"
-          className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
-        />
-      </div>
-    )
-  }
+  // if (isPending) {
+  //   return (
+  //     <div className="flex items-center justify-center min-h-[80vh]">
+  //       <img
+  //         src={spinner}
+  //         alt="Loading"
+  //         loading="lazy"
+  //         className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+  //       />
+  //     </div>
+  //   )
+  // }
 
   if (isError) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <div className="text-center">
-          <p className="text-red-500 text-lg">Error loading cart</p>
-          <p className="text-gray-600">
-            {error?.message || 'Something went wrong'}
-          </p>
-        </div>
-      </div>
-    )
+    return <ErrorPage data={error.message} />
   }
 
   const cartData = Array.isArray(data) ? data : []
@@ -114,6 +106,17 @@ const Cart = () => {
             Your Cart ({cartData.length}{' '}
             {cartData.length === 1 ? 'item' : 'items'})
           </h1>
+
+          {isPending && (
+            <div className="flex items-center justify-center">
+              <img
+                src={spinner}
+                alt="Loading"
+                loading="lazy"
+                className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+              />
+            </div>
+          )}
 
           <CartCard data={cartData} onRemove={handleRemove} />
 

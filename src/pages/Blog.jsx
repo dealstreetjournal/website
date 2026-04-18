@@ -1,68 +1,84 @@
-import React, { useState } from 'react'
-import Pagination from '../components/Pagination'
-import { useQuery } from '@tanstack/react-query'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
 import BlogRightCard from '../components/BlogRightCard'
 import BlogCard from '../components/BlogCard'
 import { fetchBlog } from '../api/blogApi'
+import { FiCheckCircle } from 'react-icons/fi'
+import ErrorPage from './ErrorPages'
 
 const Blog = () => {
   const categories = ['All']
   const [clickedCategory, setClickedCategory] = useState(null)
 
-  const [page, setPage] = useState(1)
-
-  const { isPending, isError, data, error } = useQuery({
-    queryKey: ['blogs', page],
-    queryFn: () => fetchBlog(page),
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    status,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ['blogs'],
+    queryFn: ({ pageParam = 1 }) => fetchBlog({ pageParam }),
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextPage : undefined,
   })
 
   console.log('Fetched blog data:', data)
 
-  data?.blogs?.forEach((blog) => {
+  const loaderRef = useRef(null)
+  useEffect(() => {
+    const node = loaderRef.current
+    if (!node) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 1 }
+    )
+    observer.observe(node)
+
+    return () => {
+      if (node) observer.unobserve(node)
+    }
+  }, [fetchNextPage, hasNextPage])
+
+  // ✅ Flatten all pages into a single blog array
+  const blogs = useMemo(
+    () => data?.pages.flatMap((page) => page.blogs) ?? [],
+    [data]
+  )
+
+  console.log('Fetched blogs:', blogs)
+
+  blogs?.forEach((blog) => {
     if (blog.category && !categories.includes(blog.category)) {
       categories.push(blog.category)
     }
   })
 
-  console.log('Unique categories:', categories)
-
-  const leftContents =
+  const filteredBlogs =
     clickedCategory === 'All' || clickedCategory === null
-      ? data?.blogs.slice(0, 10) || []
-      : data?.blogs.slice(0, 10).filter((blog) => {
-          return blog.category === clickedCategory
-        })
+      ? blogs
+      : blogs.filter((blog) => blog.category === clickedCategory)
 
-  // const leftContents = data?.blogs.slice(0, 10) || []
+  let leftContents = []
+  let rightContents = []
 
-  const rightContents =
-    clickedCategory === 'All' || clickedCategory === null
-      ? data?.blogs.slice(10) || []
-      : data?.blogs.slice(10).filter((blog) => {
-          return blog.category === clickedCategory
-        })
-
-  // const rightContents = data?.blogs.slice(10) || []
-  const totalPages = Math.ceil((data?.totalCount || 0) / 20)
-
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <img
-          src={spinner}
-          alt="Loading"
-          loading="lazy"
-          className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
-        />
-      </div>
-    )
+  if (filteredBlogs.length < blogs.length) {
+    leftContents = filteredBlogs
+  } else {
+    const halfCount = Math.ceil(filteredBlogs.length / 2)
+    leftContents = filteredBlogs.filter((_, i) => i < halfCount)
+    rightContents = filteredBlogs.filter((_, i) => i >= halfCount)
   }
 
-  if (isError) {
-    return <span>Error: {error.message}</span>
+  if (status === 'error') {
+    return <ErrorPage data={error.message} />
   }
 
   return (
@@ -74,44 +90,46 @@ const Blog = () => {
 
         <div className="max-w-6xl w-[90%] lg:w-[90%] mx-auto py-5">
           <h1 className="font-aptos-bold text-4xl text-gray-800 mt-5 mb-2">
-            Blogs
+            Opinions
           </h1>
 
-          {/* <span
-            onClick={() => setClickedCategory('all')}
-            className="cursor-pointer inline-block bg-orange-300/50 text-orange-700 px-3 pt-1 pb-1.5 rounded-full mr-2 mb-5 text-base font-aptos-semibold"
-          >
-            All
-          </span> */}
+          {status === 'pending' && (
+            <div className="flex items-center justify-center">
+              <img
+                src={spinner}
+                alt="Loading"
+                loading="lazy"
+                className="w-12 h-12 animate-spin mix-blend-multiply"
+              />
+            </div>
+          )}
 
           {categories.length > 0 &&
             categories.map((cat, idx) => (
               <span
                 key={idx}
                 onClick={() => setClickedCategory(cat)}
-                className="cursor-pointer inline-block bg-orange-300/50 text-orange-700 px-3 pt-1 pb-1.5 rounded-full mr-2 mb-5 text-base font-aptos-semibold"
+                className="cursor-pointer inline-block bg-gray-300/50 text-gray-700 px-3 pt-1 pb-1.5 rounded-full mr-2 mb-5 text-base font-aptos-semibold"
               >
                 {cat}
               </span>
             ))}
 
           <div className="md:grid md:grid-cols-[70%_30%] md:gap-5 lg:gap-10">
-            <div className="">
-              {leftContents.map((content, index, arr) => (
-                <BlogCard
-                  key={content.id}
-                  index={index}
-                  array={arr}
-                  url={`/blog/${content.id}`}
-                  company={content.brandName}
-                  image={content.imageUrl}
-                  heading={content.title}
-                  desc={content.description}
-                  date={content.articleDate}
-                  writtenBy={content?.writtenBy || 'Team DSJ'}
-                />
-              ))}
-            </div>
+            {leftContents.map((content, index, arr) => (
+              <BlogCard
+                key={index}
+                index={index}
+                array={arr}
+                url={`/blog/${content.slug}`}
+                company={content.brandName}
+                image={content.imageUrl}
+                heading={content.title}
+                desc={content.description}
+                date={content.articleDate}
+                writtenBy={content?.writtenBy || 'Team DSJ'}
+              />
+            ))}
 
             {rightContents.length > 0 && (
               <div className="sm:border sm:border-gray-300 sm:rounded-lg sm:p-6">
@@ -124,8 +142,8 @@ const Blog = () => {
 
                   {rightContents.map((content, index, arr) => (
                     <BlogRightCard
-                      key={content.id}
-                      url={`/blog/${content.id}`}
+                      key={index}
+                      url={`/blog/${content.slug}`}
                       index={index}
                       array={arr}
                       // deal={dealTitle}
@@ -141,9 +159,22 @@ const Blog = () => {
               </div>
             )}
           </div>
-          <div className="flex justify-center items-center">
-            <Pagination page={page} setPage={setPage} totalPages={totalPages} />
+
+          <div
+            ref={loaderRef}
+            className="h-20 flex justify-center items-center"
+          >
+            {isFetchingNextPage && <p>Loading more...</p>}
           </div>
+
+          {!hasNextPage && (
+            <div className="text-center mt-8">
+              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-full text-sm text-slate-400">
+                <FiCheckCircle size={14} className="text-orange-500" />
+                You've seen {filteredBlogs.length} articles in Opinions
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

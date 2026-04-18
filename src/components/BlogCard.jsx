@@ -18,7 +18,7 @@ const BlogCard = ({ url, index, array, image, heading, desc, date }) => {
         <div className="md:mr-6">
           <div className="flex justify-between items-center mt-2">
             <p className="font-aptos-semibold text-[12px] text-white bg-[#ff7010] w-fit rounded-full px-2 py-1">
-              Blog
+              Opinion
             </p>
             <p className="font-aptos-regular text-sm text-gray-500">
               {handleDate(date)}

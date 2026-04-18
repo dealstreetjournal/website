@@ -16,7 +16,7 @@ const HomeWorldSection = ({ data }) => {
               worlds.map((world, index) => {
                 return (
                   <Link
-                    to={`/world/${world.id}`}
+                    to={`/world/${world.slug}`}
                     key={world.id}
                     className={`sm:w-[270px] mx-auto mt-5 bg-white shadow rounded-lg overflow-clip ${
                       index >= 3 ? 'md:hidden lg:block' : ''

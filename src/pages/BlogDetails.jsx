@@ -22,9 +22,10 @@ import { handleDate } from '../handleDate'
 import SmartImage from '../components/SmartImage'
 import { fetchBlogById } from '../api/blogApi'
 import BlogSubCard from '../components/BlogSubCard'
+import ErrorPage from './ErrorPages'
 
 const BlogDetails = () => {
-  const { id } = useParams()
+  const { slug } = useParams()
   const [currentUrl, setCurrentUrl] = useState('')
   const [finalHtml, setFinalHtml] = useState('')
   const [visibleSidebarCards, setVisibleSidebarCards] = useState(0)
@@ -34,8 +35,8 @@ const BlogDetails = () => {
 
   // Get current URL after component mounts
   useEffect(() => {
-    setCurrentUrl(`https://web.dealstreetjournal.com/dsj/blog/${id}`)
-  }, [id])
+    setCurrentUrl(`https://web.dealstreetjournal.com/dsj/blog/${slug}`)
+  }, [slug])
 
   const {
     isPending,
@@ -43,8 +44,8 @@ const BlogDetails = () => {
     data: contents,
     error,
   } = useQuery({
-    queryKey: ['blog', id],
-    queryFn: () => fetchBlogById(id),
+    queryKey: ['blog', slug],
+    queryFn: () => fetchBlogById(slug),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
@@ -217,7 +218,7 @@ const BlogDetails = () => {
   }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return <ErrorPage data={error.message} />
   }
 
   return (
@@ -236,7 +237,7 @@ const BlogDetails = () => {
                   to={'/blog'}
                   className="font-aptos-bold whitespace-nowrap"
                 >
-                  Blog
+                  Opinion
                 </Link>
                 <TbSeparator className="mx-1 mt-1" />
                 <p className="font-aptos-regular">{blog?.title}</p>
@@ -355,7 +356,7 @@ const BlogDetails = () => {
                     <BlogSubCard
                       key={content.id}
                       id={content.id}
-                      url={`/blog/${content.id}`}
+                      url={`/blog/${content.slug}`}
                       image={content.imageUrl}
                       heading={content.title}
                       date={content.articleDate}

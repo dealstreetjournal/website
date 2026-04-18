@@ -26,10 +26,11 @@ import FundRaiseChart from '../components/FundRaiseChart'
 import FinancialChart from '../components/FinancialChart'
 import DetailsDealsSubCard from '../components/DetailsDealsSubCard'
 import SmartImage from '../components/SmartImage'
+import ErrorPage from './ErrorPages'
 
 const DealDetails = () => {
   const location = useLocation()
-  const { id } = useParams()
+  const { slug } = useParams()
   const [currentUrl, setCurrentUrl] = useState('')
   const [finalHtml, setFinalHtml] = useState('')
   const [graph, setGraph] = useState()
@@ -46,8 +47,8 @@ const DealDetails = () => {
 
   // Get current URL after component mounts
   useEffect(() => {
-    setCurrentUrl(`https://web.dealstreetjournal.com/dsj/deal/${path}/${id}`)
-  }, [path, id])
+    setCurrentUrl(`https://web.dealstreetjournal.com/dsj/deal/${path}/${slug}`)
+  }, [path, slug])
 
   // Mapping
   const dealTypeMap = {
@@ -67,8 +68,8 @@ const DealDetails = () => {
     data: contents,
     error,
   } = useQuery({
-    queryKey: ['dealDetails', path, id],
-    queryFn: () => fetchDealById(path, id),
+    queryKey: ['dealDetails', path, slug],
+    queryFn: () => fetchDealById(path, slug),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
@@ -267,7 +268,7 @@ const DealDetails = () => {
   }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return <ErrorPage data={error.message} />
   }
 
   return (
@@ -397,7 +398,7 @@ const DealDetails = () => {
                         key={content.id}
                         deal={dealTitle}
                         id={content.id}
-                        url={`/${content.deals}/${content.id}`}
+                        url={`/${content.deals}/${content.slug}`}
                         image={content.imageUrl}
                         heading={content.title}
                         date={content.articleDate}
@@ -638,7 +639,7 @@ const DealDetails = () => {
                       key={content.id}
                       deal={dealTitle}
                       id={content.id}
-                      url={`/${content.deals}/${content.id}`}
+                      url={`/${content.deals}/${content.slug}`}
                       image={content.imageUrl}
                       heading={content.title}
                       date={content.articleDate}

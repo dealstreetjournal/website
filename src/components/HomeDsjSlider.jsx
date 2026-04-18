@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 
-const HomeDsjSlider = ({ data = [], heading }) => {
+const HomeDsjSlider = ({ data, heading }) => {
   // Ensure data is always an array
   const validData = Array.isArray(data) ? data : []
   // Duplicate data multiple times for seamless infinite scroll
@@ -36,7 +36,7 @@ const HomeDsjSlider = ({ data = [], heading }) => {
                       to={
                         d.heading === 'Latest Deal'
                           ? 'latest'
-                          : `funding/${d.id}`
+                          : `funding/${d.slug}`
                       }
                       state={{ query: d.title, time: 500 }}
                       className="flex items-center mr-10 whitespace-nowrap"

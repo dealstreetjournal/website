@@ -8,6 +8,7 @@ import HomeIpoAndDsjSection from '../components/HomeIpoAndDsjSection'
 import { useQuery } from '@tanstack/react-query'
 import { home } from '../api/homeApi'
 import spinner from '../assets/spinner.png'
+import ErrorPage from './ErrorPages'
 
 const Home = () => {
   document.title = 'Deal Street Journal'
@@ -38,7 +39,7 @@ const Home = () => {
   }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return <ErrorPage data={error.message} />
   }
 
   return (
@@ -46,14 +47,14 @@ const Home = () => {
       <HomeSlider data={homeData?.sliders} />
       <HomeWorldSection data={homeData?.worldDeals} />
       <HomeDsjSlider
-        data={homeData?.dsjSliders.slice(0, 5)}
+        data={homeData?.dsjSliders.latest}
         heading="Latest Deal"
       />
       <HomeSeedAndGrowthSection
         seedData={homeData?.seedDeals}
         growthData={homeData?.growthDeals}
       />
-      <HomeDsjSlider data={homeData?.dsjSliders[5]} heading="Funding 365" />
+      <HomeDsjSlider data={homeData?.dsjSliders.funding} heading="Funding 365" />
       <HomeMAAndPreeseedSection
         maData={homeData?.maDeals}
         preseedData={homeData?.preseedDeals}

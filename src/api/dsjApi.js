@@ -1,13 +1,13 @@
 import axios from './axiosInstance'
 
-export const fetchLatestDeal = async (page, companyName = '') => {
+export const fetchLatestDeal = async (companyName, { pageParam = 1 }) => {
   try {
     const response = await axios.get(
-      `/dsj/latest?page=${page}${
+      `/dsj/latest?page=${pageParam}${
         companyName ? `&companyName=${encodeURIComponent(companyName)}` : ''
       }`
     )
-    // console.log('Fetched latest deal:', response.data)
+    console.log('Fetched latest deal:', response.data)
     return response.data
   } catch (error) {
     // console.error('Error fetching latest deal:', error)
@@ -19,7 +19,7 @@ export const fetchLatestDeal = async (page, companyName = '') => {
 export const fetchFundingCompany = async () => {
   try {
     const response = await axios.get('/dsj/funding')
-    // console.log('Fetched fundingcompany:', response.data)
+    console.log('Fetched fundingcompany:', response.data)
     return response.data
   } catch (error) {
     // console.error('Error fetching fundingcompany:', error)
@@ -27,10 +27,10 @@ export const fetchFundingCompany = async () => {
   }
 }
 
-export const fetchFundingCompanyDetails = async (companyId, page) => {
+export const fetchFundingCompanyDetails = async (slug, page) => {
   try {
-    const response = await axios.get(`/dsj/funding/${companyId}?page=${page}`)
-    // console.log('Fetched fundingcompany details:', response.data)
+    const response = await axios.get(`/dsj/funding/${slug}?page=${page}`)
+    console.log('Fetched fundingcompany details:', response.data)
     return response.data
   } catch (error) {
     // console.error('Error fetching fundingcompany details:', error)

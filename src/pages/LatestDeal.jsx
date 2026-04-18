@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { FaShoppingCart } from 'react-icons/fa'
 import pdf from '../assets/pdf.svg'
-import Pagination from '../components/Pagination'
 import spinner from '../assets/spinner.png'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation } from '@tanstack/react-query'
 import { fetchLatestDeal } from '../api/dsjApi'
 import { addToCart } from '../api/cartApi'
 import { useCart } from '../hooks/useCart'
@@ -13,6 +12,8 @@ import Tippy from '@tippyjs/react'
 import 'tippy.js/dist/tippy.css'
 import Popup from '../components/Popup'
 import SamplePdf from '../components/SamplePdf'
+import { FiCheckCircle } from 'react-icons/fi'
+import ErrorPage from './ErrorPages'
 
 const LatestDeal = () => {
   document.title = 'Latest deal | DealStreetJournal'
@@ -32,10 +33,8 @@ const LatestDeal = () => {
   const location = useLocation()
   const { query, time } = location.state || {}
 
-  const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [debounceSearch, setDebounceSearch] = useState('')
-  // const [open, setOpen] = useState(false)
 
   useEffect(() => {
     if (query) {
@@ -49,21 +48,58 @@ const LatestDeal = () => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebounceSearch(search)
-      setPage(1)
     }, time || 2000)
     return () => clearTimeout(handler)
   }, [search])
 
-  const { isPending, isError, data, error } = useQuery({
-    queryKey: ['latestdeal', page, debounceSearch],
-    queryFn: () => fetchLatestDeal(page, debounceSearch),
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    status,
+    error,
+  } = useInfiniteQuery({
+    queryKey: ['latestdeal', debounceSearch],
+    queryFn: ({ pageParam = 1 }) =>
+      fetchLatestDeal(debounceSearch, { pageParam }),
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextPage : undefined,
   })
 
-  const latestDeals = data?.latestDeals || []
-  const totalPages = Math.ceil((data?.totalCount || 0) / 10)
-  const pdfUrl = data?.samplePdf
+  console.log('allLatestDeal', data)
+
+  const loaderRef = useRef(null)
+
+  useEffect(() => {
+    const node = loaderRef.current
+    if (!node) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 1 }
+    )
+
+    observer.observe(node)
+
+    return () => {
+      if (node) observer.unobserve(node)
+    }
+  }, [fetchNextPage, hasNextPage])
+
+  // ✅ Flatten all pages into a single jobs array
+  const latestDeals = useMemo(
+    () => data?.pages.flatMap((page) => page.latestDeals) ?? [],
+    [data]
+  )
+
+  // console.log('Fetched latest deal:', latestDeals)
+
+  const pdfUrl = data?.pages?.[0]?.samplePdf
 
   const mutation = useMutation({
     mutationFn: addToCart,
@@ -99,21 +135,8 @@ const LatestDeal = () => {
     },
   })
 
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <img
-          src={spinner}
-          alt="Loading"
-          loading="lazy"
-          className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
-        />
-      </div>
-    )
-  }
-
-  if (isError) {
-    return <span>Error: {error.message}</span>
+  if (status === 'error') {
+    return <ErrorPage data={error.message} />
   }
 
   return (
@@ -173,37 +196,21 @@ const LatestDeal = () => {
               className="border-2 rounded w-full sm:w-48 px-2 py-1 border-[#ff7010] focus:border-[#cc5c00] focus:ring-0 focus:outline-none"
             />
 
-            <div
-              className="hidden md:block cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white"
-              // onClick={() => setOpen(true)}
-            >
+            <div className="hidden md:block cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white">
               <SamplePdf url={pdfUrl} />
             </div>
           </div>
-          {/* {open && (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2">
-              <div className="bg-white rounded-lg w-full max-w-4xl h-[90vh] relative flex flex-col">
-                
-                <button
-                  onClick={() => setOpen(false)}
-                  className="absolute top-2 right-2 border-2 border-red-700 bg-white text-red-700 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-red-700 hover:text-white transition"
-                >
-                  ✕
-                </button>
 
-               
-                <div className="flex-1 overflow-auto">
-                  <embed
-                    src={pdfUrl}
-                    type="application/pdf"
-                    width="100%"
-                    height="100%"
-                    className="w-full h-full"
-                  />
-                </div>
-              </div>
+          {status === 'pending' && (
+            <div className="flex items-center justify-center">
+              <img
+                src={spinner}
+                alt="Loading"
+                loading="lazy"
+                className="w-12 h-12 animate-spin mix-blend-multiply"
+              />
             </div>
-          )} */}
+          )}
 
           {/* table for large device */}
           <div className="my-5 hidden md:block">
@@ -221,7 +228,6 @@ const LatestDeal = () => {
               </thead>
               <tbody>
                 {latestDeals.map((row, idx) => {
-                  const count = (page - 1) * 10 + 1
                   const date = new Date(row.fundingDate)
                   const formattedDate = date.toLocaleDateString('en-GB', {
                     day: '2-digit',
@@ -235,7 +241,7 @@ const LatestDeal = () => {
                       className="odd:bg-white even:bg-slate-200 hover:bg-orange-50 transition duration-300"
                     >
                       <td className="p-3 font-aptos-semibold xl:font-aptos-bold text-center">
-                        {count + idx}
+                        {idx + 1}
                       </td>
                       <td className="p-3 font-aptos-semibold xl:font-aptos-bold whitespace-nowrap">
                         {row.fundingDate}
@@ -345,9 +351,21 @@ const LatestDeal = () => {
             ))}
           </div>
 
-          <div className="flex justify-center items-center">
-            <Pagination page={page} setPage={setPage} totalPages={totalPages} />
+          <div
+            ref={loaderRef}
+            className="h-20 flex justify-center items-center"
+          >
+            {isFetchingNextPage && <p>Loading more...</p>}
           </div>
+
+          {!hasNextPage && (
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-full text-sm text-slate-400">
+                <FiCheckCircle size={14} className="text-orange-500" />
+                You've seen {latestDeals.length} Latest Deal
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

@@ -6,6 +6,7 @@ import { handleDate } from '../handleDate'
 import { FiDownload } from 'react-icons/fi'
 import { FaMinus } from 'react-icons/fa6'
 import Pagination from './Pagination'
+import ErrorPage from '../pages/ErrorPages'
 
 const Report = () => {
   document.title = 'Report | Dealstreetjournal'
@@ -13,7 +14,7 @@ const Report = () => {
 
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['report', page],
-    queryFn: ()=> getReport(page),
+    queryFn: () => getReport(page),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
@@ -49,7 +50,7 @@ const Report = () => {
   }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return <ErrorPage data={error.message} />
   }
 
   return (

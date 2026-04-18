@@ -4,6 +4,7 @@ import CompanyCard from '../components/CompanyCard'
 import { useQuery } from '@tanstack/react-query'
 import spinner from '../assets/spinner.png'
 import { fetchFinancialCompany } from '../api/dsjApi'
+import ErrorPage from './ErrorPages'
 
 const FinancialInsight = () => {
   document.title = 'Financial Insight | DealStreetJournal'
@@ -15,23 +16,28 @@ const FinancialInsight = () => {
     refetchOnMount: false,
   })
 
-  const contents = data?.companies || []
+  const contents =
+    data?.companies.sort((a, b) =>
+      a.companyName.localeCompare(b.companyName, undefined, {
+        sensitivity: 'base',
+      })
+    ) || []
 
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <img
-          src={spinner}
-          alt="Loading"
-          loading="lazy"
-          className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
-        />
-      </div>
-    )
-  }
+  // if (isPending) {
+  //   return (
+  //     <div className="flex items-center justify-center min-h-[80vh]">
+  //       <img
+  //         src={spinner}
+  //         alt="Loading"
+  //         loading="lazy"
+  //         className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+  //       />
+  //     </div>
+  //   )
+  // }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return <ErrorPage data={error.message} />
   }
 
   return (
@@ -66,6 +72,17 @@ const FinancialInsight = () => {
               analysis, ratio analysis and expenses analysis reports.
             </p>
           </div>
+
+          {isPending && (
+            <div className="flex items-center justify-center min-h-[80vh]">
+              <img
+                src={spinner}
+                alt="Loading"
+                loading="lazy"
+                className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+              />
+            </div>
+          )}
 
           {/* company cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-10 justify-items-center">

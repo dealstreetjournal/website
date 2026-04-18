@@ -23,7 +23,7 @@ const BlogRightCard = ({ index, array, url, image, heading, date, desc }) => {
           <div className="lg:ml-9">
             <div className="flex justify-between items-center mt-2">
               <p className="lg:hidden font-aptos-semibold text-[12px] text-white bg-[#ff7010] w-fit rounded-full px-2 py-1">
-                Blog
+                Opinion
               </p>
               <p className="font-aptos-regular text-sm text-gray-500">
                 {handleDate(date)}

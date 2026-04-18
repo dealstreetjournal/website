@@ -13,13 +13,17 @@ import Tippy from '@tippyjs/react'
 import 'tippy.js/dist/tippy.css'
 import Popup from '../components/Popup'
 import SamplePdf from '../components/SamplePdf'
+import ErrorPage from './ErrorPages'
 
 const Funding365Company = () => {
   const location = useLocation()
   const { companyName } = location.state || {}
-  document.title = `${companyName} | DealStreetJournal`
 
-  const { id } = useParams()
+  useEffect(() => {
+    document.title = `${companyName} | DealStreetJournal`
+  }, [companyName])
+
+  const { slug } = useParams()
   const [page, setPage] = useState(1)
   // const [open, setOpen] = useState(false)
   const [showPopup, setShowPopup] = useState(false)
@@ -35,8 +39,8 @@ const Funding365Company = () => {
   const { incrementCartCount } = useCart()
 
   const { isPending, isError, data, error } = useQuery({
-    queryKey: ['fundingCompany', id, page],
-    queryFn: () => fetchFundingCompanyDetails(id, page),
+    queryKey: ['fundingCompany', slug, page],
+    queryFn: () => fetchFundingCompanyDetails(slug, page),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   })
@@ -86,7 +90,7 @@ const Funding365Company = () => {
   }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return <ErrorPage data={error.message} />
   }
 
   return (
@@ -109,7 +113,7 @@ const Funding365Company = () => {
             </Link>
 
             <Link
-              to={`/funding/${contents[0].companyId.id}`}
+              to={`/funding/${contents[0].companyId.slug}`}
               className="text-[#ff7010] hover:text-[#cc5200] transition-all duration-300"
             >
               /{contents[0].companyId.companyName} Funding

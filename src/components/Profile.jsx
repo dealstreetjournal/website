@@ -23,6 +23,7 @@ import spinner from '../assets/spinner.png'
 import Swal from 'sweetalert2'
 import { MdModeEdit } from 'react-icons/md'
 import { useCart } from '../hooks/useCart'
+import ErrorPage from '../pages/ErrorPages'
 
 const Profile = () => {
   document.title = 'Profile | Dealstreetjournal'
@@ -293,7 +294,7 @@ const Profile = () => {
   }
 
   if (isError) {
-    return <span>Error: {error.message}</span>
+    return <ErrorPage data={error.message} />
   }
 
   return (

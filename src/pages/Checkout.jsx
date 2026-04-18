@@ -8,6 +8,7 @@ import { useCart } from '../hooks/useCart'
 import { useNavigate } from 'react-router-dom'
 import logo from '../assets/spinner.png'
 import { userData } from '../api/userApi'
+import ErrorPage from './ErrorPages'
 
 const Checkout = () => {
   document.title = 'Checkout | Dealstreetjournal'
@@ -258,16 +259,7 @@ const Checkout = () => {
   }
 
   if (isError) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <div className="text-center">
-          <p className="text-red-500 text-lg">Error loading cart</p>
-          <p className="text-gray-600">
-            {error?.message || 'Something went wrong'}
-          </p>
-        </div>
-      </div>
-    )
+    return <ErrorPage data={error.message} />
   }
 
   if (userPending) {
@@ -396,8 +388,8 @@ const Checkout = () => {
                         {country === 'India'
                           ? 'State'
                           : country === 'Other'
-                          ? 'Country Name'
-                          : 'State'}
+                            ? 'Country Name'
+                            : 'State'}
                       </label>
                       {country === 'India' ? (
                         <select

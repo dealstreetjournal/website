@@ -381,7 +381,7 @@ const NavbarMobile = () => {
                 onClick={closeAllMenus}
                 className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2"
               >
-                <span>Blog</span>
+                <span>Opinion</span>
               </Link>
 
               {/* DSJ Insights Dropdown */}
