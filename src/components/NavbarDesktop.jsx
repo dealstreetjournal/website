@@ -34,6 +34,8 @@ const NavbarDesktop = () => {
     refetchOnReconnect: false,
   })
 
+  // console.log('Search results:', data)
+
   // Show search results when data is available or when there's an error
   useEffect(() => {
     if (debouncedSearch && (data || isError)) {
@@ -199,7 +201,7 @@ const NavbarDesktop = () => {
               <div className="space-y-2 ml-4">
                 {data.deals.map((deal, index) => (
                   <Link
-                    to={`/${deal?.deals}/${deal.id}`}
+                    to={`/${deal?.deals}/${deal.slug}`}
                     key={index}
                     className="block p-4 border border-gray-100 rounded-lg hover:border-[#ff7010] hover:bg-orange-50 transition-all duration-200 cursor-pointer group"
                   >
@@ -284,7 +286,7 @@ const NavbarDesktop = () => {
               </div>
               <div className="ml-4">
                 <Link
-                  to={`/funding/${data.fundingCompany.id}`}
+                  to={`/funding/${data.fundingCompany.slug}`}
                   className="block p-4 border border-gray-100 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all duration-200 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between">
@@ -322,7 +324,7 @@ const NavbarDesktop = () => {
               </div>
               <div className="ml-4">
                 <Link
-                  to={`/financial/${data.company.id}`}
+                  to={`/financial/${data.company.slug}`}
                   className="block p-4 border border-gray-100 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all duration-200 cursor-pointer group"
                 >
                   <div className="flex items-center justify-between">
