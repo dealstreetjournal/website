@@ -23,18 +23,18 @@ const FinancialInsight = () => {
       })
     ) || []
 
-  // if (isPending) {
-  //   return (
-  //     <div className="flex items-center justify-center min-h-[80vh]">
-  //       <img
-  //         src={spinner}
-  //         alt="Loading"
-  //         loading="lazy"
-  //         className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
-  //       />
-  //     </div>
-  //   )
-  // }
+  if (isPending) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <img
+          src={spinner}
+          alt="Loading"
+          loading="lazy"
+          className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+        />
+      </div>
+    )
+  }
 
   if (isError) {
     return <ErrorPage data={error.message} />
@@ -73,7 +73,7 @@ const FinancialInsight = () => {
             </p>
           </div>
 
-          {isPending && (
+          {/* {isPending && (
             <div className="flex items-center justify-center min-h-[80vh]">
               <img
                 src={spinner}
@@ -82,7 +82,7 @@ const FinancialInsight = () => {
                 className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
               />
             </div>
-          )}
+          )} */}
 
           {/* company cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-10 justify-items-center">
