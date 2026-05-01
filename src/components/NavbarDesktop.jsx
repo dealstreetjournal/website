@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import logo from '../assets/logo.png'
 import { FaShoppingCart, FaSearch, FaChevronRight } from 'react-icons/fa'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
 import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { fetchSearch } from '../api/homeApi'
+import { RxCross2 } from 'react-icons/rx'
 
 const NavbarDesktop = () => {
   const [activeDropdown, setActiveDropdown] = useState(null)
@@ -15,6 +16,7 @@ const NavbarDesktop = () => {
   const [showSearchResults, setShowSearchResults] = useState(false)
   const { cartCount } = useCart()
   const { user } = useAuth()
+  const location = useLocation()
 
   // Debounce the search input with 5 seconds delay
   useEffect(() => {
@@ -80,6 +82,13 @@ const NavbarDesktop = () => {
     setShowSearchResults(false)
   }
 
+  useEffect(() => {
+    setActiveDropdown(null)
+    setDebouncedSearch('')
+    setShowSearchResults(false)
+    setSearch('')
+  }, [location.pathname])
+
   const renderSearchResults = () => {
     if (!showSearchResults || !debouncedSearch) return null
 
@@ -112,7 +121,7 @@ const NavbarDesktop = () => {
               onClick={closeSearchResults}
               className="text-gray-400 hover:text-gray-600 transition-colors duration-200 text-xl font-light"
             >
-              ×
+              <RxCross2 />
             </button>
           </div>
           <p className="text-red-600 ml-11">
@@ -146,7 +155,7 @@ const NavbarDesktop = () => {
               onClick={closeSearchResults}
               className="text-gray-400 hover:text-gray-600 hover:rotate-90 cursor-pointer transition-all duration-300 text-xl font-aptos-light"
             >
-              ×
+              <RxCross2 />
             </button>
           </div>
           <div className="text-center py-6">
@@ -181,7 +190,7 @@ const NavbarDesktop = () => {
             onClick={closeSearchResults}
             className="text-gray-400 cursor-pointer hover:text-gray-600 hover:rotate-90 transition-all duration-300 text-xl font-aptos-light"
           >
-            ×
+            <RxCross2 />
           </button>
         </div>
 
@@ -207,7 +216,7 @@ const NavbarDesktop = () => {
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1 mr-4">
-                        <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-[#ff7010] transition-colors duration-200 mb-1">
+                        <h5 className="font-aptos-semibold text-sm text-[#ff7010] transition-colors duration-200 mb-1">
                           {deal?.brandName || 'Untitled Deal'}
                         </h5>
                         <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
@@ -260,9 +269,9 @@ const NavbarDesktop = () => {
                     to="/latest"
                     state={{ query: debouncedSearch, time: 500 }}
                     key={lat.id}
-                    className="block p-4 border border-gray-100 rounded-lg hover:border-[#ff7010] hover:bg-orange-50 transition-all duration-200 cursor-pointer group"
+                    className="block p-4 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 cursor-pointer group"
                   >
-                    <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-blue-600 transition-colors duration-200 mb-1">
+                    <h5 className="font-aptos-semibold text-sm text-blue-600 transition-colors duration-200 mb-1">
                       {lat.companyName || 'Untitled'}
                     </h5>
                     <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
@@ -291,7 +300,7 @@ const NavbarDesktop = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-purple-600 transition-colors duration-200 mb-1">
+                      <h5 className="font-aptos-semibold text-sm text-purple-600 transition-colors duration-200 mb-1">
                         {data.fundingCompany.companyName || 'Funding Company'}
                       </h5>
                       <p className="text-sm text-gray-500 line-clamp-2">
@@ -329,7 +338,7 @@ const NavbarDesktop = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-green-600 transition-colors duration-200 mb-1">
+                      <h5 className="font-aptos-semibold text-sm text-green-600 transition-colors duration-200 mb-1">
                         {data.company?.companyName || 'Company Financial Data'}
                       </h5>
                       <p className="text-sm text-gray-500 line-clamp-2">
@@ -521,7 +530,7 @@ const NavbarDesktop = () => {
                     autoComplete="off"
                     autoCorrect="off"
                     placeholder="search..."
-                    className="border-2 border-[#ff7010] rounded p-2 bg-white w-full"
+                    className="border-2 border-[#ff7010] font-aptos-semibold tracking-wide rounded p-2 bg-white w-full"
                   />
                   {isPending && debouncedSearch && (
                     <div className="animate-spin rounded-full h-8 w-8 mx-2 border-b-2 border-[#ff7010]"></div>

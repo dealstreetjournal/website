@@ -164,11 +164,7 @@ const LatestDeal = () => {
               </Link>
             </div>
 
-            <div
-              className="block md:hidden cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white"
-              // onClick={() => setOpen(true)}
-            >
-              {/* Sample */}
+            <div className="block md:hidden cursor-pointer bg-[#ff7010] font-aptos-regular px-3 py-2 rounded text-white animate-bounce">
               <SamplePdf url={pdfUrl} />
             </div>
           </div>
@@ -196,7 +192,7 @@ const LatestDeal = () => {
               className="border-2 rounded w-full sm:w-48 px-2 py-1 border-[#ff7010] focus:border-[#cc5c00] focus:ring-0 focus:outline-none"
             />
 
-            <div className="hidden md:block cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white">
+            <div className="hidden md:block cursor-pointer bg-[#ff7010] font-aptos-regular px-3 py-2 rounded text-white">
               <SamplePdf url={pdfUrl} />
             </div>
           </div>
@@ -216,7 +212,7 @@ const LatestDeal = () => {
           <div className="my-5 hidden md:block">
             <table className="min-w-full table-fixed">
               <thead className="font-aptos-regular">
-                <tr className="bg-[#F67E07] text-white text-center">
+                <tr className="bg-[#FF7010] text-white text-center">
                   <td className="p-3 whitespace-nowrap">S NO</td>
                   <td className="p-3">DATE</td>
                   <td className="p-3">COMPANY</td>

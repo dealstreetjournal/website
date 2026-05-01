@@ -215,8 +215,8 @@ const Login = () => {
 
   return (
     <>
-      <div className="w-full bg-slate-50">
-        <div className="max-w-[450px] w-[90%] mx-auto py-10">
+      <div className="bg-slate-50 min-h-screen flex justify-center items-center -mt-10 lg:-mt-15">
+        <div className="max-w-[450px] w-[90%] mx-auto">
           <h1 className="bg-[#ff7010] rounded-tl-lg rounded-tr-lg text-center font-aptos-bold text-2xl text-white py-7">
             Login
           </h1>

@@ -7,7 +7,8 @@ import {
   FaBars,
   FaUser,
 } from 'react-icons/fa'
-import { Link } from 'react-router-dom'
+import { RxCross2 } from 'react-icons/rx'
+import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
 import { useAuth } from '../hooks/useAuth'
 import { fetchSearch } from '../api/homeApi'
@@ -19,6 +20,7 @@ const NavbarMobile = () => {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [showSearchResults, setShowSearchResults] = useState(false)
+  const location = useLocation()
 
   const { cartCount } = useCart()
   const { user } = useAuth()
@@ -27,7 +29,7 @@ const NavbarMobile = () => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(search)
-    }, 2000) // Changed to 5 seconds
+    }, 2000) // Changed to 2 seconds
 
     return () => clearTimeout(handler)
   }, [search])
@@ -78,6 +80,14 @@ const NavbarMobile = () => {
     setActiveSubmenu(null)
   }
 
+  useEffect(() => {
+    setActiveDropdown(null)
+    setActiveSubmenu(null)
+    setSearch('')
+    setDebouncedSearch('')
+    setShowSearchResults(false)
+  }, [location.pathname])
+
   const renderSearchResults = () => {
     if (!showSearchResults || !debouncedSearch) return null
 
@@ -97,7 +107,7 @@ const NavbarMobile = () => {
               onClick={closeSearchResults}
               className="text-gray-400 hover:text-gray-600 transition-colors duration-200 text-xl font-light"
             >
-              ×
+              <RxCross2 />
             </button>
           </div>
           <p className="text-red-600 ml-11">
@@ -111,7 +121,7 @@ const NavbarMobile = () => {
     const hasResults =
       data &&
       ((data.deals && data.deals.length > 0) ||
-        data.latest ||
+        (data.latest && data.latest.length > 0) ||
         data.company ||
         data.fundingCompany)
 
@@ -131,18 +141,18 @@ const NavbarMobile = () => {
               onClick={closeSearchResults}
               className="text-gray-400 hover:text-gray-600 hover:rotate-90 cursor-pointer transition-all duration-300 text-xl font-aptos-light"
             >
-              ×
+              <RxCross2 />
             </button>
           </div>
           <div className="text-center py-6">
-            <p className="text-gray-500 mb-2">
+            <p className="text-gray-500 mb-2 font-aptos-semibold">
               No results found for "
               <span className="font-aptos-semibold text-gray-700">
                 {debouncedSearch}
               </span>
               "
             </p>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm font-aptos-regular text-gray-400">
               Try different keywords or check spelling
             </p>
           </div>
@@ -166,7 +176,7 @@ const NavbarMobile = () => {
             onClick={closeSearchResults}
             className="text-gray-400 cursor-pointer hover:text-gray-600 hover:rotate-90 transition-all duration-300 text-xl font-aptos-light"
           >
-            ×
+            <RxCross2 />
           </button>
         </div>
 
@@ -186,13 +196,13 @@ const NavbarMobile = () => {
               <div className="space-y-2 ml-4">
                 {data.deals.map((deal, index) => (
                   <Link
-                    to={`/${deal?.deals}/${deal.id}`}
+                    to={`/${deal?.deals}/${deal.slug}`}
                     key={index}
-                    className="block p-4 border border-gray-100 rounded-lg hover:border-[#ff7010] hover:bg-orange-50 transition-all duration-200 cursor-pointer group"
+                    className="block p-4 border rounded-lg border-[#ff7010] bg-orange-50 transition-all duration-200 cursor-pointer"
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1 mr-4">
-                        <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-[#ff7010] transition-colors duration-200 mb-1">
+                        <h5 className="font-aptos-semibold text-sm text-[#ff7010] transition-colors duration-200 mb-1">
                           {deal?.brandName || 'Untitled Deal'}
                         </h5>
                         <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
@@ -212,28 +222,34 @@ const NavbarMobile = () => {
           )}
 
           {/* Latest Results */}
-          {data.latest && (
+          {data.latest && data.latest.length > 0 && (
             <div>
               <div className="flex items-center mb-3">
                 <div className="w-1 h-5 bg-blue-500 rounded-full mr-3"></div>
                 <h4 className="font-aptos-semibold text-gray-700 text-base">
-                  Latest Deal
+                  Latest Deal&nbsp;
                 </h4>
+                <span className="text-sm text-gray-500 font-aptos-normal">
+                  ({data.latest.length} found)
+                </span>
               </div>
-              <div className="ml-4">
-                <Link
-                  to="/latest"
-                  state={{ query: debouncedSearch, time: 500 }}
-                  className="block p-4 border border-gray-100 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 cursor-pointer group"
-                >
-                  <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-blue-600 transition-colors duration-200 mb-1">
-                    {data.latest.companyName || 'Untitled'}
-                  </h5>
-                  <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
-                    {data.latest.fundingDetails ||
-                      'Latest funding insights and updates'}
-                  </p>
-                </Link>
+              <div className="space-y-2 ml-4">
+                {data.latest.map((lat) => (
+                  <Link
+                    to="/latest"
+                    state={{ query: debouncedSearch, time: 500 }}
+                    key={lat.id}
+                    className="block p-4 border rounded-lg border-blue-500 bg-blue-50 transition-all duration-200 cursor-pointer"
+                  >
+                    <h5 className="font-aptos-semibold text-sm text-blue-600 transition-colors duration-200 mb-1">
+                      {lat.companyName || 'Untitled'}
+                    </h5>
+                    <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                      {lat.fundingDetails ||
+                        'Latest funding insights and updates'}
+                    </p>
+                  </Link>
+                ))}
               </div>
             </div>
           )}
@@ -249,12 +265,12 @@ const NavbarMobile = () => {
               </div>
               <div className="ml-4">
                 <Link
-                  to={`/funding/${data.fundingCompany.id}`}
-                  className="block p-4 border border-gray-100 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all duration-200 cursor-pointer group"
+                  to={`/funding/${data.fundingCompany.slug}`}
+                  className="block p-4 border rounded-lg border-purple-500 bg-purple-50 transition-all duration-200 cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-purple-600 transition-colors duration-200 mb-1">
+                      <h5 className="font-aptos-semibold text-sm text-purple-600 transition-colors duration-200 mb-1">
                         {data.fundingCompany.companyName || 'Funding Company'}
                       </h5>
                       <p className="text-sm text-gray-500 line-clamp-2">
@@ -268,7 +284,7 @@ const NavbarMobile = () => {
                       </p>
                     </div>
                     <div className="ml-3">
-                      <FaChevronRight className="text-gray-400 group-hover:text-purple-500 text-sm transition-colors duration-200" />
+                      <FaChevronRight className="text-purple-500 text-sm transition-colors duration-200" />
                     </div>
                   </div>
                 </Link>
@@ -287,12 +303,12 @@ const NavbarMobile = () => {
               </div>
               <div className="ml-4">
                 <Link
-                  to={`/financial/${data.company.id}`}
-                  className="block p-4 border border-gray-100 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all duration-200 cursor-pointer group"
+                  to={`/financial/${data.company.slug}`}
+                  className="block p-4 border rounded-lg border-green-500 bg-green-50 transition-all duration-200 cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h5 className="font-aptos-semibold text-gray-800 text-sm group-hover:text-green-600 transition-colors duration-200 mb-1">
+                      <h5 className="font-aptos-semibold text-sm text-green-600 transition-colors duration-200 mb-1">
                         {data.company?.companyName || 'Company Financial Data'}
                       </h5>
                       <p className="text-sm text-gray-500 line-clamp-2">
@@ -302,7 +318,7 @@ const NavbarMobile = () => {
                       </p>
                     </div>
                     <div className="ml-3">
-                      <FaChevronRight className="text-gray-400 line-clamp-2 group-hover:text-green-500 text-sm transition-colors duration-200" />
+                      <FaChevronRight className="line-clamp-2 text-green-500 text-sm transition-colors duration-200" />
                     </div>
                   </div>
                 </Link>
@@ -447,7 +463,7 @@ const NavbarMobile = () => {
                   autoComplete="off"
                   autoCorrect="off"
                   placeholder="search..."
-                  className="border-2 border-[#ff7010] rounded p-1 bg-white w-full"
+                  className="border-2 border-[#ff7010] font-aptos-regular rounded p-1 bg-white w-full"
                 />
                 {isPending && debouncedSearch && (
                   <div className="animate-spin rounded-full h-8 w-8 mx-2 border-b-2 border-[#ff7010]"></div>
