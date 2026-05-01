@@ -159,3 +159,26 @@
   line-height: 1;
   padding-right: 9px;
 }
+
+@keyframes slowBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  20% {
+    transform: translateY(-8px);
+  }
+  40% {
+    transform: translateY(0);
+  }
+  60% {
+    transform: translateY(-4px);
+  }
+  80% {
+    transform: translateY(0);
+  }
+}
+
+.animate-slow-bounce {
+  animation: slowBounce 2s ease infinite;
+}
