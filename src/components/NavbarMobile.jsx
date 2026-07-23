@@ -476,12 +476,12 @@ const NavbarMobile = () => {
         </div>
 
         {/* logo */}
-        <Link to="/" className="w-[200px] h-auto" onClick={closeAllMenus}>
+        <Link to="/" onClick={closeAllMenus}>
           <img
             src={logo}
             alt="dealstreetjournal"
             loading="lazy"
-            className="mix-blend-multiply"
+            className="mix-blend-multiply w-[200px] h-auto"
           />
         </Link>
 

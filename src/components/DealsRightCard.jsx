@@ -25,8 +25,7 @@ const DealsRightCard = ({
               src={image}
               alt={heading}
               loading="lazy"
-              // className="w-full h-full object-cover object-center my-auto"
-              className="object-center my-auto"
+              className="w-full h-full object-cover object-center my-auto"
             />
           </div>
           <div className="lg:ml-9">

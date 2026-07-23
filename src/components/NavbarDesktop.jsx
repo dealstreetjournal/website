@@ -363,12 +363,12 @@ const NavbarDesktop = () => {
   return (
     <>
       <div className="font-aptos-semibold h-23 flex justify-between items-center fixed top-0 z-50 bg-white w-full border-b-2 border-[#ff7010]">
-        <Link to="/" className="ml-2 sm:w-[250px] xl:w-[350px] h-auto">
+        <Link to="/" className="ml-2">
           <img
             src={logo}
             alt="dealstreetjournal"
             loading="lazy"
-            className="mix-blend-multiply"
+            className="mix-blend-multiply sm:w-[250px] xl:w-[350px] h-auto"
           />
         </Link>
 

@@ -3,28 +3,39 @@ import React, { useRef, useState, useEffect } from 'react'
 const SmartImage = ({ src, alt, className }) => {
   const [isSmall, setIsSmall] = useState(false)
   const containerRef = useRef(null)
+  const naturalSizeRef = useRef(null)
 
   useEffect(() => {
+    const recalculate = () => {
+      const container = containerRef.current
+      const natural = naturalSizeRef.current
+      if (!container || !natural) return
+
+      const containerWidth = container.offsetWidth
+      const containerHeight = container.offsetHeight
+
+      // If image is smaller than container, don't stretch it
+      setIsSmall(
+        natural.width < containerWidth || natural.height < containerHeight,
+      )
+    }
+
     const img = new Image()
     img.src = src
-
     img.onload = () => {
-      const container = containerRef.current
-      // console.log('ref:', container)
-      if (container) {
-        const containerWidth = container.offsetWidth
-        const containerHeight = container.offsetHeight
-
-        // If image is smaller than container, don't stretch it
-        if (
-          img.naturalWidth < containerWidth ||
-          img.naturalHeight < containerHeight
-        ) {
-          setIsSmall(true)
-        } else {
-          setIsSmall(false)
-        }
+      naturalSizeRef.current = {
+        width: img.naturalWidth,
+        height: img.naturalHeight,
       }
+      recalculate()
+    }
+
+    window.addEventListener('resize', recalculate)
+    window.addEventListener('orientationchange', recalculate)
+
+    return () => {
+      window.removeEventListener('resize', recalculate)
+      window.removeEventListener('orientationchange', recalculate)
     }
   }, [src])
 
