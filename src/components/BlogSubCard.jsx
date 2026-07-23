@@ -7,12 +7,12 @@ const BlogSubCard = ({ url, image, heading, date }) => {
     <>
       <Link to={url}>
         <div className="group lg:grid lg:grid-cols-[35%_65%] lg:gap-5 mb-5 shadow hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-          <div className="flex justify-center items-center my-auto aspect-[4.2/2.4] lg:w-24 xl:w-34 bg-slate-100 rounded-sm overflow-hidden">
+          <div className="flex justify-center items-center my-auto aspect-[4.2/2.4] lg:w-24 xl:w-34 bg-slate-100 rounded-[10px] overflow-hidden">
             <img
               src={image}
               alt={heading}
               loading="lazy"
-              className="w-full h-full object-cover object-center my-auto rounded group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover object-center my-auto rounded-[10px] group-hover:scale-105 transition-transform duration-300"
             />
           </div>
           <div className="lg:mr-5 xl:mr-6">
