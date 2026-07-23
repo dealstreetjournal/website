@@ -1,62 +1,18 @@
-import React, { useRef, useState, useEffect } from 'react'
+import React from 'react'
 
 const SmartImage = ({ src, alt, className }) => {
-  const [isSmall, setIsSmall] = useState(false)
-  const containerRef = useRef(null)
-  const naturalSizeRef = useRef(null)
-
-  useEffect(() => {
-    const recalculate = () => {
-      const container = containerRef.current
-      const natural = naturalSizeRef.current
-      if (!container || !natural) return
-
-      const containerWidth = container.offsetWidth
-      const containerHeight = container.offsetHeight
-
-      // If image is smaller than container, don't stretch it
-      setIsSmall(
-        natural.width < containerWidth || natural.height < containerHeight,
-      )
-    }
-
-    const img = new Image()
-    img.src = src
-    img.onload = () => {
-      naturalSizeRef.current = {
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-      }
-      recalculate()
-    }
-
-    window.addEventListener('resize', recalculate)
-    window.addEventListener('orientationchange', recalculate)
-
-    return () => {
-      window.removeEventListener('resize', recalculate)
-      window.removeEventListener('orientationchange', recalculate)
-    }
-  }, [src])
-
   return (
     <div
-      ref={containerRef}
-      className={`flex justify-center items-center mt-2 w-full 
-        h-[250px] sm:h-[350px] md:h-[450px] bg-[#F1F1F1]
-         overflow-hidden 
+      className={`flex justify-center items-center mt-2 w-full max-w-[690px] mx-auto
+        aspect-[4/2.6] bg-[#F1F1F1]
+         overflow-hidden
         ${className}`}
     >
       <img
         src={src}
         alt={alt || 'Image'}
         loading="lazy"
-        className={`transition-all duration-300 
-          ${
-            isSmall
-              ? 'object-contain max-w-full max-h-full'
-              : 'w-full h-full object-cover'
-          }`}
+        className="w-full h-full object-cover object-center"
       />
     </div>
   )
