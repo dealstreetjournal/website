@@ -7,7 +7,7 @@ const BlogCard = ({ url, index, array, image, heading, desc, date }) => {
   return (
     <>
       <Link to={url} className="lg:grid lg:grid-cols-[30%_70%] lg:gap-4">
-        <div className="flex justify-center items-center w-full aspect-[4.5/2.5] bg-gray-300 rounded-lg overflow-clip">
+        <div className="flex justify-center items-center w-full aspect-[4/2.5] bg-gray-300 rounded-lg overflow-clip">
           <img
             src={image}
             alt={heading}
