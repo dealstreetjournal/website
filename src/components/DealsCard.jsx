@@ -7,7 +7,7 @@ const DealsCard = ({ deal, url, index, array, image, heading, desc, date }) => {
   return (
     <>
       <Link to={url} className="lg:grid lg:grid-cols-[30%_70%] lg:gap-4">
-        <div className="flex justify-center items-center w-full max-w-[258px] mx-auto aspect-[4/2.6] bg-gray-300 rounded-lg overflow-clip">
+        <div className="flex justify-center items-center w-full max-w-[258px] mx-auto aspect-[4/2.8] bg-gray-300 rounded-lg overflow-clip">
           <img
             src={image}
             alt={heading}
