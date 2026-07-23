@@ -4,7 +4,7 @@ const SmartImage = ({ src, alt, className }) => {
   return (
     <div
       className={`flex justify-center items-center mt-2 w-full
-        aspect-[4/2.5] bg-[#F1F1F1]
+        aspect-[4.2/2.4] bg-[#F1F1F1]
          overflow-hidden
         ${className}`}
     >
