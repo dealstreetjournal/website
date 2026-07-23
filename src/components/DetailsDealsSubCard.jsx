@@ -8,7 +8,7 @@ const DetailsDealsSubCard = ({ deal, url, image, heading, date }) => {
       to={url}
       className="group bg-white shadow rounded-xl hover:shadow-md transition-all duration-300 overflow-hidden hover:-translate-y-1"
     >
-      <div className="w-full max-w-[185px] mx-auto aspect-[4.5/2.5] bg-slate-200 flex items-center justify-center overflow-hidden">
+      <div className="w-full aspect-[4.5/2.5] bg-slate-200 flex items-center justify-center overflow-hidden">
         <img
           src={image}
           alt={heading}

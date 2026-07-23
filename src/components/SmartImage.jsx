@@ -3,7 +3,7 @@ import React from 'react'
 const SmartImage = ({ src, alt, className }) => {
   return (
     <div
-      className={`flex justify-center items-center mt-2 w-full max-w-[690px] mx-auto
+      className={`flex justify-center items-center mt-2 w-full
         aspect-[4.5/2.5] bg-[#F1F1F1]
          overflow-hidden
         ${className}`}
