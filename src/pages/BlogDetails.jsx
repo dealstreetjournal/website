@@ -35,7 +35,7 @@ const BlogDetails = () => {
 
   // Get current URL after component mounts
   useEffect(() => {
-    setCurrentUrl(`https://web.dealstreetjournal.com/dsj/blog/${slug}`)
+    setCurrentUrl(`https://dealstreetjournal.com/blog/${slug}`)
   }, [slug])
 
   const {

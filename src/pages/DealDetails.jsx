@@ -47,7 +47,7 @@ const DealDetails = () => {
 
   // Get current URL after component mounts
   useEffect(() => {
-    setCurrentUrl(`https://web.dealstreetjournal.com/dsj/deal/${path}/${slug}`)
+    setCurrentUrl(`https://dealstreetjournal.com/${path}/${slug}`)
   }, [path, slug])
 
   // Mapping
