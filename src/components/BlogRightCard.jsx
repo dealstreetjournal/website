@@ -11,7 +11,7 @@ const BlogRightCard = ({ index, array, url, image, heading, date, desc }) => {
     <>
       <Link to={url}>
         <div className="lg:grid lg:grid-cols-[25%_75%] mt-10 sm:mt-0">
-          <div className="flex justify-center items-center w-full max-w-[258px] mx-auto aspect-[4/2.4] lg:w-22 lg:max-w-none bg-gray-300 rounded-lg overflow-clip">
+          <div className="flex justify-center items-center w-full max-w-[258px] mx-auto aspect-[4.2/2.4] lg:w-22 lg:max-w-none bg-gray-300 rounded-lg overflow-clip">
             <img
               src={image}
               alt={heading}
