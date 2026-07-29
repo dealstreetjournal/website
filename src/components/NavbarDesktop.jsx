@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import logo from '../assets/logo.png'
 import { FaShoppingCart, FaSearch, FaChevronRight } from 'react-icons/fa'
+import { RxCross2 } from 'react-icons/rx'
 import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../hooks/useCart'
 import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { fetchSearch } from '../api/homeApi'
+import { hasAiAccess } from '../utils/aiAccess'
 
 const NavbarDesktop = () => {
   const [activeDropdown, setActiveDropdown] = useState(null)
