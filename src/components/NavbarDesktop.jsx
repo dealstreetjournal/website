@@ -6,7 +6,6 @@ import { useCart } from '../hooks/useCart'
 import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { fetchSearch } from '../api/homeApi'
-import { RxCross2 } from 'react-icons/rx'
 
 const NavbarDesktop = () => {
   const [activeDropdown, setActiveDropdown] = useState(null)
@@ -482,6 +481,26 @@ const NavbarDesktop = () => {
               </div>
             )}
           </div>
+
+          {hasAiAccess(user) && (
+            <>
+              {/* DSJ AI Report */}
+              <Link
+                to="/smart-reports"
+                className="cursor-pointer hover:text-[#ff7010] transition-colors whitespace-nowrap font-medium"
+              >
+                DSJ AI Report
+              </Link>
+
+              {/* DSJ AI */}
+              <Link
+                to="/company-ai"
+                className="cursor-pointer hover:text-[#ff7010] transition-colors whitespace-nowrap font-medium"
+              >
+                DSJ AI
+              </Link>
+            </>
+          )}
 
           {/* Shopping Cart */}
           <Link

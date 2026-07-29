@@ -17,10 +17,12 @@ export default function useContentProtection() {
       }
     }
 
+    // Paste is intentionally NOT blocked — pasting only brings content INTO the page
+    // (e.g. a company name into a search box), it can't be used to copy protected
+    // report content OUT, so blocking it only broke every input/textarea on the site.
     document.addEventListener('contextmenu', disableRightClick)
     document.addEventListener('copy', blockActions)
     document.addEventListener('cut', blockActions)
-    document.addEventListener('paste', blockActions)
     document.addEventListener('selectstart', blockActions)
     document.addEventListener('keydown', disableKeys)
 
@@ -28,7 +30,6 @@ export default function useContentProtection() {
       document.removeEventListener('contextmenu', disableRightClick)
       document.removeEventListener('copy', blockActions)
       document.removeEventListener('cut', blockActions)
-      document.removeEventListener('paste', blockActions)
       document.removeEventListener('selectstart', blockActions)
       document.removeEventListener('keydown', disableKeys)
     }

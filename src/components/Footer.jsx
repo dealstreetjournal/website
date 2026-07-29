@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import redlionlogo from '../assets/redlion.jpg'
+import config from '../config'
 import { FaInstagram, FaFacebook, FaLinkedin } from 'react-icons/fa'
 import { FaXTwitter } from 'react-icons/fa6'
 import { Link } from 'react-router-dom'
@@ -30,7 +31,7 @@ const Footer = () => {
   const sendUserData = async () => {
     try {
       // Better IP and location API with more accurate data
-      const ipRes = await axios.get('https://ipapi.co/json/')
+      const ipRes = await axios.get(config.IP_API_URL)
       const ipData = ipRes.data
 
       // More comprehensive device detection
@@ -150,8 +151,8 @@ const Footer = () => {
 
       // console.log('Enhanced payload:', payload)
 
-      // send data
-      await axios.post('https://web.dealstreetjournal.com/dsj/collect', payload)
+      await axios.post(config.COLLECT_URL, payload)
+
 
       return payload
     } catch (err) {

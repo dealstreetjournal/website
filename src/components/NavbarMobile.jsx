@@ -13,6 +13,7 @@ import { useCart } from '../hooks/useCart'
 import { useAuth } from '../hooks/useAuth'
 import { fetchSearch } from '../api/homeApi'
 import { useQuery } from '@tanstack/react-query'
+import { hasAiAccess } from '../utils/aiAccess'
 
 const NavbarMobile = () => {
   const [activeDropdown, setActiveDropdown] = useState(null)
@@ -399,6 +400,28 @@ const NavbarMobile = () => {
               >
                 <span>Opinion</span>
               </Link>
+
+              {hasAiAccess(user) && (
+                <>
+                  {/* DSJ AI Report */}
+                  <Link
+                    to="/smart-reports"
+                    onClick={closeAllMenus}
+                    className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2 font-medium whitespace-nowrap"
+                  >
+                    DSJ AI Report
+                  </Link>
+
+                  {/* DSJ AI */}
+                  <Link
+                    to="/company-ai"
+                    onClick={closeAllMenus}
+                    className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2 font-medium whitespace-nowrap"
+                  >
+                    DSJ AI
+                  </Link>
+                </>
+              )}
 
               {/* DSJ Insights Dropdown */}
               <div

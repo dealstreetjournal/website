@@ -38,6 +38,9 @@ const Checkout = lazy(() => import('./pages/Checkout'))
 const UserDashboard = lazy(() => import('./pages/UserDashboard'))
 const PaymentStatusPage = lazy(() => import('./pages/PaymentStatusPage'))
 const CreatePdf = lazy(() => import('./components/CreatePdf'))
+const SmartReports = lazy(() => import('./pages/SmartReports'))
+const SmartReportDetail = lazy(() => import('./pages/SmartReportDetail'))
+const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -417,6 +420,33 @@ const router = createBrowserRouter(
             }
           >
             <FinancialCompany />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/smart-reports"
+        element={
+          <Suspense fallback={<div className="flex items-center justify-center min-h-[80vh]"><img src={spinner} alt="Loading" className="w-12 h-12 animate-spin mb-2 mix-blend-multiply" /></div>}>
+            <SmartReports />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/smart-reports/:id"
+        element={
+          <Suspense fallback={<div className="flex items-center justify-center min-h-[80vh]"><img src={spinner} alt="Loading" className="w-12 h-12 animate-spin mb-2 mix-blend-multiply" /></div>}>
+            <SmartReportDetail />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/company-ai"
+        element={
+          <Suspense fallback={<div className="flex items-center justify-center min-h-[80vh]"><img src={spinner} alt="Loading" className="w-12 h-12 animate-spin mb-2 mix-blend-multiply" /></div>}>
+            <AiSearchPage />
           </Suspense>
         }
       />

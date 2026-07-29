@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import { useCart } from '../hooks/useCart'
+import config from '../config'
 
 const PaymentStatusPage = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState(null)
+  const [orderType, setOrderType] = useState('cart')
 
   const { loadCartCount } = useCart()
 
   useEffect(() => {
     const orderId = searchParams.get('ORDER_ID') || searchParams.get('orderId')
+    const type = searchParams.get('type') || 'cart'
+    setOrderType(type)
 
     if (!orderId) {
       Swal.fire({
@@ -24,8 +28,38 @@ const PaymentStatusPage = () => {
       return
     }
 
-    verifyPaymentStatus(orderId)
+    if (type === 'fi') {
+      verifyFiPaymentStatus(orderId)
+    } else {
+      verifyPaymentStatus(orderId)
+    }
   }, [searchParams, navigate])
+
+  const verifyFiPaymentStatus = async (orderId) => {
+    try {
+      const response = await fetch(
+        `${config.API_BASE_URL}/api/fi/order/verify/${orderId}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+      if (!response.ok) throw new Error('Failed to verify payment')
+      const data = await response.json()
+      setStatus({ ...data, status: data.status === 'TXN_SUCCESS' ? 'TXN_SUCCESS' : data.status === 'TXN_FAILURE' ? 'TXN_FAILURE' : 'PENDING' })
+      setLoading(false)
+    } catch (error) {
+      console.error('Error verifying FI payment:', error)
+      setLoading(false)
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to verify payment status. Please contact support.',
+        icon: 'error',
+        confirmButtonColor: '#ff7010',
+      }).then(() => navigate('/'))
+    }
+  }
 
   const verifyPaymentStatus = async (orderId) => {
     // console.log('🔄 Verifying payment for order:', orderId)
@@ -126,13 +160,27 @@ const PaymentStatusPage = () => {
               {status?.amount || 'N/A'}
             </p>
 
-            <Link
-              to="/user"
-              state={{ query: 'report' }}
-              className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition"
-            >
-              Download Reports
-            </Link>
+            {orderType === 'fi' ? (
+              <div>
+                <p className="text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm mb-4">
+                  Your reports are being generated and will be sent to your registered email shortly.
+                </p>
+                <Link
+                  to="/smart-reports"
+                  className="w-full block text-center bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition"
+                >
+                  Back to Smart Reports
+                </Link>
+              </div>
+            ) : (
+              <Link
+                to="/user"
+                state={{ query: 'report' }}
+                className="w-full block text-center bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition"
+              >
+                Download Reports
+              </Link>
+            )}
           </div>
         )}
 

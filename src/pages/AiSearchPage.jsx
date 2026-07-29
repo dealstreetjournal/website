@@ -1,0 +1,3203 @@
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  FaSearch, FaTimes, FaRobot, FaChartBar, FaLightbulb, FaStar,
+  FaArrowUp, FaArrowDown, FaMinus, FaFilePdf, FaBuilding,
+  FaHistory, FaBars, FaTrash, FaChartPie, FaUsers, FaHandshake,
+  FaMoneyBillWave, FaChartLine, FaDownload, FaTable,
+  FaExclamationTriangle, FaChevronRight, FaExpandAlt, FaCompressAlt,
+} from 'react-icons/fa'
+import {
+  Chart as ChartJS,
+  CategoryScale, LinearScale, BarElement, LineElement,
+  PointElement, ArcElement, Title, Tooltip, Legend, Filler,
+} from 'chart.js'
+import { Bar, Line, Doughnut } from 'react-chartjs-2'
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, Filler)
+import { useAuth } from '../hooks/useAuth'
+import {
+  aiFreeSearch, getAiHistory, getAiHistoryDetail,
+  deleteAiHistoryItem, clearAiHistory, getAiSuggestions,
+} from '../api/aiSearchApi'
+import config from '../config'
+import CopyButton from '../components/CopyButton'
+
+// ── Number formatter for chart axes ──────────────────────────────────────────
+// Source workbooks store every figure in INR THOUSANDS (e.g. raw Share Capital "500" =
+// 50,000 shares x Rs 10 face value = Rs 5 lakh) — chart data (revenueChart, profitChart,
+// tableData, etc.) carries these raw values straight through, so convert to actual
+// rupees here before applying the Lakh/Crore thresholds. This mirrors the same fix in
+// the backend's fmt() — without it, chart tooltips/axes would show figures 1000x too
+// small relative to the pre-formatted insight/summary text.
+// Always Millions — regardless of magnitude, every currency figure across the page (stat
+// cards, charts, comparison tables, YoY tables) renders in this one consistent unit instead
+// of switching between Lakh/Crore (or raw thousands) depending on size.
+const fmtMn = (v) => {
+  if (v == null || v === 0) return '₹0.0 Mn'
+  const millions = Math.abs(v) / 1000
+  const sign = v < 0 ? '-₹' : '₹'
+  return sign + millions.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Mn'
+}
+
+// ── Full financial statement helpers (Balance Sheet / P&L / Cash Flow) ───────
+// Backend rows are {label, isHeader, values} in exact Excel order. isHeader rows
+// (e.g. "Shareholders' Funds", "Non-Current Liabilities") carry no values — they
+// only exist to caption the rows that follow, up to the next header.
+
+const groupStatementRows = (rows) => {
+  const groups = []
+  let current = null
+  rows.forEach(row => {
+    if (row.isHeader) {
+      current = { header: row, items: [] }
+      groups.push(current)
+    } else {
+      if (!current) { current = { header: null, items: [] }; groups.push(current) }
+      current.items.push(row)
+    }
+  })
+  return groups
+}
+
+// Rows whose values are NOT a rupee amount — ratios, multiples, percentages, counts, and
+// month-durations — must stay as plain numbers, not get divided into Millions like every
+// other row in the same table.
+// Word-bounded (\b) — found live: plain .includes('ratio') also matched inside "Director
+// RemuneRATIOn", wrongly treating it as a non-currency ratio row and skipping the Million
+// conversion. Whole-word checks avoid this whole class of hidden-substring false positive.
+// Deliberately no "/months]" check — a row like "Monthly cash sales ₹ [(vi)=(v)/Months]"
+// divides BY a month-count in its formula, but the RESULT is still a rupee amount; only
+// "in months" (the row's own unit being a duration, e.g. "Runway (In months)") disqualifies it.
+const NON_CURRENCY_ROW_RE = /\b(ratio|multiple|metrics|turnover|headcount)\b|%|number of|in months/i
+const isNonCurrencyStatementRow = (label) => NON_CURRENCY_ROW_RE.test(label || '')
+
+// Values are raw INR thousands (same convention as chart data). Currency rows convert to
+// Millions — same unit as every stat card/chart on the page — with parentheses for
+// negatives; ratio/multiple/count/month-duration rows stay as plain Indian-grouped numbers
+// since they were never a rupee amount to begin with.
+const fmtStatementNum = (v, label) => {
+  if (v == null || v === 0) return '—'
+  if (isNonCurrencyStatementRow(label)) {
+    const isInt = Number.isInteger(v)
+    const formatted = Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: isInt ? 0 : 2, maximumFractionDigits: 2 })
+    return v < 0 ? `(${formatted})` : formatted
+  }
+  const formatted = (Math.abs(v) / 1000).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Mn'
+  return v < 0 ? `(${formatted})` : formatted
+}
+
+const cleanStatementLabel = (label) => {
+  let cleaned = (label || '').trim().replace(/\s+/g, ' ')
+  // Cash Flow section headers arrive as "A|Cash flow from Operating Activities"
+  // (serial marker + caption from the source Excel) — render as "A. Cash flow...".
+  const piped = cleaned.match(/^([A-Za-z0-9]+)\|(.+)$/)
+  if (piped) cleaned = `${piped[1]}. ${piped[2].trim()}`
+  return cleaned.startsWith('-') ? cleaned.slice(1).trim() : cleaned
+}
+
+const isStatementTotalRow = (label) => /^total\b/i.test(cleanStatementLabel(label))
+
+// A search counts as "financial statement" mode either via the Report Type
+// selector (lastSearchedTypes) or by typing the words for it directly — which
+// includes the exact keyword string the "Financial Statements" Analyze button
+// itself searches with ("revenue profit financial overview balance sheet",
+// see REPORT_TYPES below), not just the literal phrase "financial statement".
+const isFinancialStatementSearch = (query, lastSearchedTypes) => {
+  if (lastSearchedTypes?.length > 0) return lastSearchedTypes.includes('financialStatements')
+  const q = (query || '').toLowerCase().trim()
+  if (!q) return false
+  if (/financial statements?/.test(q)) return true
+  // Match the Analyze button's keyword set by word, not as one exact contiguous
+  // phrase — the company name can land anywhere in the typed query, and words
+  // may come in any order, so an exact-substring check missed real variants.
+  const buttonWords = (REPORT_TYPES.find(r => r.id === 'financialStatements')?.query || '')
+    .toLowerCase().split(' ').filter(Boolean)
+  return buttonWords.length > 0 && buttonWords.every(w => q.includes(w))
+}
+
+// ── Company Overview data extraction ──────────────────────────────────────
+// Everything here is pulled from data that already exists elsewhere in the
+// response (balance sheet rows, ratios table, burn/ads metrics, RPT table) —
+// nothing new except adsMetricsChart, which the backend now also exposes.
+
+const findStatementRow = (rows, predicate) =>
+  (rows || []).find(r => !r.isHeader && predicate(cleanStatementLabel(r.label)))
+
+const findChartRow = (rows, predicate) => (rows || []).find(r => predicate(r.label))
+
+const latestArrValue = (arr) => (Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null)
+
+// ── Single-metric focus mode (EBIT / any specific named line item) ──
+// EBIT is detected straight from the query text, not the backend's intent
+// classifier — it lumps EBIT into the same "ebitda" bucket, which was showing
+// EBITDA's data when someone specifically asked for EBIT. Bare "EBITDA" is
+// deliberately NOT force-matched here (only EBIT is) — found live: "EBITDA
+// details"/"EBITDA detail" forced this same narrow chart-only view, hiding the
+// full dashboard (P&L table, margin table, summary) the backend already sends
+// correctly for a plain EBITDA query — EBITDA doesn't have the EBIT ambiguity
+// problem this list exists for, so it doesn't need forcing here at all. Every
+// other named line item (Gross Margin, Rent, Dividend Received, ...) is
+// detected via the backend's own `focusedMetric` flag, set whenever it matched
+// the query to one specific Excel row — it also sends that row's own FY-by-FY
+// series as chartData.singleMetricChart so a trend chart can be drawn for it.
+const SINGLE_METRIC_MATCHERS = [
+  { mode: 'ebit', test: /\bebit\b/i },
+]
+
+const detectSingleMetricMode = (query, result) => {
+  // Backend's own row match wins when it exists — it's authoritative about WHICH row the
+  // query actually resolved to. Found live: "EBITDA margin analysis" matches the EBITDA
+  // Margin (%) row (data lands in chartData.singleMetricChart), but the regex below still
+  // fired on the word "ebitda" in the query text and forced the raw-EBITDA renderer, which
+  // reads a different chart key (chartData.ebitdaChart) that specificItemMode never
+  // populates — rendering an empty/wrong chart instead of the matched row's real data.
+  if (result?.focusedMetric && result?.chartData?.singleMetricChart?.length > 0) return 'generic'
+  const q = (query || '').toLowerCase()
+  const hit = SINGLE_METRIC_MATCHERS.find(m => m.test.test(q))
+  if (hit) return hit.mode
+  return null
+}
+
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const getSingleMetricConfig = (mode, result) => {
+  const cd = result.chartData || {}
+  if (mode === 'ebit') {
+    // No dedicated EBIT series exists — derive it as EBITDA minus Depreciation &
+    // Amortisation, matching the same "EBIT [(xi)=(ix)-(x)]" formula the backend
+    // uses for the keyMetrics tile.
+    const deprRow = findStatementRow(cd.profitLossStatement, l => /depreciation.*amorti[sz]ation/i.test(l))
+    const series = (cd.ebitdaChart || []).map((d, i) => {
+      const depr = deprRow?.values?.[i]
+      return (d.value != null && depr != null) ? { year: d.year, value: d.value - depr } : null
+    }).filter(Boolean)
+    return { labelTest: /^ebit\b/i, title: 'EBIT', accent: '#6366f1', fmt: fmtMn, series }
+  }
+  if (mode === 'generic') {
+    const series = cd.singleMetricChart || []
+    if (!series.length) return null
+    // Prefer the backend's own record of which row it matched (focusedMetricLabel) over
+    // keyMetrics[0] — keyMetrics is a same-topic bucket fetched independently of the one
+    // row specificItem actually matched (e.g. a "EBITDA Margin (%)" search still fills
+    // keyMetrics with the plain "EBITDA" row first), so titling from it could name a
+    // different row than the one this chart's data (singleMetricChart) actually plots.
+    const rawLabel = result.focusedMetricLabel || (result.keyMetrics || [])[0]?.label
+    if (!rawLabel) return null
+    const cleanTitle = rawLabel
+      .replace(/\s*\[[^\]]*\]\s*/g, ' ')
+      .replace(/\s*\(\d{4}-\d{2,4}\)\s*$/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    // A matched row like "EBITDA Margin (%)" holds a percentage, not a currency amount —
+    // formatting it with fmtMn (₹ Mn) would print something like "-₹21.20 Mn" for a -21.2%
+    // margin. Format as a percentage whenever the row's own (uncleaned) label says so.
+    const isPercent = /%/.test(rawLabel)
+    return {
+      labelTest: new RegExp('^' + escapeRegex(cleanTitle || 'x'), 'i'),
+      title: cleanTitle || 'Value', accent: '#8b5cf6',
+      fmt: isPercent ? (v) => `${v.toFixed(1)}%` : fmtMn,
+      series,
+    }
+  }
+  return null
+}
+
+// ratiosTable / rptTable values are pipe-joined across years ("0.74|0.47") when
+// the source sheet has multiple financial years — take the most recent one.
+const latestPipeNum = (str) => {
+  if (!str) return null
+  const parts = String(str).split('|')
+  const n = parseFloat(parts[parts.length - 1])
+  return Number.isFinite(n) ? n : null
+}
+
+const findRatio = (ratiosTable, name) => {
+  const row = (ratiosTable || []).find(r => (r.name || '').trim().toLowerCase() === name.toLowerCase())
+  return row ? latestPipeNum(row.value) : null
+}
+
+// Full FY-by-FY series (not just latest) for a named ratio, as a percentage —
+// used to give "Financials at a Glance" the same YoY treatment as every other
+// row instead of only the Overview's latest-year snapshot.
+const findRatioSeries = (ratiosTable, name, years) => {
+  const row = (ratiosTable || []).find(r => (r.name || '').trim().toLowerCase() === name.toLowerCase())
+  if (!row?.value) return years.map(() => null)
+  const parts = String(row.value).split('|')
+  return years.map((_, i) => {
+    const n = parseFloat(parts[i])
+    return Number.isFinite(n) ? n * 100 : null
+  })
+}
+
+// One entry per CONSECUTIVE year pair — empty when fewer than 2 years are present (nothing
+// to compare a single year against), one entry for 2 years, N-1 entries for N years. Never a
+// single first-vs-last change over the whole span, which would compound multiple years of
+// growth into one misleading number.
+const buildYoySeries = (rawValues) => {
+  const series = []
+  for (let i = 1; i < rawValues.length; i++) {
+    const prev = rawValues[i - 1], cur = rawValues[i]
+    if (prev != null && cur != null && prev !== 0) {
+      const pct = (cur - prev) / Math.abs(prev) * 100
+      series.push({ yoy: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`, yoyPositive: pct >= 0 })
+    } else {
+      series.push({ yoy: 'N/A', yoyPositive: null })
+    }
+  }
+  return series
+}
+
+// revenueSeries (optional, same length/order as rawValues) computes each year's % of
+// Revenue from the company's own Revenue figures — never a fixed/assumed ratio. Omitted
+// entirely for rows that are already a percentage (margins/ratios), since dividing a %
+// by Revenue again would be meaningless.
+const buildYoyRow = (label, rawValues, formatFn, revenueSeries) => {
+  if (!rawValues.some(v => v != null)) return null
+  const pctOfRevenue = revenueSeries
+    ? rawValues.map((v, i) => {
+        const rev = revenueSeries[i]
+        return (v != null && rev != null && rev !== 0) ? `${(v / rev * 100).toFixed(1)}%` : null
+      })
+    : null
+  return { label, values: rawValues.map(v => (v == null ? '—' : formatFn(v))), yoySeries: buildYoySeries(rawValues), pctOfRevenue }
+}
+
+// Extra rows for "Financials at a Glance" — the same underlying data as the
+// Company Overview stat tiles, but shown FY-by-FY with YoY like every other
+// row in this table, instead of Overview's latest-year-only snapshot.
+const buildExtraGlanceRows = (result) => {
+  const cd    = result.chartData || {}
+  const years = result.financialYears || []
+  if (!years.length) return []
+
+  const totalLiabRow = findStatementRow(cd.balanceSheetStatement, l => /^total liabilities/i.test(l))
+  const shareCapRow  = findStatementRow(cd.balanceSheetStatement, l => /^share capital$/i.test(l))
+  const reservesRow  = findStatementRow(cd.balanceSheetStatement, l => /^reserves and surplus$/i.test(l))
+  const ocfRow       = findStatementRow(cd.cashFlowStatement, l => /^net cash generated.*operating/i.test(l))
+  const burnRow      = findChartRow(cd.burnMetricsChart, l => /gross burn rate/i.test(l) && /total|annual/i.test(l))
+  const adsRow       = findChartRow(cd.adsMetricsChart,  l => /advertisement.*expense/i.test(l))
+  const marginByYear = Object.fromEntries((cd.marginChart || []).map(d => [String(d.year), d]))
+
+  const seriesFromStatementRow = (row) => years.map((_, i) => row.values?.[i] ?? null)
+  const seriesFromChartRow     = (row) => years.map(y => (typeof row[y] === 'number' ? row[y] : null))
+  const revenueSeries = years.map(y => {
+    const found = (cd.revenueChart || []).find(d => String(d.year) === String(y))
+    return found ? found.value : null
+  })
+
+  const pctRow = (label, values) => buildYoyRow(label, values, v => `${v.toFixed(1)}%`)
+  const curRow = (label, values) => buildYoyRow(label, values, fmtMn, revenueSeries)
+
+  return [
+    totalLiabRow && curRow('Total Liabilities',    seriesFromStatementRow(totalLiabRow)),
+    shareCapRow  && curRow('Share Capital',        seriesFromStatementRow(shareCapRow)),
+    reservesRow  && curRow('Reserves & Surplus',   seriesFromStatementRow(reservesRow)),
+    pctRow('Gross Margin',  years.map(y => marginByYear[y]?.grossMargin  ?? null)),
+    pctRow('EBITDA Margin', years.map(y => marginByYear[y]?.ebitdaMargin ?? null)),
+    ocfRow && curRow('Cash Flow from Operations', seriesFromStatementRow(ocfRow)),
+    pctRow('ROE',  findRatioSeries(cd.ratiosTable, 'ROE',  years)),
+    pctRow('ROIC', findRatioSeries(cd.ratiosTable, 'ROIC', years)),
+    pctRow('ROCE', findRatioSeries(cd.ratiosTable, 'ROCE', years)),
+    burnRow && curRow('Annual Gross Burn Rate', seriesFromChartRow(burnRow)),
+    adsRow  && curRow('Advertisement Cost', seriesFromChartRow(adsRow)),
+  ].filter(Boolean)
+}
+
+// Reveals AI-written text a character at a time — used for the summary paragraph and the
+// year-selection question, so those read as the AI actively composing its answer rather
+// than a static block of text just popping in fully-formed. Re-types from scratch whenever
+// `text` itself changes (a new search result / a new question), not on every re-render.
+const TypewriterText = ({ text, speed = 14 }) => {
+  const [shown, setShown] = useState('')
+  useEffect(() => {
+    setShown('')
+    if (!text) return
+    let i = 0
+    const id = setInterval(() => {
+      i++
+      setShown(text.slice(0, i))
+      if (i >= text.length) clearInterval(id)
+    }, speed)
+    return () => clearInterval(id)
+  }, [text, speed])
+  return shown
+}
+
+// `delay` staggers each card's fade/rise-in (see the aiRevealIn keyframe rendered by
+// whichever section uses these) so a stat grid builds itself up card by card instead of
+// the whole block just appearing at once — reads as the AI assembling the answer.
+const OverviewStat = ({ label, value, delay = 0 }) => (
+  <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5"
+    style={{ animation: 'aiRevealIn 0.4s ease-out both', animationDelay: `${delay}s` }}>
+    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{label}</p>
+    <p className="text-sm font-bold text-gray-900 mt-0.5">{value}</p>
+  </div>
+)
+
+// One statement (Balance Sheet / P&L / Cash Flow) as bold-heading accordion groups —
+// expanded by default so every line is visible with no clicking — click a
+// heading only if you want to collapse that section.
+const StatementBlock = (props) => {
+  const { title, accent, Icon, rows, activeIdxs, visibleYrs, statementKey, openGroups, onToggle } = props
+  const groups = groupStatementRows(rows)
+  // Some schedules (e.g. Other Expenses, Employee Expenses) are only itemised in the source
+  // Excel for a subset of the company's financial years — every line-item row's values array
+  // then falls short of the full year count. The backend backfills what it safely can for
+  // those trailing years (the row's own "Total", plus any individual row independently
+  // verified against another section like Burn Metrics) — so by the time this renders, some
+  // non-Total rows may have all years and others may not. Use the MINIMUM length among
+  // non-Total rows (not the max) so the note still fires as long as AT LEAST ONE row is still
+  // incomplete, rather than disappearing the moment any single row gets backfilled.
+  const nonTotalRows = rows.filter(r => !r.isHeader && !/^total\b/i.test(r.label || ''))
+  const maxLenAll      = Math.max(0, ...rows.filter(r => !r.isHeader).map(r => r.values?.length || 0))
+  const minLenNonTotal = nonTotalRows.length > 0 ? Math.min(...nonTotalRows.map(r => r.values?.length || 0)) : maxLenAll
+  const noDataYrs = activeIdxs
+    .map((idx, pos) => (idx >= maxLenAll ? visibleYrs[pos] : null))
+    .filter(Boolean)
+  const totalOnlyYrs = nonTotalRows.length > 0 ? activeIdxs
+    .map((idx, pos) => (idx >= minLenNonTotal && idx < maxLenAll ? visibleYrs[pos] : null))
+    .filter(Boolean) : []
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+      style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
+      <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg,${accent},${accent}55)` }} />
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+        <Icon className="text-xs" style={{ color: accent }} />
+        <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: accent }}>{title}</p>
+      </div>
+      {noDataYrs.length > 0 && (
+        <div className="mx-2 mb-2 px-3 py-2 bg-amber-50 border border-amber-100 rounded-lg text-[10px] text-amber-700">
+          Source Excel has no data here for: {noDataYrs.map(y => `FY ${y}`).join(', ')}
+        </div>
+      )}
+      {totalOnlyYrs.length > 0 && (
+        <div className="mx-2 mb-2 px-3 py-2 bg-amber-50 border border-amber-100 rounded-lg text-[10px] text-amber-700">
+Some items aren't itemised in the source Excel for {totalOnlyYrs.map(y => `FY ${y}`).join(', ')} (shown as —) — Total for {totalOnlyYrs.length > 1 ? 'those years is' : 'that year is'} still shown, reconciled from the company's overall figures.
+        </div>
+      )}
+      <div className="px-2 pb-3 overflow-x-auto">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-gray-100">
+              <th className="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Particulars</th>
+              {visibleYrs.map(yr => (
+                <th key={yr} className="text-right py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">FY {yr}</th>
+              ))}
+              {visibleYrs.slice(1).map((yr, k) => (
+                <th key={`yoy-${yr}`} className="text-right py-1.5 px-2 text-[10px] font-bold text-[#ff7010] uppercase whitespace-nowrap">
+                  {visibleYrs.length === 2 ? 'Y-o-Y' : `${visibleYrs[k]} → ${yr}`}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g, gi) => {
+              const key = `${statementKey}-${gi}`
+              const hasItems = g.items.length > 0
+              const isOpen = hasItems && openGroups[key] !== false
+              return (
+                <Fragment key={gi}>
+                  {g.header && (
+                    <tr onClick={() => hasItems && onToggle(key)}
+                      className={`bg-gray-50/80 ${hasItems ? 'cursor-pointer hover:bg-orange-50/60' : ''}`}>
+                      <td colSpan={visibleYrs.length + 1 + Math.max(0, visibleYrs.length - 1)} className="py-2 px-2 text-[11px] font-black text-gray-800">
+                        <span className="inline-flex items-center gap-1.5">
+                          {hasItems && (
+                            <FaChevronRight className={`text-[9px] text-gray-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                          )}
+                          {cleanStatementLabel(g.header.label)}
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                  {(!g.header || isOpen) && g.items.map((row, ri) => {
+                    const isTotal = isStatementTotalRow(row.label)
+                    const indent = g.header ? 'pl-6' : 'pl-2'
+                    // row.yoySeries[a] is the pair between full-year-list indices a and a+1 —
+                    // only usable for a visible column pair when those two indices are still
+                    // adjacent (no year toggled off between them), same convention as the
+                    // Financials at a Glance table.
+                    const yoyPairForCol = (k) => {
+                      const a = activeIdxs[k], b = activeIdxs[k + 1]
+                      return b === a + 1 ? row.yoySeries?.[a] : null
+                    }
+                    return (
+                      <tr key={ri} className="border-b border-gray-50 hover:bg-gray-50/50">
+                        <td className={`py-1.5 px-2 ${indent} text-gray-700 ${isTotal ? 'font-bold text-gray-900' : ''}`}>
+                          {cleanStatementLabel(row.label)}
+                        </td>
+                        {activeIdxs.map(j => (
+                          <td key={j} className={`text-right py-1.5 px-2 tabular-nums ${isTotal ? 'font-bold text-gray-900' : 'text-gray-700'}`}>
+                            {fmtStatementNum(row.values?.[j], row.label)}
+                            {row.pctOfRevenue?.[j] && (
+                              <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{row.pctOfRevenue[j]} of Rev</span>
+                            )}
+                          </td>
+                        ))}
+                        {visibleYrs.slice(1).map((yr, k) => {
+                          const pair = yoyPairForCol(k)
+                          return (
+                            <td key={`yoy-${yr}`} className={`text-right py-1.5 px-2 tabular-nums font-bold ${
+                              pair?.yoyPositive === true ? 'text-green-600' : pair?.yoyPositive === false ? 'text-red-500' : 'text-gray-400'
+                            }`}>
+                              {pair?.yoy ?? '—'}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  })}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ── Shared chart options ──────────────────────────────────────────────────────
+
+// pctFn(rawValue, xAxisLabel) is optional — when given, the tooltip shows the value's
+// % of Revenue as a second line underneath the main figure (null/undefined return means
+// no second line, e.g. Revenue itself has no separate base to divide by that isn't itself).
+const barOpts = (yFmt, pctFn) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: { callbacks: { label: (c) => {
+      const main = ' ' + (yFmt ? yFmt(c.raw) : c.raw)
+      const pct = pctFn ? pctFn(c.raw, c.label) : null
+      return pct ? [main, ` ${pct} of Revenue`] : main
+    } } },
+  },
+  scales: {
+    x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
+    y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: yFmt || ((v) => v) } },
+  },
+})
+
+const lineOpts = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: {
+    legend: { position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 10, padding: 8 } },
+    tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.raw}%` } },
+  },
+  scales: {
+    x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
+    y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: (v) => v + '%' } },
+  },
+}
+
+const doughnutOpts = {
+  responsive: true, maintainAspectRatio: false,
+  cutout: '62%',
+  plugins: {
+    legend: { position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 10, padding: 6 } },
+    tooltip: { callbacks: { label: (c) => ` ${c.label}: ${fmtMn(c.raw)}` } },
+  },
+}
+
+
+// ── Report types (matches changes.png) ───────────────────────────────────────
+
+const REPORT_TYPES = [
+  { id: 'financialStatements', label: 'Financial Statements', sub: 'P&L · Balance Sheet · Cash Flow',  Icon: FaTable,         query: 'revenue profit financial overview balance sheet' },
+  { id: 'capTable',            label: 'Cap Table',            sub: 'Shareholding · Promoters · FII',   Icon: FaUsers,         query: 'shareholders cap table promoter shareholding equity' },
+  { id: 'rpt',                 label: 'Related Parties',      sub: 'Transactions · Associates',         Icon: FaHandshake,     query: 'related party transactions rpt' },
+  { id: 'overheadCosts',       label: 'Overhead Costs',       sub: 'EBITDA · Expenses · Burn Rate',    Icon: FaMoneyBillWave, query: 'ebitda overhead costs expenses depreciation burn rate' },
+  { id: 'investorMetrics',     label: 'Investor Metrics',     sub: 'ROE · ROA · ROCE · Ratios',        Icon: FaChartLine,     query: 'investor metrics roe roa roce return ratios' },
+]
+
+// Claude-style suggestion cards shown on the empty search screen — covers every
+// report type the old Generate Report panel offered, now that typing is the
+// only way to get a report. `prompt` is appended to whatever's already typed
+// (or fills the box on its own if nothing's typed yet).
+const SUGGESTION_CARDS = [
+  { label: 'Company Overview',     sub: 'CIN, board, key ratios at a glance', Icon: FaBuilding,      prompt: '' },
+  { label: 'Financial Statements', sub: 'P&L · Balance Sheet · Cash Flow',    Icon: FaTable,         prompt: 'financial statement' },
+  { label: 'Cap Table',            sub: 'Shareholding · Promoters · FII',     Icon: FaUsers,         prompt: 'cap table and shareholding' },
+  { label: 'Related Parties',      sub: 'Transactions · Associates',         Icon: FaHandshake,     prompt: 'related party transactions' },
+  { label: 'Overhead Costs',       sub: 'EBITDA · Expenses · Burn Rate',     Icon: FaMoneyBillWave, prompt: 'overhead costs and burn rate' },
+  { label: 'Investor Metrics',     sub: 'ROE · ROA · ROCE · Ratios',         Icon: FaChartLine,     prompt: 'ROE and investor ratios' },
+]
+
+const PDF_LABELS = {
+  financialStatements: 'Financial Statements',
+  overheadCosts:       'Overhead Costs',
+  capTable:            'Cap Table',
+  rpt:                 'RPT',
+  investorMetrics:     'Investor Metrics',
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const EXAMPLES = [
+  'financial statement',
+  'EBITDA margin analysis',
+  'cap table and shareholding',
+  'related party transactions',
+  'overhead costs and burn rate',
+  'ROE and investor ratios',
+]
+
+// Written the way an assistant would narrate its own thinking, not a database/ETL pipeline
+// ("scanning", "extracting records") — found live: that phrasing read as a mechanical data
+// pull rather than an AI actually reasoning about the question, on every single search.
+const THINKING_STEPS = [
+  'Looking into the numbers...',
+  'Reading through the financials...',
+  'Working out the key metrics...',
+  'Spotting the trends that matter...',
+  'Putting it all together...',
+]
+
+// ── Date helpers ──────────────────────────────────────────────────────────────
+
+const dateLabel = (iso) => {
+  if (!iso) return 'Earlier'
+  const diff = Math.floor((Date.now() - new Date(iso)) / 86400000)
+  if (diff === 0) return 'Today'
+  if (diff === 1) return 'Yesterday'
+  if (diff <= 7)  return 'This Week'
+  return 'Earlier'
+}
+
+const groupHistory = (list) => {
+  const g = { Today: [], Yesterday: [], 'This Week': [], Earlier: [] }
+  list.forEach(item => { const k = dateLabel(item.createdAt); if (g[k]) g[k].push(item) })
+  return g
+}
+
+const timeAgo = (iso) => {
+  if (!iso) return ''
+  const s = Math.floor((Date.now() - new Date(iso)) / 1000)
+  if (s < 60)    return 'just now'
+  if (s < 3600)  return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function AiSearchPage() {
+  useEffect(() => { document.title = 'Company Intelligence | DealStreetJournal' }, [])
+
+  const { user } = useAuth()
+  const isAuth   = !!user
+
+  // Search state
+  const [query,       setQuery]       = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+  const [result,      setResult]      = useState(null)
+  const [error,       setError]       = useState(null)
+  const [step,        setStep]        = useState(0)
+
+  // Result column width — wide by default so tables/charts use the available
+  // screen space instead of sitting in a narrow centered column; drag the
+  // handles on the search bar to resize by hand, remembered per-browser.
+  const RESULT_WIDTH_MIN = 640
+  const RESULT_WIDTH_MAX = 1600
+  const [resultWidth, setResultWidth] = useState(() => {
+    const saved = Number(localStorage.getItem('dsjAiResultWidth'))
+    return saved >= RESULT_WIDTH_MIN && saved <= RESULT_WIDTH_MAX ? saved : 1152
+  })
+  useEffect(() => { localStorage.setItem('dsjAiResultWidth', String(resultWidth)) }, [resultWidth])
+
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeRef = useRef({ startX: 0, startWidth: 0, side: 'right' })
+
+  const startResize = (e, side) => {
+    e.preventDefault()
+    resizeRef.current = { startX: e.clientX, startWidth: resultWidth, side }
+    setIsResizing(true)
+  }
+
+  // Dragging either edge grows/shrinks the column symmetrically (it's centered
+  // via mx-auto), so the edge under the cursor tracks the mouse 1:1 — hence
+  // the 2x on the width delta.
+  useEffect(() => {
+    if (!isResizing) return
+    document.body.style.userSelect = 'none'
+    const onMove = (e) => {
+      const { startX, startWidth, side } = resizeRef.current
+      const delta = (e.clientX - startX) * (side === 'right' ? 2 : -2)
+      setResultWidth(Math.min(RESULT_WIDTH_MAX, Math.max(RESULT_WIDTH_MIN, startWidth + delta)))
+    }
+    const onUp = () => setIsResizing(false)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [isResizing])
+
+  // Sidebar state
+  const [sidebarOpen,       setSidebarOpen]       = useState(true)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [history,           setHistory]           = useState([])
+  const [historyLoading,    setHistoryLoading]    = useState(false)
+  const [activeHistoryId,   setActiveHistoryId]   = useState(null)
+
+  // Report selector state (bottom section — changes.png)
+  const [selectedYears,      setSelectedYears]      = useState([])
+  const [selectedTypes,      setSelectedTypes]      = useState(['financialStatements'])
+  const [lastSearchedTypes,  setLastSearchedTypes]  = useState([])
+  const [lastSearchedYears,  setLastSearchedYears]  = useState([])
+
+  // Shareholding Pattern category filter (Founder/Angel Investor/VC/...) — clicked in the
+  // result itself, filters the already-loaded shareholder table/pie client-side instead of
+  // requiring a brand new search query. Separate state for Equity vs Preference shareholders
+  // since the two tables can have different categories (e.g. "CCPS Holder" only on preference).
+  const [shCategoryFilter,   setShCategoryFilter]   = useState(null)
+  const [prefCategoryFilter, setPrefCategoryFilter] = useState(null)
+
+  // Full financial statement accordion state — { "bs-2": false, ... } keyed by
+  // `${statementKey}-${groupIndex}`. Expanded by default (whole statement visible
+  // with no clicking needed) — a key is only present once a heading is explicitly
+  // collapsed.
+  const [openStatementGroups, setOpenStatementGroups] = useState({})
+  const toggleStatementGroup = (key) =>
+    setOpenStatementGroups(prev => ({ ...prev, [key]: prev[key] === false ? true : false }))
+
+  // Autocomplete state
+  const [suggestions,     setSuggestions]     = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [activeSugIdx,    setActiveSugIdx]    = useState(-1)
+  const suggestTimer = useRef(null)
+  const suggestRef   = useRef(null)
+
+  const resultRef = useRef(null)
+  const inputRef  = useRef(null)
+  const mainRef   = useRef(null)
+
+  // ── Load history ────────────────────────────────────────────────────────────
+
+  const loadHistory = useCallback(async () => {
+    if (!isAuth) return
+    setHistoryLoading(true)
+    try {
+      const data = await getAiHistory()
+      setHistory(Array.isArray(data) ? data : [])
+    } catch { /* silently ignore */ }
+    finally { setHistoryLoading(false) }
+  }, [isAuth])
+
+  useEffect(() => { loadHistory() }, [loadHistory])
+
+  // ── Autocomplete ─────────────────────────────────────────────────────────────
+
+  const fetchSuggestions = (val) => {
+    clearTimeout(suggestTimer.current)
+    if (val.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return }
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        const data = await getAiSuggestions(val.trim())
+        setSuggestions(Array.isArray(data) ? data : [])
+        setShowSuggestions(true)
+        setActiveSugIdx(-1)
+      } catch { /* ignore */ }
+    }, 250)
+  }
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (suggestRef.current && !suggestRef.current.contains(e.target)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const pickSuggestion = (name) => {
+    setQuery(name)
+    setSuggestions([])
+    setShowSuggestions(false)
+    setActiveSugIdx(-1)
+    inputRef.current?.focus()
+  }
+
+  const handleInputChange = (e) => {
+    const val = e.target.value
+    setQuery(val)
+    fetchSuggestions(val)
+  }
+
+  const handleInputKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === 'Enter') doSearch()
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveSugIdx(i => Math.min(i + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveSugIdx(i => Math.max(i - 1, -1))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (activeSugIdx >= 0) {
+        pickSuggestion(suggestions[activeSugIdx])
+      } else {
+        setShowSuggestions(false)
+        doSearch()
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
+    }
+  }
+
+  // ── Thinking animation ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!isSearching) return
+    const id = setInterval(() => setStep(s => (s + 1) % THINKING_STEPS.length), 1600)
+    return () => clearInterval(id)
+  }, [isSearching])
+
+  // ── Search ──────────────────────────────────────────────────────────────────
+
+  const doSearch = async (q, keepSearchedTypes = false) => {
+    const searchQ = (q || query).trim()
+    if (!searchQ) return
+    setShowSuggestions(false)
+    setSuggestions([])
+    setIsSearching(true)
+    setResult(null)
+    setError(null)
+    setActiveHistoryId(null)
+    setStep(0)
+    if (!keepSearchedTypes) { setLastSearchedTypes([]); setLastSearchedYears([]) }
+    // scroll main area to top so thinking animation is visible
+    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    try {
+      const data = await aiFreeSearch(searchQ)
+      if (!data.success) { setError(data.message || 'No results found.'); return }
+      setResult(data)
+      if (isAuth) loadHistory()
+    } catch (e) {
+      setError(e?.response?.data?.message || 'Search failed. Please try again.')
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // ── Load history result ─────────────────────────────────────────────────────
+
+  const loadHistoryResult = async (item) => {
+    setResult(null); setError(null)
+    setActiveHistoryId(item.id)
+    setQuery(item.query)
+    setMobileSidebarOpen(false)
+    setIsSearching(true); setStep(0)
+    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    try {
+      const data = await getAiHistoryDetail(item.id)
+      if (data && data.success !== false) setResult(data)
+      else setError('Could not load this history item.')
+    } catch { setError('Failed to load history.') }
+    finally { setIsSearching(false) }
+  }
+
+  // ── Delete / clear history ──────────────────────────────────────────────────
+
+  const deleteItem = async (e, id) => {
+    e.stopPropagation()
+    try {
+      await deleteAiHistoryItem(id)
+      setHistory(prev => prev.filter(h => h.id !== id))
+      if (activeHistoryId === id) { setResult(null); setActiveHistoryId(null) }
+    } catch { /* ignore */ }
+  }
+
+  const handleClearAll = async () => {
+    if (!window.confirm('Delete all search history?')) return
+    try {
+      await clearAiHistory()
+      setHistory([]); setResult(null); setActiveHistoryId(null)
+    } catch { /* ignore */ }
+  }
+
+  // ── Initialise selectors when result arrives ──────────────────────────────
+
+  useEffect(() => {
+    if (!result) return
+    if (lastSearchedYears.length > 0) {
+      // Analyze was clicked with specific years — restore exactly those selections
+      setSelectedYears([...lastSearchedYears])
+    } else if (result.yearIndex != null && result.yearIndex >= 0) {
+      // Plain search that mentioned a year — highlight that year
+      setSelectedYears([result.yearIndex])
+    } else {
+      setSelectedYears([])
+    }
+    if (lastSearchedTypes.length === 0) {
+      setSelectedTypes([result.pdfType || 'financialStatements'])
+    }
+    setOpenStatementGroups({})
+    setShCategoryFilter(null)
+    setPrefCategoryFilter(null)
+  }, [result?.companyId, result?.query])
+
+  // When the backend asks which year(s) are wanted, pre-fill the search box with the
+  // company + original question and focus it, cursor at the end — the user just types the
+  // year (or "all") themselves and hits Enter, rather than picking from buttons.
+  useEffect(() => {
+    if (!result?.needsYearSelection) return
+    const prefill = `${result.companyName || ''} ${result.query || ''}`.trim() + ' '
+    setQuery(prefill)
+    // Cursor placement has to wait for the NEXT tick, after the input's DOM value has
+    // actually updated to `prefill` — focusing in the same tick puts the cursor at
+    // position 0 (the start), so every character the user types lands in FRONT of the
+    // pre-filled text instead of after it, making the box look like it's "typing itself"
+    // as the old text keeps getting pushed further right.
+    requestAnimationFrame(() => {
+      const el = inputRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(prefill.length, prefill.length)
+    })
+  }, [result])
+
+  // ── Multi-download (years × types → PDF or ZIP) ───────────────────────────
+
+  const handleMultiDownload = () => {
+    if (!result?.companyId || !selectedTypes.length) return
+    const types = selectedTypes.join(',')
+    const yearParam = selectedYears.length > 0 ? `&yearIndices=${selectedYears.join(',')}` : ''
+    window.open(`${config.DSJ_API_URL}/api/smart-excel/${result.companyId}/download-pdf?type=${types}${yearParam}`, '_blank')
+  }
+
+  // ── PDF download (legacy single button) ──────────────────────────────────
+
+  const handleDownloadPdf = () => {
+    if (!result?.companyId) return
+    const type = result.pdfType || 'financialStatements'
+    const yearParam = result.yearIndex != null ? `&yearIndex=${result.yearIndex}` : ''
+    window.open(`${config.DSJ_API_URL}/api/smart-excel/${result.companyId}/download-pdf?type=${type}${yearParam}`, '_blank')
+  }
+
+  const grouped = groupHistory(history)
+
+  // ── History list (shared between desktop sidebar and mobile drawer) ──────────
+
+  const HistoryList = ({ onClose }) => (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <FaHistory className="text-[#ff7010] text-xs" />
+          <span className="font-bold text-gray-800 text-sm">Search History</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {history.length > 0 && (
+            <button onClick={handleClearAll} title="Clear all"
+              className="text-gray-400 hover:text-red-400 transition-colors">
+              <FaTrash className="text-xs" />
+            </button>
+          )}
+          {onClose && (
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-1">
+              <FaTimes />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* list */}
+      <div className="flex-1 overflow-y-auto">
+        {historyLoading && (
+          <p className="text-center text-xs text-gray-400 py-6">Loading...</p>
+        )}
+        {!historyLoading && history.length === 0 && (
+          <div className="px-4 py-8 text-center">
+            <FaHistory className="text-gray-200 text-3xl mx-auto mb-3" />
+            <p className="text-xs text-gray-400">No searches yet.<br />Your history will appear here.</p>
+          </div>
+        )}
+        {!historyLoading && Object.entries(grouped).map(([group, items]) =>
+          items.length > 0 ? (
+            <div key={group}>
+              <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{group}</p>
+              {items.map(item => (
+                <button key={item.id} onClick={() => loadHistoryResult(item)}
+                  className={`w-full text-left px-4 py-2.5 group relative transition-colors ${
+                    activeHistoryId === item.id
+                      ? 'bg-orange-50 border-r-2 border-[#ff7010]'
+                      : 'hover:bg-gray-50'
+                  }`}>
+                  <p className={`text-xs font-semibold truncate ${activeHistoryId === item.id ? 'text-[#ff7010]' : 'text-gray-800'}`}>
+                    {item.companyName || item.detectedCompany || 'Company'}
+                  </p>
+                  <p className="text-[11px] text-gray-400 truncate mt-0.5 pr-5">{item.query}</p>
+                  <p className="text-[10px] text-gray-300 mt-0.5">{timeAgo(item.createdAt)}</p>
+                  <button onClick={(e) => deleteItem(e, item.id)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1">
+                    <FaTimes className="text-xs" />
+                  </button>
+                </button>
+              ))}
+            </div>
+          ) : null
+        )}
+      </div>
+
+      {/* login prompt */}
+      {!isAuth && (
+        <div className="px-4 py-3 border-t border-gray-100 text-center flex-shrink-0">
+          <p className="text-xs text-gray-400 mb-1">Login to save search history</p>
+          <Link to="/login" className="text-xs text-[#ff7010] font-bold hover:underline">Login →</Link>
+        </div>
+      )}
+    </div>
+  )
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex bg-[#F8F9FA]" style={{ minHeight: 'calc(100vh - 72px)' }}>
+
+      {/* ── Desktop sidebar ── */}
+      {sidebarOpen && (
+        <aside className="hidden lg:flex flex-col flex-shrink-0 bg-white border-r border-gray-100"
+          style={{ width: 256, position: 'sticky', top: 92, height: 'calc(100vh - 92px)', alignSelf: 'flex-start' }}>
+          <HistoryList onClose={null} />
+        </aside>
+      )}
+
+      {/* ── Mobile sidebar overlay ── */}
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden">
+          <div className="w-72 bg-white h-full flex flex-col shadow-2xl">
+            <HistoryList onClose={() => setMobileSidebarOpen(false)} />
+          </div>
+          <div className="flex-1 bg-black/40" onClick={() => setMobileSidebarOpen(false)} />
+        </div>
+      )}
+
+      {/* ── Main column ── */}
+      <div className="relative flex-1 flex flex-col min-w-0">
+
+        {/* drag handles — full page height so they can be grabbed at any scroll
+            position, not just up near the search bar; positioned off the edges
+            of the resizable column, which is centered within this column. */}
+        <div onMouseDown={(e) => startResize(e, 'left')} title="Drag to resize"
+          className="hidden lg:block absolute top-0 bottom-0 w-3 cursor-col-resize z-30"
+          style={{ left: `calc(50% - ${resultWidth / 2 + 6}px)` }} />
+        <div onMouseDown={(e) => startResize(e, 'right')} title="Drag to resize"
+          className="hidden lg:block absolute top-0 bottom-0 w-3 cursor-col-resize z-30"
+          style={{ left: `calc(50% + ${resultWidth / 2 - 6}px)` }} />
+
+        {/* Dark search bar — sticky below navbar */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-4 py-5 flex-shrink-0"
+          style={{ position: 'sticky', top: 72, zIndex: 20 }}>
+          <div className={`relative mx-auto ${isResizing ? '' : 'transition-[max-width] duration-200'}`}
+            style={{ maxWidth: resultWidth }}>
+
+            {/* Top bar */}
+            <div className="flex items-center gap-3 mb-4">
+              {/* desktop: toggle sidebar */}
+              <button onClick={() => setSidebarOpen(p => !p)}
+                className="hidden lg:block text-gray-400 hover:text-white transition-colors" title="Toggle history">
+                <FaBars />
+              </button>
+              {/* mobile: open drawer */}
+              <button onClick={() => setMobileSidebarOpen(true)}
+                className="lg:hidden text-gray-400 hover:text-white transition-colors" title="Search History">
+                <FaHistory />
+              </button>
+
+              <div className="bg-orange-500/20 border border-orange-500/30 text-[#ff7010] text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5">
+                <FaRobot className="text-[10px]" /> DSJ AI
+              </div>
+
+              {/* quick-snap the result column; drag the side handles for fine control */}
+              <button onClick={() => setResultWidth(resultWidth > 900 ? 672 : 1152)}
+                className="hidden sm:block text-gray-400 hover:text-white transition-colors ml-auto"
+                title={resultWidth > 900 ? 'Switch to compact view' : 'Switch to wide view'}>
+                {resultWidth > 900 ? <FaCompressAlt /> : <FaExpandAlt />}
+              </button>
+
+              <div className="text-xs text-gray-500 hidden sm:flex gap-1">
+                <Link to="/dsj-insight" className="hover:text-gray-300">DSJ</Link>
+                <span>/</span>
+                <span className="text-[#ff7010]">DSJ AI</span>
+              </div>
+            </div>
+
+            {/* Search input with autocomplete */}
+            <div className="relative" ref={suggestRef}>
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none" style={{zIndex:2}} />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                placeholder="Type company name or ask a question..."
+                className="w-full pl-11 pr-28 py-3.5 rounded-xl bg-white border-0 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff7010] shadow-lg"
+                autoFocus
+                autoComplete="off"
+              />
+              {query && (
+                <button onClick={() => { setQuery(''); setSuggestions([]); setShowSuggestions(false); inputRef.current?.focus() }}
+                  className="absolute right-24 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" style={{zIndex:2}}>
+                  <FaTimes className="text-sm" />
+                </button>
+              )}
+              <button onClick={() => doSearch()} disabled={isSearching || !query.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff7010] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#e06000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{zIndex:2}}>
+                {isSearching ? '...' : 'Search'}
+              </button>
+
+              {/* Dropdown suggestions */}
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden" style={{zIndex:50}}>
+                  {suggestions.map((name, i) => (
+                    <li key={name}
+                      onMouseDown={e => { e.preventDefault(); pickSuggestion(name) }}
+                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${
+                        i === activeSugIdx ? 'bg-orange-50 text-[#ff7010]' : 'text-gray-800 hover:bg-gray-50'
+                      }`}>
+                      <FaBuilding className={`flex-shrink-0 text-xs ${i === activeSugIdx ? 'text-[#ff7010]' : 'text-gray-300'}`} />
+                      <span className="truncate">{name}</span>
+                    </li>
+                  ))}
+                  <li className="px-4 py-2 text-[11px] text-gray-400 border-t border-gray-50 bg-gray-50">
+                    Press Enter to search · ↑↓ to navigate
+                  </li>
+                </ul>
+              )}
+            </div>
+
+            {/* Example chips — append to a company name already typed and search
+                right away; with nothing typed yet, just fill the box and focus it
+                (searching the topic alone with no company always fails). */}
+            {!result && !isSearching && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {EXAMPLES.map(ex => (
+                  <button key={ex} onClick={() => {
+                    const base = query.trim()
+                    if (base) { const q = `${base} ${ex}`; setQuery(q); doSearch(q) }
+                    else { setQuery(ex + ' '); inputRef.current?.focus() }
+                  }}
+                    className="text-[11px] text-gray-400 border border-gray-600 hover:border-[#ff7010] hover:text-[#ff7010] px-2.5 py-1 rounded-full transition-colors">
+                    {ex}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Results area — scrolls naturally */}
+        <div className="flex-1 px-4 py-6">
+          <div className={`mx-auto space-y-5 ${isResizing ? '' : 'transition-[max-width] duration-200'}`}
+            style={{ maxWidth: resultWidth }}>
+
+            {/* Thinking animation */}
+            {isSearching && (
+              <div className="bg-white rounded-2xl shadow-sm p-10 text-center">
+                <div className="flex justify-center gap-1.5 mb-5">
+                  {[0,1,2,3,4].map(i => (
+                    <div key={i} className="w-2.5 h-2.5 rounded-full bg-[#ff7010]"
+                      style={{ animation:'aiPulse 1.2s ease-in-out infinite', animationDelay:`${i*0.18}s` }} />
+                  ))}
+                </div>
+                <p className="text-sm font-semibold text-gray-700 mb-1">{THINKING_STEPS[step]}</p>
+                {query && <p className="text-xs text-gray-400 italic">"{query}"</p>}
+                <style>{`@keyframes aiPulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1.3);opacity:1}}`}</style>
+              </div>
+            )}
+
+            {/* Error */}
+            {error && !isSearching && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-sm text-red-600 flex items-start gap-3">
+                <FaBuilding className="text-red-300 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold mb-0.5">Not found</p>
+                  <p>{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Year-selection prompt — the backend defers answering topics that have a
+                 year dimension (Revenue/P&L/Balance Sheet/Cash Flow/EBITDA/Margins/Ratios/...)
+                 until the user says which year(s), rather than silently dumping every year.
+                 No buttons — just the AI asking a question, same as any other AI turn on this
+                 page. The search box is pre-filled (see the useEffect on needsYearSelection
+                 above) with the company + original question, so the user only has to type the
+                 year (or "all") themselves and hit Enter to continue. ── */}
+            {result && !isSearching && result.needsYearSelection && (
+              <div ref={resultRef} className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+                    <FaRobot className="text-[#ff7010] text-xs" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      <TypewriterText text={
+                        `Sure, let's look at ${result.companyName || ''}'s ${result.query || ''}. ` +
+                        `Which year should I focus on — ${(result.availableYears || []).join(', ')} — or would you like to see all of them?`
+                      } />
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Multi-company comparison result ── */}
+            {/* ── Top/Bottom N Companies ranking ── e.g. "top 5 companies by turnover".
+                No specific company was named — the backend scanned every company locally
+                (AiRankingEngine, no external API) and ranked them by the matched metric. */}
+            {result && !isSearching && !result.needsYearSelection && result.rankingMode && (
+              <div ref={resultRef}>
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 overflow-hidden mb-5">
+                  <div className="relative bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 px-6 pt-6 pb-7 overflow-hidden">
+                    <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#ff7010]/8 pointer-events-none blur-2xl" />
+                    <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-indigo-500/10 pointer-events-none blur-2xl" />
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ff7010]/40 to-transparent" />
+                    <span className="inline-flex items-center gap-1.5 bg-[#ff7010]/15 border border-[#ff7010]/30 text-[#ff7010] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full relative z-10">
+                      <FaChartBar className="text-[10px]" />
+                      {result.direction === 'bottom' ? 'Bottom' : 'Top'} {result.count} by {result.metric}
+                    </span>
+                    <h1 className="text-white font-black text-xl md:text-2xl mt-3 relative z-10 capitalize">
+                      {result.query}
+                    </h1>
+                    <p className="text-white/55 text-xs mt-1.5 relative z-10">
+                      Ranked locally across {result.totalMatched} compan{result.totalMatched === 1 ? 'y' : 'ies'} with data for {result.metric}
+                    </p>
+                  </div>
+
+                  {(!result.companies || result.companies.length === 0) ? (
+                    <div className="px-6 py-10 text-center">
+                      <p className="text-sm text-gray-400">{result.message || 'No matching data found.'}</p>
+                    </div>
+                  ) : (
+                    <div className="px-6 py-5 overflow-x-auto">
+                      <table className="w-full text-sm border-collapse rounded-xl overflow-hidden min-w-max">
+                        <thead>
+                          <tr className="bg-gray-900">
+                            <th className="text-left py-3 px-4 text-[11px] font-bold text-white/80 w-12">#</th>
+                            <th className="text-left py-3 px-4 text-[11px] font-bold text-white/80">Company</th>
+                            <th className="text-left py-3 px-4 text-[11px] font-bold text-white/80">Industry</th>
+                            <th className="text-right py-3 px-4 text-[11px] font-bold text-white/80">{result.metric}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {result.companies.map((c) => (
+                            <tr key={c.companyId} className={`border-b border-gray-100 ${c.rank % 2 === 0 ? 'bg-gray-50/50' : ''} hover:bg-orange-50/40 cursor-pointer`}
+                              onClick={() => doSearch(`${c.companyName} financial overview`)}>
+                              <td className="py-3 px-4 text-xs font-black text-[#ff7010]">{c.rank}</td>
+                              <td className="py-3 px-4 text-xs font-bold text-gray-900">{c.companyName}</td>
+                              <td className="py-3 px-4 text-xs text-gray-500">{c.industry || '—'}</td>
+                              <td className="py-3 px-4 text-right text-xs font-bold text-gray-800 tabular-nums">
+                                {/[%]/.test(c.matchedLabel || '') || /margin|growth|roe|roce|roa|rate/i.test(result.metric)
+                                  ? `${c.value.toFixed(2)}%`
+                                  : fmtMn(c.value)}
+                                <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{c.matchedLabel}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {result && !isSearching && !result.needsYearSelection && !result.rankingMode && result.comparisonMode && (
+              <div ref={resultRef}>
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 overflow-hidden mb-5">
+                  <div className="relative bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 px-6 pt-6 pb-7 overflow-hidden">
+                    <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#ff7010]/8 pointer-events-none blur-2xl" />
+                    <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-indigo-500/10 pointer-events-none blur-2xl" />
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ff7010]/40 to-transparent" />
+                    <span className="inline-flex items-center gap-1.5 bg-[#ff7010]/15 border border-[#ff7010]/30 text-[#ff7010] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full relative z-10">
+                      <FaChartBar className="text-[10px]" /> Comparing {result.companies.length} Companies
+                    </span>
+                    <h1 className="text-white font-black text-xl md:text-2xl mt-3 relative z-10">
+                      {(result.query || 'Comparison').charAt(0).toUpperCase() + (result.query || 'comparison').slice(1)}
+                    </h1>
+                    <p className="text-white/55 text-xs mt-1.5 relative z-10">
+                      {result.companies.map(c => c.companyName || c.detectedCompany).filter(Boolean).join('  •  ')}
+                    </p>
+                  </div>
+
+                  {/* ── Cross-company calculation — ONE combined number spanning both
+                      companies (e.g. "Company A's revenue minus Company B's revenue"),
+                      computed locally by AiCalcEngine.computeCrossCompany. Distinct from the
+                      per-company cards below, which each only use that one company's own data. */}
+                  {result.crossCompanyCalculation && (
+                    <div className="px-6 py-5 border-t border-gray-100 bg-indigo-50/40">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FaRobot className="text-indigo-500 text-xs" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Cross-Company Calculated Answer</p>
+                      </div>
+                      {result.crossCompanyCalculation.error ? (
+                        <p className="text-sm text-gray-500">{result.crossCompanyCalculation.answer}</p>
+                      ) : (
+                        <>
+                          {result.crossCompanyCalculation.value != null && (
+                            <p className="text-2xl font-black text-indigo-700 mb-2">
+                              {result.crossCompanyCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                              {result.crossCompanyCalculation.unit ? ` ${result.crossCompanyCalculation.unit}` : ''}
+                            </p>
+                          )}
+                          {result.crossCompanyCalculation.formula && (
+                            <p className="text-xs font-mono text-gray-600 bg-white rounded-lg px-3 py-2 border border-indigo-100 break-words">
+                              {result.crossCompanyCalculation.formula}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Numeric comparison table — companies as columns, headline
+                       financial numbers as rows, so the actual figures sit side by side
+                       instead of only the qualitative insight cards below. Own separate
+                       white section (not inside the dark hero banner above). ── */}
+                  {(() => {
+                    const colNames = result.companies.map((c, ci) => c.companyName || c.detectedCompany || `Company ${ci + 1}`)
+
+                    // Prefer whichever full statement (Balance Sheet / P&L / Cash Flow / Margin
+                    // Analysis) the comparison topic actually resolved to, over the fixed
+                    // Revenue/PAT/EBITDA snapshot below — found live: comparing "balance sheet"
+                    // between two companies still only ever showed Revenue/PAT/EBITDA, never
+                    // the balance sheet figures actually asked for.
+                    const STATEMENT_DEFS = [
+                      { key: 'balanceSheetStatement',   title: 'Balance Sheet' },
+                      { key: 'profitLossStatement',     title: 'Profit & Loss' },
+                      { key: 'cashFlowStatement',       title: 'Cash Flow' },
+                      { key: 'marginAnalysisStatement', title: 'Margin Analysis' },
+                    ]
+                    const statementDef = STATEMENT_DEFS.find(s => result.companies.some(c => c.chartData?.[s.key]?.length > 0))
+
+                    let tableTitle = 'Head-to-Head Comparison'
+                    let rows = []
+
+                    if (statementDef) {
+                      tableTitle = `Head-to-Head Comparison — ${statementDef.title}`
+                      const labelOrder = []
+                      const byLabel = new Map()
+                      result.companies.forEach((c, ci) => {
+                        const stRows = c.chartData?.[statementDef.key] || []
+                        stRows.forEach(r => {
+                          if (r.isHeader) return
+                          const clean = cleanStatementLabel(r.label)
+                          if (!byLabel.has(clean)) { byLabel.set(clean, new Array(result.companies.length).fill(null)); labelOrder.push(clean) }
+                          const vals = (r.values || []).filter(v => v != null)
+                          byLabel.get(clean)[ci] = vals.length ? vals[vals.length - 1] : null
+                        })
+                      })
+                      rows = labelOrder
+                        .map(label => ({ label, cells: byLabel.get(label).map(v => (v == null ? null : { value: v })) }))
+                        .filter(row => row.cells.some(cell => cell?.value != null))
+                    } else {
+                      const metricDefs = [
+                        { label: 'Revenue',             chart: 'revenueChart' },
+                        { label: 'Net Profit / PAT',    chart: 'profitChart' },
+                        { label: 'EBITDA',               chart: 'ebitdaChart' },
+                      ]
+                      rows = metricDefs
+                        .map(md => ({
+                          label: md.label,
+                          cells: result.companies.map(c => latestArrValue(c.chartData?.[md.chart])),
+                        }))
+                        .filter(row => row.cells.some(cell => cell?.value != null))
+                    }
+
+                    if (rows.length === 0) return null
+
+                    // Computed comparison sentences — "who has more, by how much" — only for
+                    // exactly 2 companies (a 3+-way "who's highest" reads awkwardly as prose,
+                    // the table above already covers that case).
+                    const verdicts = result.companies.length === 2 ? rows
+                      .map(row => {
+                        const [a, b] = row.cells
+                        if (a?.value == null || b?.value == null || a.value === b.value) return null
+                        const aHigher = a.value > b.value
+                        const higher = aHigher ? colNames[0] : colNames[1]
+                        const lower  = aHigher ? colNames[1] : colNames[0]
+                        const hiVal  = Math.max(a.value, b.value)
+                        const loVal  = Math.min(a.value, b.value)
+                        const diff   = hiVal - loVal
+                        const pct    = loVal !== 0 ? (diff / Math.abs(loVal)) * 100 : null
+                        return { label: row.label, higher, lower, diff, pct }
+                      })
+                      .filter(Boolean) : []
+
+                    return (
+                      <div className="px-6 py-5 border-t border-gray-100 overflow-x-auto">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="w-1 h-4 rounded-full bg-indigo-500" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-700">{tableTitle}</p>
+                        </div>
+                        <table className="w-full text-sm border-collapse rounded-xl overflow-hidden min-w-max">
+                          <thead>
+                            <tr className="bg-gray-900">
+                              <th className="text-left py-3 px-4 text-[11px] font-bold text-white/80">Particulars</th>
+                              {colNames.map((name, i) => (
+                                <th key={i} className="text-right py-3 px-3 text-[11px] font-bold text-white/80 whitespace-nowrap">{name}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((row, i) => (
+                              <tr key={i} className={`border-b border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                <td className="py-3 px-4 text-gray-700 text-xs font-semibold whitespace-nowrap">{row.label}</td>
+                                {row.cells.map((cell, j) => (
+                                  <td key={j} className="py-3 px-3 text-right text-xs text-gray-800 tabular-nums font-bold whitespace-nowrap">
+                                    {cell?.value != null ? fmtMn(cell.value) : '—'}
+                                    {cell?.year != null && <span className="block text-[9px] font-normal text-gray-400 mt-0.5">FY {cell.year}</span>}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+
+                        {verdicts.length > 0 && (
+                          <div className="mt-4 space-y-2">
+                            {verdicts.map((v, i) => (
+                              <div key={i}
+                                className="flex items-start gap-2 text-xs text-gray-700 bg-indigo-50/50 border border-indigo-100 rounded-lg px-3 py-2"
+                                style={{ animation: 'aiRevealIn 0.4s ease-out both', animationDelay: `${i * 0.08}s` }}>
+                                <FaChartBar className="text-indigo-400 mt-0.5 flex-shrink-0" />
+                                <span>
+                                  <span className="font-bold text-gray-900">{v.higher}</span> has higher {v.label} than{' '}
+                                  <span className="font-semibold">{v.lower}</span> by {fmtMn(v.diff)}
+                                  {v.pct != null && ` (${v.pct.toFixed(1)}% more)`}.
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                <div className={`grid gap-4 mb-5 ${result.companies.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+                  {result.companies.map((c, ci) => (
+                    <div key={ci} className="bg-white rounded-2xl shadow-lg border border-gray-100/60 overflow-hidden flex flex-col">
+                      <div className="bg-gray-900 px-4 py-3">
+                        <p className="text-white font-black text-sm truncate">{c.companyName || c.detectedCompany || `Company ${ci + 1}`}</p>
+                        {c.financialYears?.length > 0 && (
+                          <p className="text-white/50 text-[10px] mt-0.5">{c.financialYears.join(' → ')}</p>
+                        )}
+                      </div>
+                      <div className="p-4 space-y-2.5 flex-1">
+                        {/* Same local calculation fallback as the single-company view — runs
+                            independently per company since compareCompanies() calls search()
+                            once for each, so a query like "CompanyA vs CompanyB revenue divided
+                            by employee count" gets its own computed answer per card here. */}
+                        {c.aiCalculation && (
+                          <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2.5">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1">
+                                <FaRobot className="text-[9px]" /> Calculated Answer
+                              </p>
+                              <CopyButton
+                                className="text-indigo-400 hover:text-indigo-600"
+                                text={[
+                                  c.aiCalculation.value != null
+                                    ? `${c.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${c.aiCalculation.unit ? ` ${c.aiCalculation.unit}` : ''}`
+                                    : null,
+                                  c.aiCalculation.formula,
+                                ].filter(Boolean).join('\n')}
+                              />
+                            </div>
+                            {c.aiCalculation.error ? (
+                              <p className="text-xs text-gray-500">{c.aiCalculation.answer}</p>
+                            ) : (
+                              <>
+                                {c.aiCalculation.value != null && (
+                                  <p className="text-base font-black text-indigo-700">
+                                    {c.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                                    {c.aiCalculation.unit ? ` ${c.aiCalculation.unit}` : ''}
+                                  </p>
+                                )}
+                                {c.aiCalculation.formula && (
+                                  <p className="text-[10px] font-mono text-gray-500 mt-1 break-words">{c.aiCalculation.formula}</p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+                        {!c.success && (
+                          <p className="text-xs text-gray-400 italic">{c.message || 'No data available.'}</p>
+                        )}
+                        {c.insights?.length > 0 ? c.insights.slice(0, 6).map((ins, i) => (
+                          <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                            <span className="w-4 h-4 rounded-md bg-[#ff7010] text-white text-[9px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                            <p className="text-xs text-gray-700 leading-relaxed">{ins}</p>
+                          </div>
+                        )) : c.success && (
+                          <p className="text-xs text-gray-400 italic">No specific insight found for this query.</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Result */}
+            {result && !isSearching && !result.comparisonMode && !result.needsYearSelection && !result.rankingMode && (() => {
+              // A "financial statement" search shows ONLY financial-statement content
+              // (Annual Performance blurb, Financials at a Glance, the Balance
+              // Sheet/P&L/Cash Flow statements) — Company Overview, key metrics,
+              // charts and the cap table are general-search-only content.
+              const isFinancialStatementQuery = isFinancialStatementSearch(result.query, lastSearchedTypes)
+              // A pure "EBITDA" / "EBIT" / "Gross Margin" search shows ONLY that one
+              // metric's stat tile + its own trend chart — not the rest of the metrics,
+              // not Company Overview, not unrelated charts.
+              const singleMetricMode   = detectSingleMetricMode(result.query, result)
+              const singleMetricConfig = singleMetricMode ? getSingleMetricConfig(singleMetricMode, result) : null
+              return (
+              <div ref={resultRef}>
+
+                {/* ── AI Calculated Answer — free-form calculation the rule-based engine
+                    above couldn't answer directly (a custom ratio, cross-statement math,
+                    etc.), computed locally by AiCalcEngine from this company's own parsed
+                    financial data — no external API call. Only present when the backend
+                    actually ran that fallback. */}
+                {result.aiCalculation && (
+                  <div className="bg-white rounded-2xl shadow-lg border border-indigo-100 overflow-hidden mb-5">
+                    <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <FaRobot className="text-white text-xs" />
+                        <p className="text-white text-[11px] font-black uppercase tracking-widest">AI Calculated Answer</p>
+                      </div>
+                      <CopyButton
+                        className="text-white/80 hover:text-white"
+                        text={[
+                          result.aiCalculation.answer,
+                          result.aiCalculation.value != null
+                            ? `${result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}`
+                            : null,
+                          result.aiCalculation.formula,
+                          result.aiCalculation.explanation,
+                        ].filter(Boolean).join('\n')}
+                      />
+                    </div>
+                    <div className="p-5">
+                      {result.aiCalculation.error ? (
+                        <p className="text-sm text-gray-500">{result.aiCalculation.answer}</p>
+                      ) : (
+                        <>
+                          {result.aiCalculation.answer && (
+                            <p className="text-sm text-gray-800 leading-relaxed mb-3">{result.aiCalculation.answer}</p>
+                          )}
+                          {result.aiCalculation.value != null && (
+                            <p className="text-2xl font-black text-indigo-600 mb-3">
+                              {result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                              {result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}
+                            </p>
+                          )}
+                          {result.aiCalculation.formula && (
+                            <p className="text-xs font-mono text-gray-500 bg-gray-50 rounded-lg px-3 py-2 mb-2 break-words">
+                              {result.aiCalculation.formula}
+                            </p>
+                          )}
+                          {result.aiCalculation.explanation && (
+                            <p className="text-xs text-gray-400">{result.aiCalculation.explanation}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── TOP: Premium Financial Intelligence Report ── */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 overflow-hidden mb-5">
+
+                  {/* ── Hero header — dark gradient ── */}
+                  <div className="relative bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 px-6 pt-6 pb-7 overflow-hidden">
+                    {/* decorative blobs */}
+                    <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#ff7010]/8 pointer-events-none blur-2xl" />
+                    <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-indigo-500/10 pointer-events-none blur-2xl" />
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ff7010]/40 to-transparent" />
+
+                    {/* top row — tags */}
+                    <div className="flex items-center justify-between gap-3 mb-4 relative z-10">
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.industry && (
+                          <span className="bg-white/10 backdrop-blur-sm text-white/80 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-white/10">
+                            {result.industry}
+                          </span>
+                        )}
+                        {result.cin && (
+                          <span className="bg-white/6 text-white/40 text-[10px] px-2.5 py-1 rounded-full border border-white/8">
+                            {result.cin}
+                          </span>
+                        )}
+                      </div>
+                      <span className="flex-shrink-0 bg-[#ff7010]/15 border border-[#ff7010]/35 text-[#ff7010] text-[10px] font-bold px-3 py-1 rounded-full tracking-wide">
+                        {result.selectedYear ? `FY ${result.selectedYear}` : 'Multi-Year'} Update
+                      </span>
+                    </div>
+
+                    {/* company + headline */}
+                    <h1 className="text-white font-black text-2xl leading-tight mb-2 relative z-10 tracking-tight">
+                      {result.companyName}
+                    </h1>
+                    <p className="text-white/55 text-[13px] leading-relaxed relative z-10 max-w-xl">
+                      {result.summary?.split('.')[0] || `${result.companyName} Financial Performance`}.
+                    </p>
+
+                    {/* bottom tag row */}
+                    <div className="flex flex-wrap items-center gap-2 mt-4 relative z-10">
+                      {['Revenue','EBITDA','Margins','YoY Growth','Distribution'].map(tag => (
+                        <span key={tag} className="text-[10px] text-white/30 font-medium border border-white/10 px-2 py-0.5 rounded-md">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── Active report type badges ── */}
+                  {lastSearchedTypes.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                      {lastSearchedTypes.map(id => {
+                        const rt = REPORT_TYPES.find(r => r.id === id)
+                        if (!rt) return null
+                        const IconC = rt.Icon
+                        return (
+                          <span key={id} className="inline-flex items-center gap-1.5 bg-white border border-[#ff7010]/30 text-[#ff7010] text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
+                            <IconC className="text-[9px]" />
+                            {rt.label}
+                          </span>
+                        )
+                      })}
+                      <span className="text-[10px] text-gray-400 self-center ml-1">combined search results</span>
+                    </div>
+                  )}
+
+                  {/* ── Calculation Warnings — the Formula Verification Engine recomputes
+                       every row that carries an explicit formula from its own direct inputs'
+                       stored values, and flags any row where the Excel-stored figure doesn't
+                       match what the row's own formula says it should be. Shown prominently,
+                       right at the top of the result, so a data-entry mistake in the source
+                       Excel is never silently hidden behind a wrong number. ── */}
+                  {result.calculationWarnings?.length > 0 && (
+                    <div className="px-5 py-4 bg-amber-50 border-b border-amber-200"
+                      style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <FaExclamationTriangle className="text-amber-600 text-xs" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-black uppercase tracking-widest text-amber-800 mb-0.5">
+                            Calculation Mismatch{result.calculationWarnings.length > 1 ? 'es' : ''} Found
+                          </p>
+                          <p className="text-[11px] text-amber-700 mb-3">
+                            {result.calculationWarnings.length} row{result.calculationWarnings.length > 1 ? 's' : ''} in your uploaded Excel {result.calculationWarnings.length > 1 ? "don't" : "doesn't"} match{result.calculationWarnings.length > 1 ? '' : 'es'} what the row's own formula computes from its inputs.
+                          </p>
+                          <div className="space-y-2">
+                            {result.calculationWarnings.map((w, i) => (
+                              <div key={i} className="bg-white rounded-lg border border-amber-200 px-3.5 py-3"
+                                style={{ animation: 'aiRevealIn 0.4s ease-out both', animationDelay: `${i * 0.1}s` }}>
+                                <p className="text-sm font-bold text-gray-800">
+                                  {w.row} <span className="font-normal text-gray-400">— {w.section}, FY {w.year}</span>
+                                </p>
+                                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-1.5 text-xs">
+                                  <span className="text-gray-500">Excel value: <span className="font-bold text-gray-800">₹{w.excelValue?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span></span>
+                                  <span className="text-gray-500">Formula computes: <span className="font-bold text-emerald-700">₹{w.calculatedValue?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span></span>
+                                  <span className="text-gray-500">Difference: <span className="font-bold text-red-600">₹{Math.abs(w.difference)?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span></span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Key metrics strip — drop raw Excel formula labels like "Profit After
+                       Tax (PAT) [(C ) - (D)]", which read as technical noise rather than a
+                       clean stat tile; Company Overview already covers Net Profit cleanly.
+                       Skipped for "general" (plain company-name-only search) — Revenue/PAT
+                       already show as normal cards inside Company Overview below, so this
+                       top strip would just be the same numbers shown a second time, first. ── */}
+                  {!isFinancialStatementQuery && result.intent !== 'general' && (() => {
+                    let cleanKeyMetrics = result.keyMetrics || []
+                    // Drop the PBT/PAT bottom-line metrics specifically when they're just
+                    // incidental extras in a general search — but not when the query is
+                    // ITSELF asking for profit after/before tax (or any other single
+                    // metric), which must still show its own number.
+                    if (!singleMetricMode) {
+                      cleanKeyMetrics = cleanKeyMetrics.filter(m => !/extraordinary/i.test(m.label) && !/\(pbt\)/i.test(m.label) && !/\(pat\)/i.test(m.label))
+                    }
+                    // Strip the "[(ix)=(i)-(iv)]"-style formula noise from the label but
+                    // keep the metric itself.
+                    cleanKeyMetrics = cleanKeyMetrics.map(m => ({ ...m, label: m.label.replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s+/g, ' ').trim() }))
+                    // A single-metric search (EBITDA/EBIT/Gross Margin/PAT/...) shows only
+                    // that metric's tile, not the others alongside it.
+                    if (singleMetricConfig) cleanKeyMetrics = cleanKeyMetrics.filter(m => singleMetricConfig.labelTest.test(m.label.trim()))
+                    return cleanKeyMetrics.length > 0 && (
+                    <div className={`grid divide-x divide-gray-100 ${cleanKeyMetrics.length >= 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'}`}>
+                      {cleanKeyMetrics.slice(0, 4).map((m, i) => {
+                        const accentColors  = ['#1a1f36','#6366f1','#3b82f6','#ff7010']
+                        const bgTints       = ['bg-slate-50/70','bg-indigo-50/70','bg-blue-50/70','bg-orange-50/70']
+                        const accent        = accentColors[i % 4]
+                        const isUp   = m.trend === 'up'
+                        const isDown = m.trend === 'down'
+                        return (
+                          <div key={i} className={`relative px-5 py-4 ${bgTints[i % 4]} group`}
+                            style={{ animation: 'aiRevealIn 0.4s ease-out both', animationDelay: `${i * 0.08}s` }}>
+                            {/* colored top bar */}
+                            <div className="absolute top-0 left-0 right-0 h-0.5 rounded-b-none" style={{background: accent}} />
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2 leading-tight truncate">{m.label}</p>
+                            <p className="text-2xl font-black leading-none mb-1.5" style={{color: accent}}>{m.value}</p>
+                            <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isUp   ? 'bg-green-100 text-green-700'
+                            : isDown ? 'bg-red-100 text-red-600'
+                            : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              {isUp ? '▲' : isDown ? '▼' : '—'} YoY
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    )
+                  })()}
+
+                  {/* ── Company Overview — shown for a general search, pulls together data
+                       that already exists elsewhere on the page (balance sheet, ratios,
+                       burn/ads metrics, RPT, insights) into one at-a-glance snapshot.
+                       Skipped for an explicit "financial statement" search, which shows
+                       only the statements themselves, and for an "ebitda"-intent search
+                       (bare "EBITDA"/"EBITDA detail", or "EBIT" via singleMetricMode) —
+                       both already get their own EBITDA-relevant chart/table/margin/summary
+                       further down, so this generic Total-Assets/ROE/Burn-Rate/RPT snapshot
+                       on top of that just reads as an unrelated "company overview" page
+                       instead of an EBITDA-focused result. Checked on result.intent (the
+                       backend's own classification) rather than re-testing the query text,
+                       since that's already authoritative and query-text regexes here have
+                       caused this exact class of bug before (see SINGLE_METRIC_MATCHERS). ── */}
+                  {!isFinancialStatementQuery && !singleMetricMode && result.intent !== 'ebitda' && (() => {
+                    const meta = result.companyMeta || {}
+                    const cd   = result.chartData || {}
+
+                    // No trailing $ anchor — real Excel labels carry formula suffixes like
+                    // "Total Revenue (A)" that cleanStatementLabel doesn't strip (only "[...]"
+                    // is stripped, not "(...)"), so an exact-match regex silently matched nothing.
+                    const revenueOpsRow  = findStatementRow(cd.profitLossStatement, l => /^revenue from operations?\b/i.test(l))
+                    const totalRevRow    = findStatementRow(cd.profitLossStatement, l => /^total revenue\b/i.test(l) || /^total income\b/i.test(l))
+                    const totalAssetsRow = findStatementRow(cd.balanceSheetStatement, l => /^total assets/i.test(l))
+                    const totalLiabRow   = findStatementRow(cd.balanceSheetStatement, l => /^total liabilities/i.test(l))
+                    const shareCapRow    = findStatementRow(cd.balanceSheetStatement, l => /^share capital$/i.test(l))
+                    const reservesRow    = findStatementRow(cd.balanceSheetStatement, l => /^reserves and surplus$/i.test(l))
+                    const ocfRow         = findStatementRow(cd.cashFlowStatement, l => /^net cash generated.*operating/i.test(l))
+
+                    const marginLatest = latestArrValue(cd.marginChart)
+                    const patLatest    = latestArrValue(cd.profitChart)
+
+                    const roe  = findRatio(cd.ratiosTable, 'ROE')
+                    const roic = findRatio(cd.ratiosTable, 'ROIC')
+                    const roce = findRatio(cd.ratiosTable, 'ROCE')
+
+                    const burnRow = findChartRow(cd.burnMetricsChart, l => /gross burn rate/i.test(l) && /total|annual/i.test(l))
+                    const adsRow  = findChartRow(cd.adsMetricsChart,  l => /advertisement.*expense/i.test(l))
+
+                    const rptRows = cd.rptTable || []
+
+                    const snapshotStats = [
+                      totalAssetsRow && { label: 'Total Assets',       value: fmtMn(latestArrValue(totalAssetsRow.values)) },
+                      totalLiabRow   && { label: 'Total Liabilities',  value: fmtMn(latestArrValue(totalLiabRow.values)) },
+                      reservesRow    && { label: 'Reserves & Surplus', value: fmtMn(latestArrValue(reservesRow.values)) },
+                      patLatest?.value != null           && { label: 'Net Profit',        value: fmtMn(patLatest.value) },
+                      marginLatest?.grossMargin  != null && { label: 'Gross Margin',      value: `${marginLatest.grossMargin.toFixed(1)}%` },
+                      marginLatest?.ebitdaMargin != null && { label: 'EBITDA Margin',     value: `${marginLatest.ebitdaMargin.toFixed(1)}%` },
+                      revenueOpsRow  && { label: 'Revenue from Operations', value: fmtMn(latestArrValue(revenueOpsRow.values)) },
+                      totalRevRow    && { label: 'Total Revenue',      value: fmtMn(latestArrValue(totalRevRow.values)) },
+                      ocfRow         && { label: 'Cash Flow from Ops', value: fmtMn(latestArrValue(ocfRow.values)) },
+                    ].filter(Boolean)
+
+                    const ratioStats = [
+                      roe  != null && { label: 'ROE',  value: `${(roe  * 100).toFixed(1)}%` },
+                      roic != null && { label: 'ROIC', value: `${(roic * 100).toFixed(1)}%` },
+                      roce != null && { label: 'ROCE', value: `${(roce * 100).toFixed(1)}%` },
+                    ].filter(Boolean)
+
+                    const burnStats = [
+                      burnRow && { label: 'Annual Gross Burn Rate', value: fmtMn(burnRow.latest) },
+                      adsRow  && { label: 'Advertisement Cost', value: fmtMn(adsRow.latest) },
+                    ].filter(Boolean)
+
+                    const highlights = (result.insights || []).slice(0, 4)
+
+                    const hasCompanyInfo = meta.ceo || meta.incorporationDate || meta.boardOfDirectors?.length ||
+                      meta.investors?.length || result.industry || result.cin
+                    const hasAnyOverview = hasCompanyInfo || snapshotStats.length || ratioStats.length ||
+                      burnStats.length || rptRows.length > 0 || highlights.length
+                    if (!hasAnyOverview) return null
+
+                    return (
+                      <div className="border-t border-gray-100 px-4 py-4">
+                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-4">
+
+                          {/* company info */}
+                          {hasCompanyInfo && (
+                            <div className="space-y-3">
+                              <div className="flex flex-wrap gap-x-6 gap-y-1.5">
+                                {result.cin && (
+                                  <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">CIN No.</p>
+                                    <p className="text-sm font-bold text-gray-900 mt-0.5">{result.cin}</p>
+                                  </div>
+                                )}
+                                {result.financialYears?.length > 0 && (
+                                  <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Latest Year</p>
+                                    <p className="text-sm font-bold text-gray-900 mt-0.5">FY {result.financialYears[result.financialYears.length - 1]}</p>
+                                  </div>
+                                )}
+                                {result.industry && (
+                                  <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Industry</p>
+                                    <p className="text-sm font-bold text-gray-900 mt-0.5">{result.industry}</p>
+                                  </div>
+                                )}
+                                {meta.incorporationDate && (
+                                  <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Date of Incorporation</p>
+                                    <p className="text-sm font-bold text-gray-900 mt-0.5">{meta.incorporationDate}</p>
+                                  </div>
+                                )}
+                                {meta.ceo && (
+                                  <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">CEO / MD</p>
+                                    <p className="text-sm font-bold text-gray-900 mt-0.5">{meta.ceo}</p>
+                                  </div>
+                                )}
+                              </div>
+                              {meta.boardOfDirectors?.length > 0 && (
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Board of Directors</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {meta.boardOfDirectors.map((name, i) => (
+                                      <span key={i} className="text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-full">{name}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {/* Investor names list dropped here — it duplicated the same names
+                                  shown with real context (category/shares/%) in the Shareholding
+                                  Pattern / Preference Shareholders tables further down. */}
+                              {shareCapRow && (
+                                <div>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Share Capital</p>
+                                  <p className="text-sm font-bold text-gray-900 mt-0.5">{fmtMn(latestArrValue(shareCapRow.values))}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* financial snapshot */}
+                          {snapshotStats.length > 0 && (
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Financial Snapshot</p>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {snapshotStats.map((s, i) => <OverviewStat key={i} {...s} delay={i * 0.05} />)}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* key ratios */}
+                          {ratioStats.length > 0 && (
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Key Ratios</p>
+                              <div className="grid grid-cols-3 gap-2">
+                                {ratioStats.map((s, i) => <OverviewStat key={i} {...s} delay={i * 0.05} />)}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* burn & marketing */}
+                          {burnStats.length > 0 && (
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Burn & Marketing</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {burnStats.map((s, i) => <OverviewStat key={i} {...s} delay={i * 0.05} />)}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* related party transactions */}
+                          {rptRows.length > 0 && (
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Related Party Transactions</p>
+                              <div className="space-y-1.5">
+                                {rptRows.slice(0, 3).map((r, i) => (
+                                  <div key={i} className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl px-3 py-2">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-gray-800 truncate">{r.party}</p>
+                                      {r.nature && <p className="text-[10px] text-gray-400 truncate">{r.nature}</p>}
+                                    </div>
+                                    <p className="text-xs font-bold text-gray-900 flex-shrink-0">{fmtMn(latestPipeNum(r.amount))}</p>
+                                  </div>
+                                ))}
+                                {rptRows.length > 3 && (
+                                  <p className="text-[10px] text-gray-400">+{rptRows.length - 3} more — search "related party transactions" for the full list</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* keyword highlights */}
+                          {highlights.length > 0 && (
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Keyword Highlights</p>
+                              <ul className="space-y-1">
+                                {highlights.map((h, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-xs text-gray-700 leading-relaxed"
+                                    style={{ animation: 'aiRevealIn 0.4s ease-out both', animationDelay: `${i * 0.15}s` }}>
+                                    <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+                                    {h}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* ════════════════════════════════════════════════════
+                       CHART DASHBOARD
+                  ════════════════════════════════════════════════════ */}
+                  {!isFinancialStatementQuery && result.chartData && (() => {
+                    const cd = result.chartData
+
+                    // ── Year filter ──
+                    const allFyYears = result.financialYears || []
+                    const activeIdxs = selectedYears.length > 0
+                      ? [...selectedYears].sort((a, b) => a - b)
+                      : allFyYears.map((_, i) => i)
+                    // String-based: d.year comes from same Java list as financialYears → exact match
+                    const activeYrStrs = new Set(activeIdxs.map(i => allFyYears[i]).filter(Boolean))
+                    const filterYr = (arr) => {
+                      if (!arr) return []
+                      if (activeYrStrs.size === 0 || selectedYears.length === 0) return arr
+                      return arr.filter(d => d.year && activeYrStrs.has(String(d.year)))
+                    }
+
+                    // ── Table format, same look as "Financials at a Glance", used above the
+                    // Revenue/Profit/EBITDA/Cash-Flow charts below so every headline number
+                    // shows as a table (not just a graph) — not just for single-metric mode.
+                    const yrsForTables = activeIdxs.map(i => allFyYears[i]).filter(Boolean)
+                    const valueForYear = (arr, yr, key = 'value') => {
+                      const found = (arr || []).find(d => String(d.year) === String(yr))
+                      return found ? found[key] : null
+                    }
+                    // Chart tooltip helper — % of Revenue for the same year, from the
+                    // company's own Revenue series, never a fixed/assumed ratio.
+                    const pctOfRevFn = (revSeries) => (v, yr) => {
+                      const rev = valueForYear(revSeries, yr)
+                      return (v != null && rev != null && rev !== 0) ? `${(v / rev * 100).toFixed(1)}%` : null
+                    }
+                    // Y-o-Y column count follows how many years are on the table — none for a
+                    // single year (nothing to compare), one for two years, one per consecutive
+                    // pair for more (e.g. 5 years selected → 4 pair columns), never a single
+                    // first-vs-last change spanning the whole selection.
+                    const renderYoyTable = (years, rows) => rows.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm border-collapse rounded-xl overflow-hidden">
+                          <thead>
+                            <tr className="bg-gray-900">
+                              <th className="text-left py-3 px-4 text-[11px] font-bold text-white/80">Particulars</th>
+                              {years.map(yr => (
+                                <th key={yr} className="text-right py-3 px-3 text-[11px] font-bold text-white/80 whitespace-nowrap">FY {yr}</th>
+                              ))}
+                              {years.slice(1).map((yr, i) => (
+                                <th key={`yoy-${yr}`} className="text-right py-3 px-3 text-[11px] font-bold text-[#ff7010] whitespace-nowrap">
+                                  {years.length === 2 ? 'Y-o-Y' : `${years[i]} → ${yr}`}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((row, i) => (
+                              <tr key={i} className="border-b border-gray-100">
+                                <td className="py-3 px-4 text-gray-700 text-xs font-semibold">{row.label}</td>
+                                {row.values.map((v, j) => (
+                                  <td key={j} className="py-3 px-3 text-right text-xs text-gray-800 tabular-nums font-bold">
+                                    {v}
+                                    {row.pctOfRevenue?.[j] && (
+                                      <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{row.pctOfRevenue[j]} of Rev</span>
+                                    )}
+                                  </td>
+                                ))}
+                                {(row.yoySeries || []).map((pair, j) => (
+                                  <td key={j} className={`py-3 px-3 text-right text-xs font-black tabular-nums ${
+                                    pair.yoyPositive === true ? 'text-green-600' : pair.yoyPositive === false ? 'text-red-500' : 'text-gray-400'
+                                  }`}>
+                                    <span className={`px-1.5 py-0.5 rounded-md text-[11px] ${
+                                      pair.yoyPositive === true  ? 'bg-green-50 text-green-700'
+                                    : pair.yoyPositive === false ? 'bg-red-50 text-red-600'
+                                    : 'bg-gray-50 text-gray-400'
+                                    }`}>{pair.yoy}</span>
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )
+
+                    // Single-metric mode (EBITDA/EBIT/etc.) respects the same year filter as
+                    // every other chart here, and feeds both the table row below and the bar chart.
+                    const smSeries = filterYr(singleMetricConfig?.series || [])
+                    const smYoyRow = singleMetricConfig && smSeries.length > 0
+                      ? buildYoyRow(singleMetricConfig.title, smSeries.map(d => d.value), singleMetricConfig.fmt,
+                          singleMetricConfig.fmt === fmtMn ? smSeries.map(d => valueForYear(cd.revenueChart, d.year)) : null)
+                      : null
+
+                    const revData  = filterYr(cd.revenueChart  || []).filter(d => d.value != null)
+                    const patData  = filterYr(cd.profitChart   || []).filter(d => d.value != null)
+                    const ebiData  = filterYr(cd.ebitdaChart   || []).filter(d => d.value != null)
+                    const margData = filterYr(cd.marginChart   || []).filter(d => Object.keys(d).length > 1)
+                    const grwData  = filterYr(cd.growthChart   || [])
+                    const cfData   = filterYr(cd.cashFlowChart || [])
+                    const rveData  = filterYr(cd.revVsExpChart || [])
+
+                    // Table rows for Revenue/PAT/EBITDA/Cash-Flow — built against yrsForTables
+                    // (not revData/patData/etc., which drop null years) so every row lines up
+                    // under the same FY columns even when one metric has a gap another doesn't.
+                    const revSeriesForTables = yrsForTables.map(yr => valueForYear(cd.revenueChart, yr))
+                    const revPatRows = [
+                      revData.length > 0 && buildYoyRow('Revenue',           yrsForTables.map(yr => valueForYear(cd.revenueChart, yr)), fmtMn, revSeriesForTables),
+                      patData.length > 0 && buildYoyRow('Net Profit / PAT',  yrsForTables.map(yr => valueForYear(cd.profitChart,  yr)), fmtMn, revSeriesForTables),
+                    ].filter(Boolean)
+                    const ebitdaRows = ebiData.length > 0
+                      ? [buildYoyRow('EBITDA', yrsForTables.map(yr => valueForYear(cd.ebitdaChart, yr)), fmtMn, revSeriesForTables)].filter(Boolean)
+                      : []
+                    const cashFlowRows = cfData.length > 0 ? [
+                      cfData[0]?.operating !== undefined && buildYoyRow('Operating Cash Flow', yrsForTables.map(yr => valueForYear(cd.cashFlowChart, yr, 'operating')), fmtMn, revSeriesForTables),
+                      cfData[0]?.investing !== undefined && buildYoyRow('Investing Cash Flow', yrsForTables.map(yr => valueForYear(cd.cashFlowChart, yr, 'investing')), fmtMn, revSeriesForTables),
+                      cfData[0]?.financing !== undefined && buildYoyRow('Financing Cash Flow', yrsForTables.map(yr => valueForYear(cd.cashFlowChart, yr, 'financing')), fmtMn, revSeriesForTables),
+                    ].filter(Boolean) : []
+                    const expBk    = cd.expenseBreakdown
+                    const astBk    = cd.assetBreakdown
+                    const capBk    = cd.capitalStructure
+                    // ── intent-specific rich data ──
+                    const shareholderPie  = cd.shareholderPieChart     // {name: pct%}
+                    const shareholderRows = cd.shareholderTable         // [{name,category,shares,percentage}]
+                    const prefRows        = cd.preferenceShareholderTable
+                    const rptRows         = cd.rptTable                 // [{party,relationship,nature,amount}]
+                    const rptBalRows      = cd.rptBalancesTable
+                    const ratiosRows      = cd.ratiosTable              // [{category,name,formula,value,significance}]
+                    const burnRows        = cd.burnMetricsChart
+                    const empRows         = cd.employeeExpChart
+                    const otherExpRows    = cd.otherExpChart
+                    const adsRows         = cd.adsMetricsChart
+
+                    // ── Intent-gated visibility ──
+                    // If user clicked Analyze with specific types → use those; else fall back to backend intent
+                    const intent   = result.intent || 'general'
+                    const searched = lastSearchedTypes  // types chosen in Analyze panel
+                    const hasSearchedTypes = searched.length > 0
+
+                    // "general" (plain company-name-only search, no topic asked) is deliberately
+                    // excluded here — that case should show just the Company Overview snapshot
+                    // above, not the full Revenue/Profit/EBITDA chart dashboard too.
+                    const wantsFinancials = hasSearchedTypes
+                      ? searched.includes('financialStatements')
+                      : ['revenue','profit','ebitda','cashflow','balance','expense','margin','trend'].includes(intent)
+                    const wantsRpt      = hasSearchedTypes ? searched.includes('rpt')             : intent === 'rpt'
+                    const wantsRatios   = hasSearchedTypes ? searched.includes('investorMetrics') : intent === 'investorMetrics'
+                    const wantsOverhead = hasSearchedTypes ? searched.includes('overheadCosts')   : intent === 'overheadCosts' || intent === 'expense'
+
+                    const showFinancials = wantsFinancials
+                    const showRpt        = wantsRpt
+                    const showRatios     = wantsRatios
+                    const showOverhead   = wantsOverhead
+                    const showDoughnuts  = wantsFinancials || wantsOverhead
+
+                    const DONUT_COLORS = ['#1a1f36','#6366f1','#ff7010','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4']
+                    const mkDoughnut  = (obj) => ({
+                      labels: Object.keys(obj),
+                      datasets: [{ data: Object.values(obj), backgroundColor: DONUT_COLORS, borderWidth: 2, borderColor: '#fff', hoverOffset: 8 }]
+                    })
+                    const anySectionData = revData.length || patData.length || margData.length || grwData.length || cfData.length || expBk || astBk || capBk
+
+                    // ── Always-available doughnut datasets ──
+                    // 1. Revenue by Year — each slice = one FY
+                    const revByYearObj = {}
+                    revData.forEach(d => { if (d.value != null && d.value > 0) revByYearObj[`FY ${d.year}`] = d.value })
+
+                    // 2. Earnings snapshot (latest year) — PAT + (Revenue - PAT)
+                    const lastRev = revData.length ? revData[revData.length - 1]?.value : null
+                    const lastPat = patData.length ? patData[patData.length - 1]?.value : null
+                    const lastEbi = ebiData.length ? ebiData[ebiData.length - 1]?.value : null
+                    const earningsObj = {}
+                    if (lastRev != null && lastRev > 0) {
+                      if (lastPat != null && lastPat > 0)  earningsObj['Net Profit'] = lastPat
+                      if (lastEbi != null && lastEbi > 0 && lastEbi !== lastPat)  earningsObj['EBITDA (excl. PAT)'] = Math.max(0, lastEbi - (lastPat ?? 0))
+                      const remainder = lastRev - Math.max(lastPat ?? 0, 0) - Math.max((lastEbi != null && lastEbi !== lastPat) ? Math.max(0, lastEbi - (lastPat ?? 0)) : 0, 0)
+                      if (remainder > 0) earningsObj['Operating Costs'] = remainder
+                    }
+
+                    // 3. PAT by Year — each slice = one FY's profit (only positive values)
+                    const patByYearObj = {}
+                    patData.forEach(d => { if (d.value != null && d.value > 0) patByYearObj[`FY ${d.year}`] = d.value })
+
+                    const hasRevByYear   = Object.keys(revByYearObj).length > 1
+                    const hasEarnings    = Object.keys(earningsObj).length >= 2
+                    const hasPatByYear   = Object.keys(patByYearObj).length > 1
+
+                    // Non-year-keyed sections (Cap Table, RPT, Ratios) are never filtered by
+                    // selectedYears (see filterYr above) — if any of them have data, the "no
+                    // chart data for the selected year(s)" banner would be misleading noise
+                    // sitting above a perfectly populated shareholder/RPT/ratios section below it.
+                    const hasNonYearSectionData = Boolean(shareholderPie || shareholderRows?.length || prefRows?.length || rptRows?.length || ratiosRows?.length)
+                    const hasSingleMetricData = Boolean(singleMetricConfig?.series?.length)
+                    const noDataForFilter = selectedYears.length > 0 && !anySectionData && !hasRevByYear && !hasNonYearSectionData && !hasSingleMetricData
+                    if (!anySectionData && !hasRevByYear && !hasNonYearSectionData && !hasSingleMetricData && selectedYears.length === 0) return null
+                    return (<>
+
+                      {/* ── Year picker — click FY chips to filter the whole result to those
+                           years, no need to type years into the search box. (Older years before
+                           the earliest one with financial data aren't offered here — this
+                           company's incorporation date isn't on record, so there's no reliable
+                           way to know how far back to go.) ── */}
+                      {allFyYears.length > 1 && (
+                        <div className="mx-4 mt-4 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mr-1">Years</span>
+                          {allFyYears.map((yr, i) => {
+                            const active = selectedYears.includes(i)
+                            return (
+                              <button key={yr}
+                                onClick={() => setSelectedYears(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i].sort((a, b) => a - b))}
+                                className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
+                                  active ? 'bg-[#ff7010] border-[#ff7010] text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-orange-300'
+                                }`}>
+                                FY {yr}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* ── Year filter banner ── */}
+                      {selectedYears.length > 0 && (
+                        <div className="mx-4 mt-4 flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-xl px-4 py-2.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#ff7010] flex-shrink-0" />
+                          <p className="text-[11px] font-semibold text-orange-700 flex-1">
+                            Showing data for: {activeIdxs.map(i => allFyYears[i]).filter(Boolean).map(yr => `FY ${yr}`).join(', ')}
+                          </p>
+                          <button onClick={() => setSelectedYears([])} className="text-[10px] font-black text-[#ff7010] hover:underline flex-shrink-0">Clear</button>
+                        </div>
+                      )}
+
+                      {/* No chart data for selected year */}
+                      {noDataForFilter && (
+                        <div className="mx-4 mt-3 mb-2 bg-gray-50 border border-gray-100 rounded-xl px-4 py-4 text-center">
+                          <p className="text-sm text-gray-500">No chart data available for the selected year(s).</p>
+                          <button onClick={() => setSelectedYears([])} className="mt-2 text-[11px] font-bold text-[#ff7010] hover:underline">Show all years</button>
+                        </div>
+                      )}
+
+                      {/* ── Cap Table: Shareholder Pie + Table — shown whenever the company
+                           has shareholding data on record, not gated behind an explicit Cap
+                           Table search, so it appears on the general overview too. ── */}
+                      {/* prefRows included in this gate too — found live: "preference
+                          shareholder" now returns ONLY preferenceShareholderTable (no equity
+                          shareholderPie/shareholderTable, by design — see the capTable
+                          share-type filter), but this block used to require equity data just
+                          to mount at all, so the preference table nested inside it (further
+                          below) never rendered and the search showed nothing. */}
+                      {!singleMetricMode && (shareholderPie || shareholderRows?.length > 0 || prefRows?.length > 0) && (() => {
+                        // Category filter chips — click to narrow the already-loaded table/pie
+                        // to one investor type (Founder, Angel Investor, VC, ...) without a new
+                        // search. Options are whatever categories this company's own data has.
+                        const shCategories = [...new Set((shareholderRows || []).map(r => r.category).filter(Boolean))]
+                        const filteredShareholderRows = shCategoryFilter
+                          ? (shareholderRows || []).filter(r => r.category === shCategoryFilter)
+                          : (shareholderRows || [])
+                        const filteredShareholderPie = shCategoryFilter && shareholderPie
+                          ? Object.fromEntries(Object.entries(shareholderPie).filter(([name]) =>
+                              filteredShareholderRows.some(r => r.name === name)))
+                          : shareholderPie
+                        return (
+                        <div className="border-t border-gray-100 bg-gradient-to-br from-indigo-50/30 to-white px-4 py-5"
+                          style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                              <FaUsers className="text-indigo-500 text-xs" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">Shareholding Pattern</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">
+                                {shareholderRows?.length > 0 && prefRows?.length > 0
+                                  ? 'Equity + Preference cap table — all shareholders'
+                                  : prefRows?.length > 0
+                                  ? 'Preference cap table'
+                                  : 'Equity cap table — all shareholders'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {shCategories.length > 1 && (
+                            <div className="flex flex-wrap gap-1.5 mb-4">
+                              <button onClick={() => setShCategoryFilter(null)}
+                                className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
+                                  !shCategoryFilter ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'
+                                }`}>
+                                All ({shareholderRows.length})
+                              </button>
+                              {shCategories.map(cat => {
+                                const count = shareholderRows.filter(r => r.category === cat).length
+                                return (
+                                  <button key={cat} onClick={() => setShCategoryFilter(cat)}
+                                    className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
+                                      shCategoryFilter === cat ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'
+                                    }`}>
+                                    {cat} ({count})
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                          <div className={`grid gap-4 ${filteredShareholderPie && filteredShareholderRows?.length > 0 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+                            {/* Pie chart */}
+                            {filteredShareholderPie && (() => {
+                              const labels = Object.keys(filteredShareholderPie)
+                              const vals   = Object.values(filteredShareholderPie)
+                              return (
+                                <div className="bg-white rounded-2xl shadow-md border border-indigo-100 overflow-hidden">
+                                  <div className="h-1 bg-gradient-to-r from-indigo-500 to-indigo-300" />
+                                  <div className="p-4">
+                                    <p className="text-xs font-bold text-gray-800 mb-0.5">Equity Shareholding</p>
+                                    <p className="text-[10px] text-gray-400 mb-3">% share distribution</p>
+                                    <div style={{height: 240, width: '100%', position: 'relative'}}>
+                                      <Doughnut data={{
+                                        labels,
+                                        datasets: [{ data: vals, backgroundColor: DONUT_COLORS, borderWidth: 3, borderColor: '#fff', hoverOffset: 10 }]
+                                      }} options={{
+                                        ...doughnutOpts,
+                                        cutout: '55%',
+                                        plugins: {
+                                          legend: { position: 'bottom', labels: { font:{size:10,weight:'600'}, color:'#6b7280', boxWidth:9, boxHeight:9, usePointStyle:true, pointStyle:'circle', padding:8 } },
+                                          tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.raw}%` }, backgroundColor:'#1a1f36', padding:10, cornerRadius:8 }
+                                        }
+                                      }} />
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })()}
+
+                            {/* Shareholder table */}
+                            {filteredShareholderRows?.length > 0 && (() => {
+                              const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(/[,%]/g, '')); return Number.isFinite(n) ? n : 0 }
+                              const totalShares = filteredShareholderRows.reduce((sum, r) => sum + numOf(r.shares), 0)
+                              const totalPct    = filteredShareholderRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
+                              return (
+                              <div className="bg-white rounded-2xl shadow-md border border-indigo-100 overflow-hidden">
+                                <div className="h-1 bg-gradient-to-r from-indigo-600 to-purple-400" />
+                                <div className="p-4 overflow-x-auto">
+                                  <p className="text-xs font-bold text-gray-800 mb-0.5">Equity Shareholders</p>
+                                  <p className="text-[10px] text-gray-400 mb-3">{filteredShareholderRows.length} shareholders on record</p>
+                                  <table className="w-full border-collapse text-xs">
+                                    <thead>
+                                      <tr className="bg-gray-900">
+                                        <th className="text-left py-2.5 px-3 text-white/80 font-bold text-[11px]">Shareholder</th>
+                                        <th className="text-left py-2.5 px-3 text-white/80 font-bold text-[11px]">Category</th>
+                                        <th className="text-right py-2.5 px-3 text-white/80 font-bold text-[11px]">Shares</th>
+                                        <th className="text-right py-2.5 px-3 text-[#ff7010] font-bold text-[11px]">%</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {filteredShareholderRows.map((r, i) => (
+                                        <tr key={i} className={`border-b border-gray-100 hover:bg-indigo-50/30 transition-colors ${i%2===1?'bg-gray-50/50':''}`}>
+                                          <td className="py-2.5 px-3 font-semibold text-gray-800 max-w-[160px] truncate">{r.name}</td>
+                                          <td className="py-2.5 px-3 text-gray-500">{r.category || '—'}</td>
+                                          <td className="py-2.5 px-3 text-right tabular-nums text-gray-700 font-medium">{r.shares || '—'}</td>
+                                          <td className="py-2.5 px-3 text-right tabular-nums font-black text-indigo-600">
+                                            <span className="bg-indigo-50 px-2 py-0.5 rounded-md">{r.percentage || '—'}</span>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                    <tfoot>
+                                      <tr className="border-t-2 border-gray-800">
+                                        <td colSpan={2} className="py-2.5 px-3 font-black text-gray-900">Total</td>
+                                        <td className="py-2.5 px-3 text-right tabular-nums font-black text-gray-900">{totalShares.toLocaleString('en-IN')}</td>
+                                        <td className="py-2.5 px-3 text-right tabular-nums font-black text-indigo-700">
+                                          <span className="bg-indigo-100 px-2 py-0.5 rounded-md">{totalPct.toFixed(2)}%</span>
+                                        </td>
+                                      </tr>
+                                    </tfoot>
+                                  </table>
+                                </div>
+                              </div>
+                              )
+                            })()}
+                          </div>
+
+                          {/* Preference shareholders — same category filter chips as Equity above */}
+                          {prefRows?.length > 0 && (() => {
+                            const prefCategories = [...new Set(prefRows.map(r => r.category).filter(Boolean))]
+                            const filteredPrefRows = prefCategoryFilter
+                              ? prefRows.filter(r => r.category === prefCategoryFilter)
+                              : prefRows
+                            const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(/[,%]/g, '')); return Number.isFinite(n) ? n : 0 }
+                            const totalPrefShares = filteredPrefRows.reduce((sum, r) => sum + numOf(r.shares), 0)
+                            const totalPrefPct    = filteredPrefRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
+                            return (
+                            <div className="mt-4 bg-white rounded-2xl shadow-sm border border-purple-100 overflow-hidden">
+                              <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-400" />
+                              <div className="p-4 overflow-x-auto">
+                                <p className="text-xs font-bold text-gray-800 mb-3">Preference Shareholders ({filteredPrefRows.length})</p>
+
+                                {prefCategories.length > 1 && (
+                                  <div className="flex flex-wrap gap-1.5 mb-3">
+                                    <button onClick={() => setPrefCategoryFilter(null)}
+                                      className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
+                                        !prefCategoryFilter ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300'
+                                      }`}>
+                                      All ({prefRows.length})
+                                    </button>
+                                    {prefCategories.map(cat => {
+                                      const count = prefRows.filter(r => r.category === cat).length
+                                      return (
+                                        <button key={cat} onClick={() => setPrefCategoryFilter(cat)}
+                                          className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
+                                            prefCategoryFilter === cat ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300'
+                                          }`}>
+                                          {cat} ({count})
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+
+                                <table className="w-full border-collapse text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-900">
+                                      <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Name</th>
+                                      <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Category</th>
+                                      <th className="text-right py-2 px-3 text-white/80 font-bold text-[11px]">Shares</th>
+                                      <th className="text-right py-2 px-3 text-[#ff7010] font-bold text-[11px]">%</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {filteredPrefRows.map((r, i) => (
+                                      <tr key={i} className={`border-b border-gray-100 ${i%2===1?'bg-gray-50/50':''}`}>
+                                        <td className="py-2 px-3 font-semibold text-gray-800">{r.name}</td>
+                                        <td className="py-2 px-3 text-gray-500">{r.category || '—'}</td>
+                                        <td className="py-2 px-3 text-right tabular-nums text-gray-700">{r.shares || '—'}</td>
+                                        <td className="py-2 px-3 text-right tabular-nums font-black text-purple-600">{r.percentage || '—'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr className="border-t-2 border-gray-800">
+                                      <td colSpan={2} className="py-2 px-3 font-black text-gray-900">Total</td>
+                                      <td className="py-2 px-3 text-right tabular-nums font-black text-gray-900">{totalPrefShares.toLocaleString('en-IN')}</td>
+                                      <td className="py-2 px-3 text-right tabular-nums font-black text-purple-700">
+                                        <span className="bg-purple-100 px-2 py-0.5 rounded-md">{totalPrefPct.toFixed(2)}%</span>
+                                      </td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            </div>
+                            )
+                          })()}
+
+                          {/* Other Investors — the company profile's raw investor-names list
+                              (no category/shares/% recorded, unlike the structured Shareholding
+                              Pattern above) — shown only for names not already covered there, so
+                              the same person/entity never appears twice. */}
+                          {(() => {
+                            const known = new Set([...(shareholderRows || []), ...(prefRows || [])]
+                              .map(r => (r.name || '').trim().toLowerCase()))
+                            const otherInvestors = (result.companyMeta?.investors || [])
+                              .filter(name => name && !known.has(name.trim().toLowerCase()))
+                            if (otherInvestors.length === 0) return null
+                            return (
+                              <div className="mt-4 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="h-1 bg-gradient-to-r from-gray-400 to-gray-300" />
+                                <div className="p-4">
+                                  <p className="text-xs font-bold text-gray-800 mb-0.5">Other Investors ({otherInvestors.length})</p>
+                                  <p className="text-[10px] text-gray-400 mb-3">Named on record — no category or shareholding % available for these</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {otherInvestors.map((name, i) => (
+                                      <span key={i} className="text-[11px] font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full">{name}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })()}
+                        </div>
+                        )
+                      })()}
+
+                      {/* helper: chart card wrapper */}
+                      {(() => {
+                        const ChartCard = ({ title, accent = '#6b7280', children }) => (
+                          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"
+                            style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
+                            <div className="h-0.5 w-full" style={{background: `linear-gradient(90deg,${accent},${accent}55)`}} />
+                            <div className="px-4 pt-3 pb-1">
+                              <p className="text-[10px] font-black uppercase tracking-widest" style={{color: accent}}>{title}</p>
+                            </div>
+                            <div className="px-3 pb-4">{children}</div>
+                          </div>
+                        )
+                        const legendOpts = { display: true, position: 'bottom', labels: { font:{size:10}, color:'#6b7280', boxWidth:9, boxHeight:9, borderRadius:3, padding:8, usePointStyle:true, pointStyle:'circle' } }
+                        return (<>
+
+                      {/* ── Row 1: Revenue + PAT ── */}
+                      {!singleMetricMode && showFinancials && (revData.length > 0 || patData.length > 0) && (
+                        <div className="px-4 pt-4 border-b-0 bg-gray-50/30">
+                          {renderYoyTable(yrsForTables, revPatRows)}
+                        </div>
+                      )}
+                      {!singleMetricMode && showFinancials && (revData.length > 0 || patData.length > 0) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30">
+                          {revData.length > 0 && (
+                            <ChartCard title="Revenue" accent="#1a1f36">
+                              <div style={{height:165}}>
+                                <Bar data={{ labels: revData.map(d => d.year), datasets: [{ data: revData.map(d => d.value), backgroundColor: '#1a1f36', hoverBackgroundColor: '#ff7010', borderRadius: 5 }] }} options={barOpts(fmtMn, pctOfRevFn(cd.revenueChart))} />
+                              </div>
+                            </ChartCard>
+                          )}
+                          {patData.length > 0 && (
+                            <ChartCard title="Net Profit / PAT" accent="#6366f1">
+                              <div style={{height:165}}>
+                                <Bar data={{ labels: patData.map(d => d.year), datasets: [{ data: patData.map(d => d.value), backgroundColor: patData.map(d => (d.value ?? 0) >= 0 ? '#6366f1' : '#ef4444'), hoverBackgroundColor: '#ff7010', borderRadius: 5 }] }} options={barOpts(fmtMn, pctOfRevFn(cd.revenueChart))} />
+                              </div>
+                            </ChartCard>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ── Ratio detail group — "detail" asked for a specific curated ratio
+                           (Revenue-to-Burn, Advertising-to-Sales, ...): its own numerator,
+                           denominator and result together, not the single result number or
+                           the whole surrounding box. ── */}
+                      {result.chartData?.singleMetricGroupStatement?.length > 0 && (
+                        <div className="px-4 pt-4 bg-gray-50/30">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse rounded-xl overflow-hidden">
+                              <thead>
+                                <tr className="bg-gray-900">
+                                  <th className="text-left py-3 px-4 text-[11px] font-bold text-white/80">Particulars</th>
+                                  {yrsForTables.map(yr => (
+                                    <th key={yr} className="text-right py-3 px-3 text-[11px] font-bold text-white/80 whitespace-nowrap">FY {yr}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {result.chartData.singleMetricGroupStatement.map((row, i) => (
+                                  <tr key={i} className={`border-b border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                    <td className="py-3 px-4 text-gray-700 text-xs font-semibold">{cleanStatementLabel(row.label)}</td>
+                                    {activeIdxs.map(j => (
+                                      <td key={j} className="py-3 px-3 text-right text-xs text-gray-800 tabular-nums font-bold">
+                                        {fmtStatementNum(row.values?.[j], row.label)}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Row 2: EBITDA + Margins — or, in single-metric focus mode
+                           (EBITDA / EBIT / Gross Margin), just that one metric's own
+                           trend chart instead. ── */}
+                      {singleMetricConfig ? (
+                        smSeries.length > 0 && (
+                          <div className="px-4 py-4 border-b border-gray-100 bg-gray-50/30 space-y-4">
+                            {renderYoyTable(smSeries.map(d => d.year), smYoyRow ? [smYoyRow] : [])}
+                            <ChartCard title={singleMetricConfig.title} accent={singleMetricConfig.accent}>
+                              <div style={{height:165}}>
+                                <Bar data={{
+                                  labels: smSeries.map(d => d.year),
+                                  datasets: [{ data: smSeries.map(d => d.value), backgroundColor: singleMetricConfig.accent, hoverBackgroundColor: '#ff7010', borderRadius: 5 }]
+                                }} options={barOpts(singleMetricConfig.fmt, singleMetricConfig.fmt === fmtMn ? pctOfRevFn(cd.revenueChart) : null)} />
+                              </div>
+                            </ChartCard>
+                          </div>
+                        )
+                      ) : (showFinancials || showOverhead) && (ebiData.length > 0 || margData.length > 1) && (<>
+                        {ebiData.length > 0 && (
+                          <div className="px-4 pt-4 bg-gray-50/30">
+                            {renderYoyTable(yrsForTables, ebitdaRows)}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30">
+                          {ebiData.length > 0 && (
+                            <ChartCard title="EBITDA" accent="#10b981">
+                              <div style={{height:165}}>
+                                <Bar data={{ labels: ebiData.map(d => d.year), datasets: [{ data: ebiData.map(d => d.value), backgroundColor: '#10b981', hoverBackgroundColor: '#ff7010', borderRadius: 5 }] }} options={barOpts(fmtMn, pctOfRevFn(cd.revenueChart))} />
+                              </div>
+                            </ChartCard>
+                          )}
+                          {margData.length > 1 && (
+                            <ChartCard title="Margin Profiles (%)" accent="#ff7010">
+                              <div style={{height:165}}>
+                                <Line data={{ labels: margData.map(d => d.year), datasets: [
+                                  margData[0]?.grossMargin  !== undefined && { label:'Gross',  data: margData.map(d => d.grossMargin  ?? null), borderColor:'#1a1f36', tension:0.4, fill:false, pointRadius:4, borderWidth:2 },
+                                  margData[0]?.ebitdaMargin !== undefined && { label:'EBITDA', data: margData.map(d => d.ebitdaMargin ?? null), borderColor:'#6366f1', tension:0.4, fill:false, pointRadius:4, borderWidth:2 },
+                                  margData[0]?.netMargin    !== undefined && { label:'Net',    data: margData.map(d => d.netMargin    ?? null), borderColor:'#ff7010', tension:0.4, fill:false, pointRadius:4, borderWidth:2 },
+                                ].filter(Boolean) }} options={{...lineOpts, plugins:{...lineOpts.plugins, legend: legendOpts}}} />
+                              </div>
+                            </ChartCard>
+                          )}
+                        </div>
+                      </>)}
+
+                      {/* ── Row 3: YoY Growth + Cash Flow ── */}
+                      {!singleMetricMode && showFinancials && cashFlowRows.length > 0 && (
+                        <div className="px-4 pt-4 bg-gray-50/30">
+                          {renderYoyTable(yrsForTables, cashFlowRows)}
+                        </div>
+                      )}
+                      {!singleMetricMode && showFinancials && (grwData.length > 0 || cfData.length > 0) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30">
+                          {grwData.length > 0 && (
+                            <ChartCard title="Y-o-Y Growth (%)" accent="#6366f1">
+                              <div style={{height:165}}>
+                                <Bar data={{ labels: grwData.map(d => d.year), datasets: [
+                                  { label:'Revenue', data: grwData.map(d => d.revenueGrowth), backgroundColor: grwData.map(d => d.revenueGrowth >= 0 ? '#6366f1' : '#ef4444'), borderRadius: 5 },
+                                  grwData[0]?.profitGrowth !== undefined && { label:'Profit', data: grwData.map(d => d.profitGrowth ?? null), backgroundColor: grwData.map(d => (d.profitGrowth ?? 0) >= 0 ? '#10b981' : '#f59e0b'), borderRadius: 5 },
+                                ].filter(Boolean) }} options={{...barOpts(v => v+'%'), plugins:{...barOpts(v=>v+'%').plugins, legend: legendOpts}}} />
+                              </div>
+                            </ChartCard>
+                          )}
+                          {cfData.length > 0 && (
+                            <ChartCard title="Cash Flow Trends" accent="#06b6d4">
+                              <div style={{height:165}}>
+                                <Bar data={{ labels: cfData.map(d => d.year), datasets: [
+                                  cfData[0]?.operating !== undefined && { label:'Operating', data: cfData.map(d => d.operating ?? null), backgroundColor:'#6366f1', borderRadius:4 },
+                                  cfData[0]?.investing !== undefined && { label:'Investing', data: cfData.map(d => d.investing ?? null), backgroundColor:'#f59e0b', borderRadius:4 },
+                                  cfData[0]?.financing !== undefined && { label:'Financing', data: cfData.map(d => d.financing ?? null), backgroundColor:'#10b981', borderRadius:4 },
+                                ].filter(Boolean) }} options={{...barOpts(fmtMn, pctOfRevFn(cd.revenueChart)), plugins:{...barOpts(fmtMn, pctOfRevFn(cd.revenueChart)).plugins, legend: legendOpts}}} />
+                              </div>
+                            </ChartCard>
+                          )}
+                        </div>
+                      )}
+
+                      {/* ── Row 4: Revenue vs Expenses ── */}
+                      {!singleMetricMode && showFinancials && rveData.length > 0 && (
+                        <div className="px-4 py-4 border-b border-gray-100 bg-gray-50/30">
+                          <ChartCard title="Revenue vs Total Expenses" accent="#ef4444">
+                            <div style={{height:165}}>
+                              <Bar data={{ labels: rveData.map(d => d.year), datasets: [
+                                { label:'Revenue',  data: rveData.map(d => d.revenue  ?? null), backgroundColor:'#1a1f36', borderRadius:5 },
+                                { label:'Expenses', data: rveData.map(d => d.expenses ?? null), backgroundColor:'#ef4444', borderRadius:5 },
+                              ] }} options={{...barOpts(fmtMn, pctOfRevFn(cd.revenueChart)), plugins:{...barOpts(fmtMn, pctOfRevFn(cd.revenueChart)).plugins, legend: legendOpts}}} />
+                            </div>
+                          </ChartCard>
+                        </div>
+                      )}
+
+                        </>)
+                      })()}
+
+
+                      {/* ── RPT: Related Party Transactions — year-wise ── */}
+                      {showRpt && rptRows?.length > 0 && (() => {
+                        // "amount" arrives pipe-joined across every FY in the source sheet
+                        // ("1200000|1500000") — split it back into one column per year,
+                        // same convention as ratiosTable's parseVals, so RPT reads FY-by-FY
+                        // like every other statement instead of one unreadable blob.
+                        const fyYears = result.financialYears || []
+                        const rptCols = activeIdxs.length > 0 ? activeIdxs.map(i => fyYears[i]).filter(Boolean) : fyYears
+                        const rptColIdxs = activeIdxs.length > 0 ? activeIdxs : fyYears.map((_, i) => i)
+                        const splitAmount = (raw) => {
+                          if (!raw) return []
+                          const all = String(raw).split('|').map(v => v.trim())
+                          return rptColIdxs.map(i => all[i] ?? '—')
+                        }
+
+                        return (
+                        <div className="border-t border-gray-100 bg-gradient-to-br from-amber-50/30 to-white px-4 py-5"
+                          style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0">
+                              <FaHandshake className="text-amber-500 text-xs" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">Related Party Transactions</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">{rptRows.length} transactions on record</p>
+                            </div>
+                          </div>
+                          <div className="bg-white rounded-2xl shadow-md border border-amber-100 overflow-hidden">
+                            <div className="h-1 bg-gradient-to-r from-amber-500 to-yellow-400" />
+                            <div className="p-4 overflow-x-auto">
+                              <table className="w-full border-collapse text-xs">
+                                <thead>
+                                  <tr className="bg-gray-900">
+                                    {['Party','Relationship','Nature'].map(h => (
+                                      <th key={h} className="text-left py-2.5 px-3 text-white/80 font-bold text-[11px]">{h}</th>
+                                    ))}
+                                    {rptCols.map(yr => (
+                                      <th key={yr} className="text-right py-2.5 px-3 text-white/80 font-bold text-[11px] whitespace-nowrap">FY {yr}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {rptRows.map((r, i) => (
+                                    <tr key={i} className={`border-b border-gray-100 hover:bg-amber-50/30 transition-colors ${i%2===1?'bg-gray-50/50':''}`}>
+                                      <td className="py-2.5 px-3 font-semibold text-gray-800 max-w-[150px] truncate">{r.party||r.name||'—'}</td>
+                                      <td className="py-2.5 px-3 text-gray-500 max-w-[120px] truncate">{r.relationship||'—'}</td>
+                                      <td className="py-2.5 px-3 text-gray-600 max-w-[150px] truncate">{r.nature||r.type||'—'}</td>
+                                      {splitAmount(r.amount).map((v, vi) => (
+                                        <td key={vi} className="py-2.5 px-3 text-right font-bold text-gray-800 tabular-nums whitespace-nowrap">{v}</td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Balances outstanding at year end */}
+                          {rptBalRows?.length > 0 && (
+                            <div className="mt-4 bg-white rounded-2xl shadow-sm border border-amber-100 overflow-hidden">
+                              <div className="h-1 bg-gradient-to-r from-yellow-400 to-amber-500" />
+                              <div className="p-4 overflow-x-auto">
+                                <p className="text-xs font-bold text-gray-800 mb-3">Balances Outstanding at Year End ({rptBalRows.length})</p>
+                                <table className="w-full border-collapse text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-900">
+                                      {['Party','Relationship','Nature'].map(h => (
+                                        <th key={h} className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">{h}</th>
+                                      ))}
+                                      {rptCols.map(yr => (
+                                        <th key={yr} className="text-right py-2 px-3 text-white/80 font-bold text-[11px] whitespace-nowrap">FY {yr}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {rptBalRows.map((r, i) => (
+                                      <tr key={i} className={`border-b border-gray-100 hover:bg-amber-50/30 transition-colors ${i%2===1?'bg-gray-50/50':''}`}>
+                                        <td className="py-2 px-3 font-semibold text-gray-800 max-w-[150px] truncate">{r.party||r.name||'—'}</td>
+                                        <td className="py-2 px-3 text-gray-500 max-w-[120px] truncate">{r.relationship||'—'}</td>
+                                        <td className="py-2 px-3 text-gray-600 max-w-[150px] truncate">{r.nature||r.type||'—'}</td>
+                                        {splitAmount(r.amount).map((v, vi) => (
+                                          <td key={vi} className="py-2 px-3 text-right font-bold text-gray-800 tabular-nums whitespace-nowrap">{v}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        )
+                      })()}
+
+                      {/* ── Investor Metrics / Ratios (premium grouped cards) ── */}
+                      {showRatios && ratiosRows?.length > 0 && (() => {
+                        const fyYears = result.financialYears || []
+
+                        // Parse pipe-separated values, then filter to active year indices
+                        const parseVals = (raw) => {
+                          if (!raw) return []
+                          const all = String(raw).split('|').map(v => v.trim()).filter(Boolean)
+                          if (activeIdxs.length === fyYears.length || activeIdxs.length === 0) return all
+                          return activeIdxs.map(i => all[i] ?? '—').filter(v => v !== undefined)
+                        }
+
+                        // Group rows by category
+                        const grouped = {}
+                        ratiosRows.forEach(r => {
+                          const cat = r.category || 'General'
+                          if (!grouped[cat]) grouped[cat] = []
+                          grouped[cat].push(r)
+                        })
+
+                        // Category accent palette
+                        const CAT_PALETTE = [
+                          { bg: 'from-emerald-500 to-teal-500', light: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', hex: '#10b981' },
+                          { bg: 'from-indigo-500 to-violet-500', light: 'bg-indigo-50', border: 'border-indigo-100', text: 'text-indigo-700', hex: '#6366f1' },
+                          { bg: 'from-amber-500 to-orange-500', light: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-700', hex: '#f59e0b' },
+                          { bg: 'from-rose-500 to-pink-500', light: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-700', hex: '#f43f5e' },
+                          { bg: 'from-sky-500 to-cyan-500', light: 'bg-sky-50', border: 'border-sky-100', text: 'text-sky-700', hex: '#0ea5e9' },
+                          { bg: 'from-violet-500 to-purple-500', light: 'bg-violet-50', border: 'border-violet-100', text: 'text-violet-700', hex: '#8b5cf6' },
+                        ]
+
+                        const categories = Object.keys(grouped)
+
+                        return (
+                          <div className="border-t border-gray-100" style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
+                            {/* section header */}
+                            <div className="flex items-center gap-3 px-6 pt-5 pb-4">
+                              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-emerald-200">
+                                <FaChartLine className="text-white text-sm" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-black text-gray-900">Investor Metrics &amp; Ratios</p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{ratiosRows.length} ratios across {categories.length} {categories.length === 1 ? 'category' : 'categories'}</p>
+                              </div>
+                            </div>
+
+                            {/* category blocks */}
+                            <div className="px-4 pb-6 space-y-5">
+                              {categories.map((cat, ci) => {
+                                const pal = CAT_PALETTE[ci % CAT_PALETTE.length]
+                                const rows = grouped[cat]
+                                return (
+                                  <div key={cat} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                    {/* category header bar */}
+                                    <div className={`bg-gradient-to-r ${pal.bg} px-4 py-2.5 flex items-center justify-between`}>
+                                      <p className="text-white text-xs font-black uppercase tracking-widest">{cat}</p>
+                                      <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{rows.length} metrics</span>
+                                    </div>
+
+                                    {/* metric cards grid */}
+                                    <div className={`p-4 grid grid-cols-2 gap-3 ${rows.length >= 3 ? 'sm:grid-cols-3' : ''}`}>
+                                      {rows.map((r, ri) => {
+                                        const vals = parseVals(r.value)
+                                        const latest = vals[vals.length - 1]
+                                        const prev   = vals.length >= 2 ? vals[vals.length - 2] : null
+                                        const latestNum = parseFloat(latest)
+                                        const prevNum   = prev != null ? parseFloat(prev) : null
+                                        const hasTrend  = prevNum != null && !isNaN(latestNum) && !isNaN(prevNum)
+                                        const trendUp   = hasTrend && latestNum > prevNum
+                                        const trendDown = hasTrend && latestNum < prevNum
+                                        const trendFlat = hasTrend && latestNum === prevNum
+
+                                        return (
+                                          <div key={ri} className={`${pal.light} ${pal.border} border rounded-xl p-3 flex flex-col gap-1.5`}>
+                                            {/* ratio name */}
+                                            <p className={`text-[9px] font-black uppercase tracking-widest ${pal.text}`}>{r.name || '—'}</p>
+
+                                            {/* big value + trend arrow */}
+                                            <div className="flex items-end gap-1.5">
+                                              <p className="text-xl font-black text-gray-900 leading-none tabular-nums">{latest || '—'}</p>
+                                              {hasTrend && (
+                                                <span className={`mb-0.5 text-[10px] font-black flex items-center gap-0.5 ${trendUp ? 'text-emerald-500' : trendDown ? 'text-rose-500' : 'text-gray-400'}`}>
+                                                  {trendUp ? <FaArrowUp className="text-[8px]" /> : trendDown ? <FaArrowDown className="text-[8px]" /> : <FaMinus className="text-[8px]" />}
+                                                  {!isNaN(latestNum) && !isNaN(prevNum) && prevNum !== 0
+                                                    ? `${Math.abs(((latestNum - prevNum) / Math.abs(prevNum)) * 100).toFixed(1)}%`
+                                                    : ''}
+                                                </span>
+                                              )}
+                                            </div>
+
+                                            {/* year pills when multiple values */}
+                                            {vals.length > 1 && (
+                                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                                {vals.map((v, vi) => {
+                                                  const realIdx = activeIdxs[vi] ?? vi
+                                                  const yr = fyYears[realIdx] ? String(fyYears[realIdx]).replace('FY','') : `Y${vi+1}`
+                                                  const isLast = vi === vals.length - 1
+                                                  return (
+                                                    <span key={vi} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${isLast ? `${pal.text} bg-white border ${pal.border} font-black` : 'text-gray-400 bg-white/60'}`}>
+                                                      {yr}: {v}
+                                                    </span>
+                                                  )
+                                                })}
+                                              </div>
+                                            )}
+
+                                            {/* significance */}
+                                            {r.significance && (
+                                              <p className="text-[9px] text-gray-500 leading-tight mt-0.5 line-clamp-2">{r.significance}</p>
+                                            )}
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* ── Overhead Costs: Burn Rate · Employee Expenses · Other Expenses · Ad Spend ── */}
+                      {!singleMetricMode && showOverhead && (burnRows?.length > 0 || empRows?.length > 0 || otherExpRows?.length > 0 || adsRows?.length > 0) && (() => {
+                        const fyYears = result.financialYears || []
+                        const cols = activeIdxs.length > 0 ? activeIdxs.map(i => fyYears[i]).filter(Boolean) : fyYears
+
+                        const OverheadTable = ({ title, sub, rows, accent }) => {
+                          if (!rows?.length) return null
+                          return (
+                            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+                              <div className="h-1" style={{background: `linear-gradient(90deg, ${accent}, ${accent}88)`}} />
+                              <div className="p-4 overflow-x-auto">
+                                <p className="text-xs font-bold text-gray-800 mb-0.5">{title}</p>
+                                <p className="text-[10px] text-gray-400 mb-3">{sub}</p>
+                                <table className="w-full border-collapse text-xs">
+                                  <thead>
+                                    <tr className="bg-gray-900">
+                                      <th className="text-left py-2.5 px-3 text-white/80 font-bold text-[11px]">Particulars</th>
+                                      {cols.map(yr => (
+                                        <th key={yr} className="text-right py-2.5 px-3 text-white/80 font-bold text-[11px] whitespace-nowrap">FY {yr}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {rows.map((r, i) => (
+                                      <tr key={i} className={`border-b border-gray-100 hover:bg-orange-50/30 transition-colors ${i%2===1?'bg-gray-50/50':''}`}>
+                                        <td className="py-2.5 px-3 font-semibold text-gray-800 max-w-[180px] truncate">{r.label}</td>
+                                        {cols.map(yr => (
+                                          <td key={yr} className="py-2.5 px-3 text-right tabular-nums text-gray-700">{fmtMn(r[yr])}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <div className="border-t border-gray-100 bg-gradient-to-br from-orange-50/30 to-white px-4 py-5">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
+                                <FaMoneyBillWave className="text-orange-500 text-xs" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">Overhead Costs</p>
+                                <p className="text-[10px] text-gray-400 mt-0.5">Burn rate, employee &amp; other expenses, ad spend — as per the source workbook</p>
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              <OverheadTable title="Burn Metrics"           sub="Cash burn rate / runway indicators"        rows={burnRows}     accent="#f59e0b" />
+                              <OverheadTable title="Employee Expenses"      sub="Salary, benefits & headcount-related costs" rows={empRows}      accent="#6366f1" />
+                              <OverheadTable title="Other Expenses"         sub="Administrative & operating overhead"        rows={otherExpRows} accent="#ef4444" />
+                              <OverheadTable title="Advertising / Ad Spend" sub="Marketing & promotional spend metrics"      rows={adsRows}      accent="#06b6d4" />
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                      {/* ── Unified Doughnut / Distribution Section ── */}
+                      {!singleMetricMode && showDoughnuts && (() => {
+                        const donutCards = [
+                          hasRevByYear && { title: 'Revenue by Year', sub: 'All FY contribution', data: mkDoughnut(revByYearObj), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
+                          hasEarnings  && { title: 'Earnings Breakdown', sub: revData[revData.length-1]?.year ? `FY ${revData[revData.length-1].year}` : 'Latest Year', data: mkDoughnut(earningsObj), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
+                          hasPatByYear && { title: 'Net Profit by Year', sub: 'Profitable years only', data: mkDoughnut(patByYearObj), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
+                          expBk && { title: 'Expense Composition', sub: 'Cost breakdown', data: mkDoughnut(expBk), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
+                          astBk && { title: 'Asset Composition',   sub: 'Asset allocation', data: mkDoughnut(astBk), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
+                          capBk && { title: 'Capital Structure',   sub: 'Debt vs equity', data: mkDoughnut(capBk), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
+                        ].filter(Boolean)
+                        if (!donutCards.length) return null
+                        return (
+                          <div className="border-t border-gray-100 bg-gradient-to-b from-slate-50/60 to-white">
+                            {/* section header */}
+                            <div className="px-6 pt-5 pb-4 flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-orange-200">
+                                <FaChartBar className="text-white text-sm" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">Distribution Overview</p>
+                                <p className="text-[11px] text-gray-400 mt-0.5">Breakdown — all financial years combined</p>
+                              </div>
+                            </div>
+                            {/* premium bar chart cards grid */}
+                            <div className={`px-4 pb-6 grid gap-4 ${donutCards.length <= 2 ? 'grid-cols-1 sm:grid-cols-2' : donutCards.length === 4 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
+                              {(() => {
+                                const ACCENTS = ['#ff7010','#6366f1','#1a1f36','#10b981','#f59e0b','#8b5cf6']
+                                return donutCards.map((card, idx) => {
+                                  const accent = ACCENTS[idx % ACCENTS.length]
+                                  const totalVal = card.data.datasets[0]?.data?.reduce((a, b) => a + (b || 0), 0) || 0
+                                  return (
+                                    <div key={idx} className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+                                      {/* colored top stripe */}
+                                      <div className="h-1.5 w-full" style={{background: `linear-gradient(90deg, ${accent}, ${accent}88)`}} />
+                                      <div className="p-5">
+                                        {/* card header */}
+                                        <div className="flex items-start justify-between mb-1">
+                                          <div>
+                                            <p className="text-sm font-bold text-gray-900">{card.title}</p>
+                                            <p className="text-[11px] text-gray-400 mt-0.5">{card.sub}</p>
+                                          </div>
+                                          <div className="text-right flex-shrink-0 ml-2">
+                                            <p className="text-xs font-bold" style={{color: accent}}>{fmtMn(totalVal)}</p>
+                                            <p className="text-[9px] text-gray-400">Total</p>
+                                          </div>
+                                        </div>
+                                        {/* chart — position relative needed by Chart.js responsive */}
+                                        <div style={{height: 230, width: '100%', position: 'relative'}} className="mt-3">
+                                          <Bar
+                                            data={{
+                                              labels: card.data.labels,
+                                              datasets: [{
+                                                data: card.data.datasets[0].data,
+                                                backgroundColor: card.data.datasets[0].backgroundColor,
+                                                borderRadius: 6,
+                                                maxBarThickness: 56,
+                                              }]
+                                            }}
+                                            options={{
+                                              responsive: true,
+                                              maintainAspectRatio: false,
+                                              plugins: {
+                                                legend: { display: false },
+                                                tooltip: {
+                                                  callbacks: {
+                                                    label: (c) => ` ${card.fmt(c)}`,
+                                                    labelTextColor: () => '#fff',
+                                                  },
+                                                  backgroundColor: '#1a1f36',
+                                                  titleFont: { size: 11 },
+                                                  bodyFont: { size: 12, weight: 'bold' },
+                                                  padding: 10,
+                                                  cornerRadius: 8,
+                                                }
+                                              },
+                                              scales: {
+                                                x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#6b7280' } },
+                                                y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: (v) => fmtMn(v) } },
+                                              }
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                })
+                              })()}
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                    </>)
+                  })()}
+
+                  {/* ── Annual Performance ── */}
+                  {!singleMetricMode && (lastSearchedTypes.length === 0 || lastSearchedTypes.includes('financialStatements')) && result.summary && (
+                    <div className="px-6 py-5 border-t border-b border-gray-100 bg-gradient-to-r from-orange-50/30 to-transparent">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1 h-4 rounded-full bg-[#ff7010]" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-700">Annual Performance</p>
+                        </div>
+                        <CopyButton className="text-gray-400 hover:text-gray-700" text={result.summary} />
+                      </div>
+                      <p className="text-sm text-gray-600 leading-relaxed pl-3"><TypewriterText text={result.summary} /></p>
+                    </div>
+                  )}
+
+
+                  {/* ── Financial Table (financial intents only) ── */}
+                  {/* Suppressed alongside the AI Calculated Answer card for the same reason
+                       as the Financial Statements block below — don't show the raw Excel
+                       numbers a second time once the computed answer is already on screen. */}
+                  {!result.aiCalculation && !singleMetricMode && (lastSearchedTypes.length === 0 || lastSearchedTypes.includes('financialStatements')) && result.chartData?.tableData?.length > 0 && result.financialYears?.length > 0 && (() => {
+                    const allYears   = result.financialYears
+                    const activeIdxs = selectedYears.length > 0
+                      ? [...selectedYears].sort((a, b) => a - b)
+                      : allYears.map((_, i) => i)
+                    const visibleYrs = activeIdxs.map(i => allYears[i]).filter(Boolean)
+                    // Plain search: stay a light 6-row summary — the Company Overview card
+                    // above already covers Total Liabilities/ROE/etc. Only pull in the full
+                    // FY-by-FY breakdown of those same rows once "financial statement" is
+                    // explicitly asked for, same gate as the statements accordion below.
+                    const wantsFullGlance = isFinancialStatementSearch(result.query, lastSearchedTypes)
+                    const glanceRows = wantsFullGlance
+                      ? [...result.chartData.tableData, ...buildExtraGlanceRows(result)]
+                      : result.chartData.tableData
+                    // row.yoySeries[a] is the pair between full-year-list indices a and a+1 —
+                    // only usable for a visible column pair when those two indices are still
+                    // adjacent in the underlying full year list (i.e. no year was toggled off
+                    // between them). One column per visible consecutive pair: none for a
+                    // single visible year, one for two, one per pair for more.
+                    const yoyPairForCol = (row, k) => {
+                      const a = activeIdxs[k], b = activeIdxs[k + 1]
+                      return b === a + 1 ? row.yoySeries?.[a] : null
+                    }
+                    return (
+                    <div className="px-6 py-5 border-b border-gray-100 overflow-x-auto" style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-1 h-4 rounded-full bg-indigo-500" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-700">Financials at a Glance</p>
+                        <span className="ml-auto text-[10px] text-gray-400 font-medium">All figures in ₹ Millions</span>
+                      </div>
+                      <table className="w-full text-sm border-collapse rounded-xl overflow-hidden">
+                        <thead>
+                          <tr className="bg-gray-900">
+                            <th className="text-left py-3 px-4 text-[11px] font-bold text-white/80">Particulars</th>
+                            {visibleYrs.map(yr => (
+                              <th key={yr} className="text-right py-3 px-3 text-[11px] font-bold text-white/80 whitespace-nowrap">FY {yr}</th>
+                            ))}
+                            {visibleYrs.slice(1).map((yr, k) => (
+                              <th key={`yoy-${yr}`} className="text-right py-3 px-3 text-[11px] font-bold text-[#ff7010] whitespace-nowrap">
+                                {visibleYrs.length === 2 ? 'Y-o-Y' : `${visibleYrs[k]} → ${yr}`}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {glanceRows.map((row, i) => (
+                            <tr key={i} className={`border-b border-gray-100 transition-colors hover:bg-orange-50/30 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                              <td className="py-3 px-4 text-gray-700 text-xs font-semibold">{row.label}</td>
+                              {activeIdxs.map(j => (
+                                <td key={j} className="py-3 px-3 text-right text-xs text-gray-800 tabular-nums font-bold">
+                                  {row.values?.[j] ?? '—'}
+                                  {row.pctOfRevenue?.[j] && (
+                                    <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{row.pctOfRevenue[j]} of Rev</span>
+                                  )}
+                                </td>
+                              ))}
+                              {visibleYrs.slice(1).map((yr, k) => {
+                                const pair = yoyPairForCol(row, k)
+                                return (
+                                  <td key={`yoy-${yr}`} className={`py-3 px-3 text-right text-xs font-black tabular-nums ${
+                                    pair?.yoyPositive === true ? 'text-green-600' : pair?.yoyPositive === false ? 'text-red-500' : 'text-gray-400'
+                                  }`}>
+                                    <span className={`px-1.5 py-0.5 rounded-md text-[11px] ${
+                                      pair?.yoyPositive === true  ? 'bg-green-50 text-green-700'
+                                    : pair?.yoyPositive === false ? 'bg-red-50 text-red-600'
+                                    : 'bg-gray-50 text-gray-400'
+                                    }`}>{pair?.yoy ?? '—'}</span>
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    )
+                  })()}
+
+                  {/* ── Full Financial Statements: Balance Sheet / P&L / Cash Flow ──
+                       Bold section headings (e.g. "Shareholders' Funds", "Non-Current
+                       Liabilities") — expanded by default; click a heading to collapse it.
+                       Opt-in only: the Company Overview above already covers the summary
+                       numbers for a plain search, so this only shows when the query itself
+                       asks for "financial statement(s)" or that report type was selected. ── */}
+                  {/* Suppressed whenever the AI Calculated Answer card is already showing —
+                       that card already gives the computed answer; the raw Excel-order
+                       statement table underneath it just duplicated the same numbers in a
+                       second, unasked-for format. */}
+                  {!result.aiCalculation &&
+                    (isFinancialStatementSearch(result.query, lastSearchedTypes) ||
+                     ['revenue', 'profit', 'balance', 'cashflow', 'expense', 'margin'].includes(result.intent)) &&
+                    result.financialYears?.length > 0 &&
+                    (result.chartData?.balanceSheetStatement?.length > 0 ||
+                     result.chartData?.profitLossStatement?.length > 0 ||
+                     result.chartData?.cashFlowStatement?.length > 0 ||
+                     result.chartData?.burnMetricsStatement?.length > 0 ||
+                     result.chartData?.employeeExpensesStatement?.length > 0 ||
+                     result.chartData?.otherExpensesStatement?.length > 0 ||
+                     result.chartData?.adsMetricsStatement?.length > 0 ||
+                     result.chartData?.marginAnalysisStatement?.length > 0) && (() => {
+                    const allYears   = result.financialYears
+                    const activeIdxs = selectedYears.length > 0
+                      ? [...selectedYears].sort((a, b) => a - b)
+                      : allYears.map((_, i) => i)
+                    const visibleYrs = activeIdxs.map(i => allYears[i]).filter(Boolean)
+                    return (
+                      <div className="px-6 py-5 border-b border-gray-100 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-1 h-4 rounded-full bg-emerald-500" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-700">Financial Statements</p>
+                          <span className="ml-auto text-[10px] text-gray-400 font-medium">Currency in ₹ Millions</span>
+                        </div>
+                        {result.chartData.balanceSheetStatement?.length > 0 && (
+                          <StatementBlock title="Balance Sheet" accent="#1a1f36" Icon={FaTable}
+                            rows={result.chartData.balanceSheetStatement}
+                            activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="bs"
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                        )}
+                        {result.chartData.profitLossStatement?.length > 0 && (
+                          <StatementBlock title="Profit & Loss" accent="#6366f1" Icon={FaChartLine}
+                            rows={result.chartData.profitLossStatement}
+                            activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="pl"
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                        )}
+                        {result.chartData.cashFlowStatement?.length > 0 && (
+                          <StatementBlock title="Cash Flow" accent="#06b6d4" Icon={FaMoneyBillWave}
+                            rows={result.chartData.cashFlowStatement}
+                            activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="cf"
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                        )}
+                        {result.chartData.marginAnalysisStatement?.length > 0 && (
+                          <StatementBlock title="Margin Analysis" accent="#10b981" Icon={FaChartPie}
+                            rows={result.chartData.marginAnalysisStatement}
+                            activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="margin"
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                        )}
+                        {result.chartData.burnMetricsStatement?.length > 0 && (
+                          <StatementBlock title="Burn Metrics" accent="#ef4444" Icon={FaExclamationTriangle}
+                            rows={result.chartData.burnMetricsStatement}
+                            activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="burn"
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                        )}
+                        {result.chartData.employeeExpensesStatement?.length > 0 && (
+                          <StatementBlock title="Employee Expenses" accent="#8b5cf6" Icon={FaUsers}
+                            rows={result.chartData.employeeExpensesStatement}
+                            activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="emp"
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                        )}
+                        {result.chartData.otherExpensesStatement?.length > 0 && (
+                          <StatementBlock title="Other Expenses" accent="#f59e0b" Icon={FaChartPie}
+                            rows={result.chartData.otherExpensesStatement}
+                            activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="oexp"
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                        )}
+                        {result.chartData.adsMetricsStatement?.length > 0 && (
+                          <StatementBlock title="Ads / Advertisement Metrics" accent="#ff7010" Icon={FaChartBar}
+                            rows={result.chartData.adsMetricsStatement}
+                            activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="ads"
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* ── Key Highlights ── */}
+                  {!isFinancialStatementQuery && !singleMetricMode && result.insights?.length > 0 && (
+                    <div className="px-6 py-6 border-b border-gray-100">
+                      <div className="flex items-center gap-2.5 mb-4">
+                        <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
+                          <FaStar className="text-[#ff7010] text-xs" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-widest text-gray-800">Key Highlights</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{result.insights.length} insights identified</p>
+                        </div>
+                      </div>
+                      <div className="space-y-2.5">
+                        {result.insights.map((ins, i) => {
+                          const colors = ['#1a1f36','#6366f1','#10b981','#ff7010','#f59e0b']
+                          const bgs    = ['bg-slate-50','bg-indigo-50','bg-emerald-50','bg-orange-50','bg-amber-50']
+                          const borders= ['border-slate-200','border-indigo-100','border-emerald-100','border-orange-100','border-amber-100']
+                          return (
+                            <div key={i} className={`flex items-start gap-3 p-3.5 rounded-xl border ${bgs[i%5]} ${borders[i%5]} group hover:shadow-sm transition-shadow`}
+                              style={{ animation: 'aiRevealIn 0.4s ease-out both', animationDelay: `${i * 0.1}s` }}>
+                              <span className="w-6 h-6 rounded-lg text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm" style={{backgroundColor: colors[i%5]}}>
+                                {i + 1}
+                              </span>
+                              <p className="text-sm text-gray-700 leading-relaxed">{ins}</p>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* ── Quick actions ── */}
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        <button
+                          onClick={handleMultiDownload}
+                          disabled={!selectedTypes.length}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-[#ff7010] text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                          <FaDownload className="text-[10px]" />
+                          Download PDF of this
+                        </button>
+                        {result.financialYears?.length > 1 && (
+                          <button
+                            onClick={() => doSearch(`${result.companyName || result.detectedCompany || ''} compare all years ${result.query || ''}`.trim())}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 text-xs font-bold transition-colors">
+                            <FaSearch className="text-[10px]" />
+                            Compare {result.financialYears.map(y => `FY ${y}`).join(' vs ')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+
+                </div>
+
+
+              </div>
+              )
+            })()}
+
+            {/* Empty state — Claude-style suggestion cards covering everything the old
+                Generate Report panel offered, now that search is the only way in. */}
+            {!isSearching && !result && !error && (
+              <div className="text-center py-10">
+                <div className="w-16 h-16 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center mx-auto mb-4">
+                  <FaRobot className="text-[#ff7010] text-2xl" />
+                </div>
+                <h3 className="font-bold text-gray-700 mb-2">Search any company</h3>
+                <p className="text-sm text-gray-400 max-w-xs mx-auto">
+                  Type the company name above — with or without a question. Get instant financial analysis and download the full PDF report.
+                </p>
+                {!isAuth && (
+                  <p className="text-xs text-gray-400 mt-4">
+                    <Link to="/login" className="text-[#ff7010] font-semibold hover:underline">Login</Link> to save your search history
+                  </p>
+                )}
+
+                <div className="max-w-xl mx-auto mt-8 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
+                  {SUGGESTION_CARDS.map(card => {
+                    const CardIcon = card.Icon
+                    return (
+                      <button key={card.label}
+                        onClick={() => {
+                          const base = query.trim()
+                          if (base) {
+                            const q = card.prompt ? `${base} ${card.prompt}` : base
+                            setQuery(q)
+                            doSearch(q)
+                          } else {
+                            setQuery(card.prompt ? card.prompt + ' ' : '')
+                            inputRef.current?.focus()
+                          }
+                        }}
+                        className="flex items-start gap-3 p-3.5 bg-white border border-gray-100 rounded-xl hover:border-[#ff7010]/40 hover:shadow-sm transition-all group">
+                        <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-100">
+                          <CardIcon className="text-[#ff7010] text-xs" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-gray-800">{card.label}</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">{card.sub}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Metric card ───────────────────────────────────────────────────────────────
+
+const MetricCard = ({ metric }) => {
+  const up   = metric.trend === 'up'
+  const down = metric.trend === 'down'
+  return (
+    <div className={`rounded-xl border p-3.5 ${up ? 'bg-green-50 border-green-100' : down ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[11px] text-gray-500 font-medium truncate pr-2">{metric.label}</p>
+        {up   && <FaArrowUp   className="text-green-500 flex-shrink-0 text-xs" />}
+        {down && <FaArrowDown className="text-red-500   flex-shrink-0 text-xs" />}
+        {!up && !down && <FaMinus className="text-gray-400 flex-shrink-0 text-xs" />}
+      </div>
+      <p className="text-base font-bold text-gray-900 truncate">{metric.value}</p>
+    </div>
+  )
+}
