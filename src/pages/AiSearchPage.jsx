@@ -1468,23 +1468,60 @@ export default function AiSearchPage() {
                     <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <FaRobot className="text-white text-xs" />
-                        <p className="text-white text-[11px] font-black uppercase tracking-widest">AI Calculated Answer</p>
+                        <p className="text-white text-[11px] font-black uppercase tracking-widest">Calculated Answer</p>
                       </div>
                       <CopyButton
                         className="text-white/80 hover:text-white"
-                        text={[
-                          result.aiCalculation.answer,
-                          result.aiCalculation.value != null
-                            ? `${result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}`
-                            : null,
-                          result.aiCalculation.formula,
-                          result.aiCalculation.explanation,
-                        ].filter(Boolean).join('\n')}
+                        text={result.aiCalculation.perYear
+                          ? [result.aiCalculation.label, ...result.aiCalculation.perYear.map(y => `FY ${y.year}: ${y.formula}`)].filter(Boolean).join('\n')
+                          : [
+                              result.aiCalculation.answer,
+                              result.aiCalculation.value != null
+                                ? `${result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}`
+                                : null,
+                              result.aiCalculation.formula,
+                              result.aiCalculation.explanation,
+                            ].filter(Boolean).join('\n')}
                       />
                     </div>
                     <div className="p-5">
                       {result.aiCalculation.error ? (
                         <p className="text-sm text-gray-500">{result.aiCalculation.answer}</p>
+                      ) : result.aiCalculation.perYear ? (
+                        <>
+                          <p className="text-sm font-bold text-gray-800 mb-3">{result.aiCalculation.label}</p>
+                          <table className="w-full border-collapse text-xs mb-2">
+                            <thead>
+                              <tr className="bg-gray-900">
+                                <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Year</th>
+                                <th className="text-right py-2 px-3 text-white/80 font-bold text-[11px]">Value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {result.aiCalculation.perYear.map((y, i) => (
+                                <tr key={y.year} className={`border-b border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                  <td className="py-2 px-3 font-semibold text-gray-700">FY {y.year}</td>
+                                  <td className="py-2 px-3 text-right font-black text-indigo-600 tabular-nums">
+                                    {y.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}{result.aiCalculation.unit || ''}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          <details className="text-xs text-gray-400">
+                            <summary className="cursor-pointer hover:text-gray-600 select-none">Show formula for each year</summary>
+                            <div className="mt-2 space-y-1.5">
+                              {result.aiCalculation.perYear.map(y => (
+                                <p key={y.year} className="font-mono bg-gray-50 rounded-lg px-3 py-2 break-words">
+                                  <span className="font-bold text-gray-600">FY {y.year}: </span>{y.formula}
+                                </p>
+                              ))}
+                            </div>
+                          </details>
+                          {result.aiCalculation.explanation && (
+                            <p className="text-xs text-gray-400 mt-2">{result.aiCalculation.explanation}</p>
+                          )}
+                        </>
                       ) : (
                         <>
                           {result.aiCalculation.answer && (
@@ -2075,7 +2112,7 @@ export default function AiSearchPage() {
                     // selectedYears (see filterYr above) — if any of them have data, the "no
                     // chart data for the selected year(s)" banner would be misleading noise
                     // sitting above a perfectly populated shareholder/RPT/ratios section below it.
-                    const hasNonYearSectionData = Boolean(shareholderPie || shareholderRows?.length || (prefRows?.length && !shareholderYearMismatch) || rptRows?.length || ratiosRows?.length)
+                    const hasNonYearSectionData = Boolean((!shareholderYearMismatch && (shareholderPie || shareholderRows?.length || prefRows?.length)) || rptRows?.length || ratiosRows?.length)
                     const hasSingleMetricData = Boolean(singleMetricConfig?.series?.length)
                     const noDataForFilter = selectedYears.length > 0 && !anySectionData && !hasRevByYear && !hasNonYearSectionData && !hasSingleMetricData
                     if (!anySectionData && !hasRevByYear && !hasNonYearSectionData && !hasSingleMetricData && selectedYears.length === 0) return null
@@ -2123,6 +2160,27 @@ export default function AiSearchPage() {
                         </div>
                       )}
 
+                      {/* Cap table data is a single latest-year snapshot only, no year field of
+                          its own on record — whether it's equity or preference/CCPS. Showing
+                          the current snapshot for an EARLIER year asked would claim to answer
+                          that year when it can't (a past year's real headcount/shareholding may
+                          have genuinely differed) — "give exactly the year asked, nothing
+                          substituted" applies here just like everywhere else, so BOTH equity and
+                          preference are suppressed together whenever the selected year(s) don't
+                          include the snapshot's own (latest) year, not just preference.
+                          Gated on intent === 'capTable' (not on shareholderPie/shareholderRows/
+                          prefRows existing) because the backend now strips ALL of those chartData
+                          keys outright for a year mismatch — checking for their presence here
+                          would never fire, silently dropping this explanation along with the
+                          data it's explaining. */}
+                      {!singleMetricMode && shareholderYearMismatch && intent === 'capTable' && (
+                        <div className="mx-4 mt-4 mb-2 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">
+                          <p className="text-xs text-amber-700">
+                            Shareholder/Cap Table data on record is only as of FY {latestFy} (a single snapshot, not year-by-year) — not available for the selected year(s).
+                          </p>
+                        </div>
+                      )}
+
                       {/* ── Cap Table: Shareholder Pie + Table — shown whenever the company
                            has shareholding data on record, not gated behind an explicit Cap
                            Table search, so it appears on the general overview too. ── */}
@@ -2132,13 +2190,7 @@ export default function AiSearchPage() {
                           share-type filter), but this block used to require equity data just
                           to mount at all, so the preference table nested inside it (further
                           below) never rendered and the search showed nothing. */}
-                      {/* Equity is shown regardless of the year filter — Founder/early-investor
-                          equity exists from inception even though we only hold one (latest)
-                          snapshot, so it's the closest available answer for any year asked.
-                          Preference/CCPS is different: it's raised in a LATER funding round, so
-                          showing it for a year before that round would claim CCPS existed when
-                          it didn't — that part alone is gated by shareholderYearMismatch below. */}
-                      {!singleMetricMode && (shareholderPie || shareholderRows?.length > 0 || prefRows?.length > 0) && (() => {
+                      {!singleMetricMode && !shareholderYearMismatch && (shareholderPie || shareholderRows?.length > 0 || prefRows?.length > 0) && (() => {
                         // Category filter chips — click to narrow the already-loaded table/pie
                         // to one investor type (Founder, Angel Investor, VC, ...) without a new
                         // search. Options are whatever categories this company's own data has.
@@ -2268,26 +2320,15 @@ export default function AiSearchPage() {
                             })()}
                           </div>
 
-                          {/* Preference/CCPS is a later funding round, not present from
-                              inception — when the selected year(s) predate the only snapshot we
-                              have (shareholderYearMismatch), say so instead of showing 2024's
-                              CCPS holders as if they already existed back then. Equity above is
-                              unaffected — it isn't gated by this. */}
-                          {prefRows?.length > 0 && shareholderYearMismatch && (
-                            <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">
-                              <p className="text-xs text-amber-700">
-                                Preference/CCPS shareholding on record is only as of FY {latestFy} — not shown for the selected year(s), since preference shares are raised in a later funding round.
-                              </p>
-                            </div>
-                          )}
-
                           {/* Preference shareholders — same category filter chips as Equity above,
                               plus its own pie chart mirroring the Equity one. Heading uses the
                               actual Excel section caption when the source workbook had one on
                               record (e.g. "...CCPS shareholding structure as on 31 March 2024") —
                               the only "as on <date>" hint available, since cap table data has no
-                              year field otherwise. */}
-                          {prefRows?.length > 0 && !shareholderYearMismatch && (() => {
+                              year field otherwise. (shareholderYearMismatch already gates the
+                              WHOLE section above this point — both equity and preference are
+                              suppressed together, not just this part.) */}
+                          {prefRows?.length > 0 && (() => {
                             const prefCategories = [...new Set(prefRows.map(r => r.category).filter(Boolean))]
                             const filteredPrefRows = prefCategoryFilter
                               ? prefRows.filter(r => r.category === prefCategoryFilter)
