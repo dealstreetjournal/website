@@ -379,14 +379,9 @@ Some items aren't itemised in the source Excel for {totalOnlyYrs.map(y => `FY ${
         <table className="w-full border-collapse text-xs">
           <thead>
             <tr className="border-b border-gray-100">
-              <th className="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Particulars</th>
+              <th className="text-left py-2.5 px-4 min-w-[180px] text-[10px] font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">Particulars</th>
               {visibleYrs.map(yr => (
-                <th key={yr} className="text-right py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">FY {yr}</th>
-              ))}
-              {visibleYrs.slice(1).map((yr, k) => (
-                <th key={`yoy-${yr}`} className="text-right py-1.5 px-2 text-[10px] font-bold text-[#ff7010] uppercase whitespace-nowrap">
-                  {visibleYrs.length === 2 ? 'Y-o-Y' : `${visibleYrs[k]} → ${yr}`}
-                </th>
+                <th key={yr} className="text-right py-2.5 px-4 min-w-[110px] text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">FY {yr}</th>
               ))}
             </tr>
           </thead>
@@ -400,7 +395,7 @@ Some items aren't itemised in the source Excel for {totalOnlyYrs.map(y => `FY ${
                   {g.header && (
                     <tr onClick={() => hasItems && onToggle(key)}
                       className={`bg-gray-50/80 ${hasItems ? 'cursor-pointer hover:bg-orange-50/60' : ''}`}>
-                      <td colSpan={visibleYrs.length + 1 + Math.max(0, visibleYrs.length - 1)} className="py-2 px-2 text-[11px] font-black text-gray-800">
+                      <td colSpan={visibleYrs.length + 1} className="py-3 px-4 text-[11px] font-black text-gray-800">
                         <span className="inline-flex items-center gap-1.5">
                           {hasItems && (
                             <FaChevronRight className={`text-[9px] text-gray-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
@@ -416,31 +411,28 @@ Some items aren't itemised in the source Excel for {totalOnlyYrs.map(y => `FY ${
                     // row.yoySeries[a] is the pair between full-year-list indices a and a+1 —
                     // only usable for a visible column pair when those two indices are still
                     // adjacent (no year toggled off between them), same convention as the
-                    // Financials at a Glance table.
+                    // Financials at a Glance table. Shown stacked inside that column's own
+                    // value cell (below "% of Rev") rather than as its own separate column —
+                    // keeps the table to one column per FY instead of doubling width.
                     const yoyPairForCol = (k) => {
                       const a = activeIdxs[k], b = activeIdxs[k + 1]
                       return b === a + 1 ? row.yoySeries?.[a] : null
                     }
                     return (
                       <tr key={ri} className="border-b border-gray-50 hover:bg-gray-50/50">
-                        <td className={`py-1.5 px-2 ${indent} text-gray-700 ${isTotal ? 'font-bold text-gray-900' : ''}`}>
+                        <td className={`py-2.5 px-4 min-w-[180px] whitespace-nowrap ${indent} text-gray-700 ${isTotal ? 'font-bold text-gray-900' : ''}`}>
                           {cleanStatementLabel(row.label)}
                         </td>
-                        {activeIdxs.map(j => (
-                          <td key={j} className={`text-right py-1.5 px-2 tabular-nums ${isTotal ? 'font-bold text-gray-900' : 'text-gray-700'}`}>
-                            {fmtStatementNum(row.values?.[j], row.label)}
-                            {row.pctOfRevenue?.[j] && (
-                              <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{row.pctOfRevenue[j]} of Rev</span>
-                            )}
-                          </td>
-                        ))}
-                        {visibleYrs.slice(1).map((yr, k) => {
-                          const pair = yoyPairForCol(k)
+                        {activeIdxs.map((j, k) => {
+                          const pair = k > 0 ? yoyPairForCol(k - 1) : null
                           return (
-                            <td key={`yoy-${yr}`} className={`text-right py-1.5 px-2 tabular-nums font-bold ${
-                              pair?.yoyPositive === true ? 'text-green-600' : pair?.yoyPositive === false ? 'text-red-500' : 'text-gray-400'
-                            }`}>
-                              {pair?.yoy ?? '—'}
+                            <td key={j} className={`text-right py-2.5 px-4 min-w-[110px] whitespace-nowrap tabular-nums ${isTotal ? 'font-bold text-gray-900' : 'text-gray-700'}`}>
+                              {fmtStatementNum(row.values?.[j], row.label)}
+                              <span className={`block w-fit ml-auto px-1.5 py-0.5 rounded-md text-[9px] font-black mt-1 ${!pair ? 'invisible' :
+                                  pair.yoyPositive === true  ? 'bg-green-50 text-green-700'
+                                : pair.yoyPositive === false ? 'bg-red-50 text-red-600'
+                                : 'bg-gray-50 text-gray-400'
+                                }`}>{pair ? `${pair.yoy} YoY` : '—'}</span>
                             </td>
                           )
                         })}
@@ -1889,6 +1881,15 @@ export default function AiSearchPage() {
                       : allFyYears.map((_, i) => i)
                     // String-based: d.year comes from same Java list as financialYears → exact match
                     const activeYrStrs = new Set(activeIdxs.map(i => allFyYears[i]).filter(Boolean))
+                    // Shareholder/Cap Table data is a single point-in-time snapshot with no year
+                    // field of its own (unlike every other section here) — it reflects whatever
+                    // the source Excel's cap table sheet was "as on", which in practice is always
+                    // the model's latest financial year. Showing it unchanged when the user has
+                    // filtered to an EARLIER year would silently pass off a 2024 shareholder list
+                    // as if it were the answer for FY2018-19 — so it's suppressed instead whenever
+                    // the latest year isn't part of the active selection.
+                    const latestFy = allFyYears[allFyYears.length - 1]
+                    const shareholderYearMismatch = selectedYears.length > 0 && latestFy && !activeYrStrs.has(latestFy)
                     const filterYr = (arr) => {
                       if (!arr) return []
                       if (activeYrStrs.size === 0 || selectedYears.length === 0) return arr
@@ -1913,45 +1914,38 @@ export default function AiSearchPage() {
                     // single year (nothing to compare), one for two years, one per consecutive
                     // pair for more (e.g. 5 years selected → 4 pair columns), never a single
                     // first-vs-last change spanning the whole selection.
+                    // YoY sits stacked inside the same year's value cell (below "% of Rev"),
+                    // not as its own separate column — with 3-5 years on screen a whole extra
+                    // YoY column per pair made the table sprawl sideways; this keeps one column
+                    // per FY like a normal statement table while still surfacing the trend.
                     const renderYoyTable = (years, rows) => rows.length > 0 && (
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm border-collapse rounded-xl overflow-hidden">
                           <thead>
                             <tr className="bg-gray-900">
-                              <th className="text-left py-3 px-4 text-[11px] font-bold text-white/80">Particulars</th>
+                              <th className="text-left py-3 px-4 min-w-[180px] text-[11px] font-bold text-white/80 whitespace-nowrap">Particulars</th>
                               {years.map(yr => (
-                                <th key={yr} className="text-right py-3 px-3 text-[11px] font-bold text-white/80 whitespace-nowrap">FY {yr}</th>
-                              ))}
-                              {years.slice(1).map((yr, i) => (
-                                <th key={`yoy-${yr}`} className="text-right py-3 px-3 text-[11px] font-bold text-[#ff7010] whitespace-nowrap">
-                                  {years.length === 2 ? 'Y-o-Y' : `${years[i]} → ${yr}`}
-                                </th>
+                                <th key={yr} className="text-right py-3 px-4 min-w-[110px] text-[11px] font-bold text-white/80 whitespace-nowrap">FY {yr}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {rows.map((row, i) => (
                               <tr key={i} className="border-b border-gray-100">
-                                <td className="py-3 px-4 text-gray-700 text-xs font-semibold">{row.label}</td>
-                                {row.values.map((v, j) => (
-                                  <td key={j} className="py-3 px-3 text-right text-xs text-gray-800 tabular-nums font-bold">
-                                    {v}
-                                    {row.pctOfRevenue?.[j] && (
-                                      <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{row.pctOfRevenue[j]} of Rev</span>
-                                    )}
-                                  </td>
-                                ))}
-                                {(row.yoySeries || []).map((pair, j) => (
-                                  <td key={j} className={`py-3 px-3 text-right text-xs font-black tabular-nums ${
-                                    pair.yoyPositive === true ? 'text-green-600' : pair.yoyPositive === false ? 'text-red-500' : 'text-gray-400'
-                                  }`}>
-                                    <span className={`px-1.5 py-0.5 rounded-md text-[11px] ${
-                                      pair.yoyPositive === true  ? 'bg-green-50 text-green-700'
-                                    : pair.yoyPositive === false ? 'bg-red-50 text-red-600'
-                                    : 'bg-gray-50 text-gray-400'
-                                    }`}>{pair.yoy}</span>
-                                  </td>
-                                ))}
+                                <td className="py-3 px-4 min-w-[180px] whitespace-nowrap text-gray-700 text-xs font-semibold">{row.label}</td>
+                                {row.values.map((v, j) => {
+                                  const pair = j > 0 ? row.yoySeries?.[j - 1] : null
+                                  return (
+                                    <td key={j} className="py-3 px-4 min-w-[110px] whitespace-nowrap text-right text-xs text-gray-800 tabular-nums font-bold">
+                                      {v}
+                                      <span className={`block w-fit ml-auto px-1.5 py-0.5 rounded-md text-[9px] font-black mt-1 ${!pair ? 'invisible' :
+                                          pair.yoyPositive === true  ? 'bg-green-50 text-green-700'
+                                        : pair.yoyPositive === false ? 'bg-red-50 text-red-600'
+                                        : 'bg-gray-50 text-gray-400'
+                                        }`}>{pair ? `${pair.yoy} YoY` : '—'}</span>
+                                    </td>
+                                  )
+                                })}
                               </tr>
                             ))}
                           </tbody>
@@ -1998,6 +1992,8 @@ export default function AiSearchPage() {
                     const shareholderPie  = cd.shareholderPieChart     // {name: pct%}
                     const shareholderRows = cd.shareholderTable         // [{name,category,shares,percentage}]
                     const prefRows        = cd.preferenceShareholderTable
+                    const prefPie         = cd.preferenceShareholderPieChart  // {name: pct%}
+                    const prefCaption     = cd.preferenceShareholderCaption   // verbatim Excel section title, e.g. "Compulsorily Convertible Preference Shares (CCPS) shareholding structure as on 31 March 2024"
                     const rptRows         = cd.rptTable                 // [{party,relationship,nature,amount}]
                     const rptBalRows      = cd.rptBalancesTable
                     const ratiosRows      = cd.ratiosTable              // [{category,name,formula,value,significance}]
@@ -2033,7 +2029,22 @@ export default function AiSearchPage() {
                       labels: Object.keys(obj),
                       datasets: [{ data: Object.values(obj), backgroundColor: DONUT_COLORS, borderWidth: 2, borderColor: '#fff', hoverOffset: 8 }]
                     })
-                    const anySectionData = revData.length || patData.length || margData.length || grwData.length || cfData.length || expBk || astBk || capBk
+                    // Full-statement tables (Balance Sheet/P&L/Cash Flow/Margin Analysis/Burn
+                    // Metrics/Employee & Other Expenses, plus the "Financials at a Glance"
+                    // summary) render as their OWN separate block further below, gated on
+                    // showFinancials rather than any of the chart-summary values above — a query
+                    // whose intent only ever populates one of THESE (e.g. "trade payable" ->
+                    // only balanceSheetStatement) left every other anySectionData input empty,
+                    // so the "no chart data for the selected year(s)" banner fired right above a
+                    // table that was, in fact, fully populated. Found live: real Trade Payables
+                    // data rendered correctly, with a misleading "No chart data available" banner
+                    // sitting directly above it.
+                    const hasFullStatementData = Boolean(
+                      cd.tableData?.length || cd.balanceSheetStatement?.length || cd.profitLossStatement?.length ||
+                      cd.cashFlowStatement?.length || cd.marginAnalysisStatement?.length || cd.burnMetricsStatement?.length ||
+                      cd.employeeExpensesStatement?.length || cd.otherExpensesStatement?.length || cd.adsMetricsStatement?.length
+                    )
+                    const anySectionData = revData.length || patData.length || margData.length || grwData.length || cfData.length || expBk || astBk || capBk || hasFullStatementData
 
                     // ── Always-available doughnut datasets ──
                     // 1. Revenue by Year — each slice = one FY
@@ -2064,7 +2075,7 @@ export default function AiSearchPage() {
                     // selectedYears (see filterYr above) — if any of them have data, the "no
                     // chart data for the selected year(s)" banner would be misleading noise
                     // sitting above a perfectly populated shareholder/RPT/ratios section below it.
-                    const hasNonYearSectionData = Boolean(shareholderPie || shareholderRows?.length || prefRows?.length || rptRows?.length || ratiosRows?.length)
+                    const hasNonYearSectionData = Boolean(shareholderPie || shareholderRows?.length || (prefRows?.length && !shareholderYearMismatch) || rptRows?.length || ratiosRows?.length)
                     const hasSingleMetricData = Boolean(singleMetricConfig?.series?.length)
                     const noDataForFilter = selectedYears.length > 0 && !anySectionData && !hasRevByYear && !hasNonYearSectionData && !hasSingleMetricData
                     if (!anySectionData && !hasRevByYear && !hasNonYearSectionData && !hasSingleMetricData && selectedYears.length === 0) return null
@@ -2121,6 +2132,12 @@ export default function AiSearchPage() {
                           share-type filter), but this block used to require equity data just
                           to mount at all, so the preference table nested inside it (further
                           below) never rendered and the search showed nothing. */}
+                      {/* Equity is shown regardless of the year filter — Founder/early-investor
+                          equity exists from inception even though we only hold one (latest)
+                          snapshot, so it's the closest available answer for any year asked.
+                          Preference/CCPS is different: it's raised in a LATER funding round, so
+                          showing it for a year before that round would claim CCPS existed when
+                          it didn't — that part alone is gated by shareholderYearMismatch below. */}
                       {!singleMetricMode && (shareholderPie || shareholderRows?.length > 0 || prefRows?.length > 0) && (() => {
                         // Category filter chips — click to narrow the already-loaded table/pie
                         // to one investor type (Founder, Angel Investor, VC, ...) without a new
@@ -2251,72 +2268,127 @@ export default function AiSearchPage() {
                             })()}
                           </div>
 
-                          {/* Preference shareholders — same category filter chips as Equity above */}
-                          {prefRows?.length > 0 && (() => {
+                          {/* Preference/CCPS is a later funding round, not present from
+                              inception — when the selected year(s) predate the only snapshot we
+                              have (shareholderYearMismatch), say so instead of showing 2024's
+                              CCPS holders as if they already existed back then. Equity above is
+                              unaffected — it isn't gated by this. */}
+                          {prefRows?.length > 0 && shareholderYearMismatch && (
+                            <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">
+                              <p className="text-xs text-amber-700">
+                                Preference/CCPS shareholding on record is only as of FY {latestFy} — not shown for the selected year(s), since preference shares are raised in a later funding round.
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Preference shareholders — same category filter chips as Equity above,
+                              plus its own pie chart mirroring the Equity one. Heading uses the
+                              actual Excel section caption when the source workbook had one on
+                              record (e.g. "...CCPS shareholding structure as on 31 March 2024") —
+                              the only "as on <date>" hint available, since cap table data has no
+                              year field otherwise. */}
+                          {prefRows?.length > 0 && !shareholderYearMismatch && (() => {
                             const prefCategories = [...new Set(prefRows.map(r => r.category).filter(Boolean))]
                             const filteredPrefRows = prefCategoryFilter
                               ? prefRows.filter(r => r.category === prefCategoryFilter)
                               : prefRows
+                            const filteredPrefPie = prefCategoryFilter && prefPie
+                              ? Object.fromEntries(Object.entries(prefPie).filter(([name]) =>
+                                  filteredPrefRows.some(r => r.name === name)))
+                              : prefPie
                             const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(/[,%]/g, '')); return Number.isFinite(n) ? n : 0 }
                             const totalPrefShares = filteredPrefRows.reduce((sum, r) => sum + numOf(r.shares), 0)
                             const totalPrefPct    = filteredPrefRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
                             return (
-                            <div className="mt-4 bg-white rounded-2xl shadow-sm border border-purple-100 overflow-hidden">
-                              <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-400" />
-                              <div className="p-4 overflow-x-auto">
-                                <p className="text-xs font-bold text-gray-800 mb-3">Preference Shareholders ({filteredPrefRows.length})</p>
+                            <div className="mt-4">
+                              <p className="text-xs font-bold text-gray-800 mb-0.5">{prefCaption || 'Preference Shareholders'}</p>
+                              <p className="text-[10px] text-gray-400 mb-3">{filteredPrefRows.length} holder(s) on record</p>
 
-                                {prefCategories.length > 1 && (
-                                  <div className="flex flex-wrap gap-1.5 mb-3">
-                                    <button onClick={() => setPrefCategoryFilter(null)}
-                                      className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
-                                        !prefCategoryFilter ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300'
-                                      }`}>
-                                      All ({prefRows.length})
-                                    </button>
-                                    {prefCategories.map(cat => {
-                                      const count = prefRows.filter(r => r.category === cat).length
-                                      return (
-                                        <button key={cat} onClick={() => setPrefCategoryFilter(cat)}
-                                          className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
-                                            prefCategoryFilter === cat ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300'
-                                          }`}>
-                                          {cat} ({count})
-                                        </button>
-                                      )
-                                    })}
+                              {prefCategories.length > 1 && (
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                  <button onClick={() => setPrefCategoryFilter(null)}
+                                    className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
+                                      !prefCategoryFilter ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300'
+                                    }`}>
+                                    All ({prefRows.length})
+                                  </button>
+                                  {prefCategories.map(cat => {
+                                    const count = prefRows.filter(r => r.category === cat).length
+                                    return (
+                                      <button key={cat} onClick={() => setPrefCategoryFilter(cat)}
+                                        className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
+                                          prefCategoryFilter === cat ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-purple-300'
+                                        }`}>
+                                        {cat} ({count})
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+
+                              <div className={`grid gap-4 ${filteredPrefPie && filteredPrefRows?.length > 0 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+                                {/* Preference pie chart */}
+                                {filteredPrefPie && Object.keys(filteredPrefPie).length > 0 && (() => {
+                                  const labels = Object.keys(filteredPrefPie)
+                                  const vals   = Object.values(filteredPrefPie)
+                                  return (
+                                    <div className="bg-white rounded-2xl shadow-sm border border-purple-100 overflow-hidden">
+                                      <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-400" />
+                                      <div className="p-4">
+                                        <p className="text-xs font-bold text-gray-800 mb-0.5">Preference Shareholding</p>
+                                        <p className="text-[10px] text-gray-400 mb-3">% share distribution</p>
+                                        <div style={{height: 240, width: '100%', position: 'relative'}}>
+                                          <Doughnut data={{
+                                            labels,
+                                            datasets: [{ data: vals, backgroundColor: DONUT_COLORS, borderWidth: 3, borderColor: '#fff', hoverOffset: 10 }]
+                                          }} options={{
+                                            ...doughnutOpts,
+                                            cutout: '55%',
+                                            plugins: {
+                                              legend: { position: 'bottom', labels: { font:{size:10,weight:'600'}, color:'#6b7280', boxWidth:9, boxHeight:9, usePointStyle:true, pointStyle:'circle', padding:8 } },
+                                              tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.raw}%` }, backgroundColor:'#1a1f36', padding:10, cornerRadius:8 }
+                                            }
+                                          }} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                })()}
+
+                                <div className="bg-white rounded-2xl shadow-sm border border-purple-100 overflow-hidden">
+                                  <div className="h-1 bg-gradient-to-r from-purple-500 to-pink-400" />
+                                  <div className="p-4 overflow-x-auto">
+                                    <table className="w-full border-collapse text-xs">
+                                      <thead>
+                                        <tr className="bg-gray-900">
+                                          <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Name</th>
+                                          <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Category</th>
+                                          <th className="text-right py-2 px-3 text-white/80 font-bold text-[11px]">Shares</th>
+                                          <th className="text-right py-2 px-3 text-[#ff7010] font-bold text-[11px]">%</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {filteredPrefRows.map((r, i) => (
+                                          <tr key={i} className={`border-b border-gray-100 ${i%2===1?'bg-gray-50/50':''}`}>
+                                            <td className="py-2 px-3 font-semibold text-gray-800">{r.name}</td>
+                                            <td className="py-2 px-3 text-gray-500">{r.category || '—'}</td>
+                                            <td className="py-2 px-3 text-right tabular-nums text-gray-700">{r.shares || '—'}</td>
+                                            <td className="py-2 px-3 text-right tabular-nums font-black text-purple-600">{r.percentage || '—'}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                      <tfoot>
+                                        <tr className="border-t-2 border-gray-800">
+                                          <td colSpan={2} className="py-2 px-3 font-black text-gray-900">Total</td>
+                                          <td className="py-2 px-3 text-right tabular-nums font-black text-gray-900">{totalPrefShares.toLocaleString('en-IN')}</td>
+                                          <td className="py-2 px-3 text-right tabular-nums font-black text-purple-700">
+                                            <span className="bg-purple-100 px-2 py-0.5 rounded-md">{totalPrefPct.toFixed(2)}%</span>
+                                          </td>
+                                        </tr>
+                                      </tfoot>
+                                    </table>
                                   </div>
-                                )}
-
-                                <table className="w-full border-collapse text-xs">
-                                  <thead>
-                                    <tr className="bg-gray-900">
-                                      <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Name</th>
-                                      <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Category</th>
-                                      <th className="text-right py-2 px-3 text-white/80 font-bold text-[11px]">Shares</th>
-                                      <th className="text-right py-2 px-3 text-[#ff7010] font-bold text-[11px]">%</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {filteredPrefRows.map((r, i) => (
-                                      <tr key={i} className={`border-b border-gray-100 ${i%2===1?'bg-gray-50/50':''}`}>
-                                        <td className="py-2 px-3 font-semibold text-gray-800">{r.name}</td>
-                                        <td className="py-2 px-3 text-gray-500">{r.category || '—'}</td>
-                                        <td className="py-2 px-3 text-right tabular-nums text-gray-700">{r.shares || '—'}</td>
-                                        <td className="py-2 px-3 text-right tabular-nums font-black text-purple-600">{r.percentage || '—'}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                  <tfoot>
-                                    <tr className="border-t-2 border-gray-800">
-                                      <td colSpan={2} className="py-2 px-3 font-black text-gray-900">Total</td>
-                                      <td className="py-2 px-3 text-right tabular-nums font-black text-gray-900">{totalPrefShares.toLocaleString('en-IN')}</td>
-                                      <td className="py-2 px-3 text-right tabular-nums font-black text-purple-700">
-                                        <span className="bg-purple-100 px-2 py-0.5 rounded-md">{totalPrefPct.toFixed(2)}%</span>
-                                      </td>
-                                    </tr>
-                                  </tfoot>
-                                </table>
+                                </div>
                               </div>
                             </div>
                             )
@@ -2921,15 +2993,6 @@ export default function AiSearchPage() {
                     const glanceRows = wantsFullGlance
                       ? [...result.chartData.tableData, ...buildExtraGlanceRows(result)]
                       : result.chartData.tableData
-                    // row.yoySeries[a] is the pair between full-year-list indices a and a+1 —
-                    // only usable for a visible column pair when those two indices are still
-                    // adjacent in the underlying full year list (i.e. no year was toggled off
-                    // between them). One column per visible consecutive pair: none for a
-                    // single visible year, one for two, one per pair for more.
-                    const yoyPairForCol = (row, k) => {
-                      const a = activeIdxs[k], b = activeIdxs[k + 1]
-                      return b === a + 1 ? row.yoySeries?.[a] : null
-                    }
                     return (
                     <div className="px-6 py-5 border-b border-gray-100 overflow-x-auto" style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
                       <div className="flex items-center gap-2 mb-4">
@@ -2940,43 +3003,21 @@ export default function AiSearchPage() {
                       <table className="w-full text-sm border-collapse rounded-xl overflow-hidden">
                         <thead>
                           <tr className="bg-gray-900">
-                            <th className="text-left py-3 px-4 text-[11px] font-bold text-white/80">Particulars</th>
+                            <th className="text-left py-3 px-4 min-w-[200px] text-[11px] font-bold text-white/80 whitespace-nowrap">Particulars</th>
                             {visibleYrs.map(yr => (
-                              <th key={yr} className="text-right py-3 px-3 text-[11px] font-bold text-white/80 whitespace-nowrap">FY {yr}</th>
-                            ))}
-                            {visibleYrs.slice(1).map((yr, k) => (
-                              <th key={`yoy-${yr}`} className="text-right py-3 px-3 text-[11px] font-bold text-[#ff7010] whitespace-nowrap">
-                                {visibleYrs.length === 2 ? 'Y-o-Y' : `${visibleYrs[k]} → ${yr}`}
-                              </th>
+                              <th key={yr} className="text-right py-3 px-4 min-w-[110px] text-[11px] font-bold text-white/80 whitespace-nowrap">FY {yr}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {glanceRows.map((row, i) => (
                             <tr key={i} className={`border-b border-gray-100 transition-colors hover:bg-orange-50/30 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                              <td className="py-3 px-4 text-gray-700 text-xs font-semibold">{row.label}</td>
+                              <td className="py-3 px-4 min-w-[200px] whitespace-nowrap text-gray-700 text-xs font-semibold">{row.label}</td>
                               {activeIdxs.map(j => (
-                                <td key={j} className="py-3 px-3 text-right text-xs text-gray-800 tabular-nums font-bold">
+                                <td key={j} className="py-3 px-4 min-w-[110px] whitespace-nowrap text-right text-xs text-gray-800 tabular-nums font-bold">
                                   {row.values?.[j] ?? '—'}
-                                  {row.pctOfRevenue?.[j] && (
-                                    <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{row.pctOfRevenue[j]} of Rev</span>
-                                  )}
                                 </td>
                               ))}
-                              {visibleYrs.slice(1).map((yr, k) => {
-                                const pair = yoyPairForCol(row, k)
-                                return (
-                                  <td key={`yoy-${yr}`} className={`py-3 px-3 text-right text-xs font-black tabular-nums ${
-                                    pair?.yoyPositive === true ? 'text-green-600' : pair?.yoyPositive === false ? 'text-red-500' : 'text-gray-400'
-                                  }`}>
-                                    <span className={`px-1.5 py-0.5 rounded-md text-[11px] ${
-                                      pair?.yoyPositive === true  ? 'bg-green-50 text-green-700'
-                                    : pair?.yoyPositive === false ? 'bg-red-50 text-red-600'
-                                    : 'bg-gray-50 text-gray-400'
-                                    }`}>{pair?.yoy ?? '—'}</span>
-                                  </td>
-                                )
-                              })}
                             </tr>
                           ))}
                         </tbody>
