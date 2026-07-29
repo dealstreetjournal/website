@@ -164,7 +164,11 @@ const LatestDeal = () => {
               </Link>
             </div>
 
-            <div className="block md:hidden cursor-pointer bg-[#ff7010] font-aptos-regular px-3 py-2 rounded text-white animate-slow-bounce">
+            <div
+              className="block md:hidden cursor-pointer bg-[#ff7010] font-aptos-semibold px-3 py-2 rounded text-white"
+              // onClick={() => setOpen(true)}
+            >
+              {/* Sample */}
               <SamplePdf url={pdfUrl} />
             </div>
           </div>
