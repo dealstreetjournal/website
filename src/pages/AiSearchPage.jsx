@@ -2031,6 +2031,7 @@ export default function AiSearchPage() {
                     const prefRows        = cd.preferenceShareholderTable
                     const prefPie         = cd.preferenceShareholderPieChart  // {name: pct%}
                     const prefCaption     = cd.preferenceShareholderCaption   // verbatim Excel section title, e.g. "Compulsorily Convertible Preference Shares (CCPS) shareholding structure as on 31 March 2024"
+                    const shareholderYearPanels = cd.shareholderYearPanels   // "shareholder all"/"year wise" — [{year, shareholderTable, shareholderPieChart, preferenceShareholderTable, preferenceShareholderPieChart, preferenceShareholderCaption}], one entry per FY that has its own cap-table block on record
                     const rptRows         = cd.rptTable                 // [{party,relationship,nature,amount}]
                     const rptBalRows      = cd.rptBalancesTable
                     const ratiosRows      = cd.ratiosTable              // [{category,name,formula,value,significance}]
@@ -2112,7 +2113,7 @@ export default function AiSearchPage() {
                     // selectedYears (see filterYr above) — if any of them have data, the "no
                     // chart data for the selected year(s)" banner would be misleading noise
                     // sitting above a perfectly populated shareholder/RPT/ratios section below it.
-                    const hasNonYearSectionData = Boolean((!shareholderYearMismatch && (shareholderPie || shareholderRows?.length || prefRows?.length)) || rptRows?.length || ratiosRows?.length)
+                    const hasNonYearSectionData = Boolean((!shareholderYearMismatch && (shareholderPie || shareholderRows?.length || prefRows?.length)) || shareholderYearPanels?.length || rptRows?.length || ratiosRows?.length)
                     const hasSingleMetricData = Boolean(singleMetricConfig?.series?.length)
                     const noDataForFilter = selectedYears.length > 0 && !anySectionData && !hasRevByYear && !hasNonYearSectionData && !hasSingleMetricData
                     if (!anySectionData && !hasRevByYear && !hasNonYearSectionData && !hasSingleMetricData && selectedYears.length === 0) return null
@@ -2463,6 +2464,98 @@ export default function AiSearchPage() {
                         </div>
                         )
                       })()}
+
+                      {/* ── Cap Table: "shareholder all"/"shareholder year wise" — one panel
+                           per financial year the company's own Excel actually has its own
+                           equity/preference block for, straight from
+                           equityShareholdersByYear/preferenceShareholdersByYear, in the same
+                           shape as it exists in the source workbook (no years fabricated,
+                           none silently dropped). Deliberately a simpler table-only rendering
+                           (no category filter chips) — stacking the full chip-filtered layout
+                           once per year would be a lot of UI for what's meant to be a quick
+                           year-over-year scan. ── */}
+                      {!singleMetricMode && shareholderYearPanels?.length > 0 && (
+                        <div className="border-t border-gray-100 bg-gradient-to-br from-indigo-50/30 to-white px-4 py-5"
+                          style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                              <FaUsers className="text-indigo-500 text-xs" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">Shareholding Pattern — Year by Year</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">
+                                {shareholderYearPanels.length} financial year{shareholderYearPanels.length > 1 ? 's' : ''} with their own cap-table block on record
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            {shareholderYearPanels.map((panel) => {
+                              const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(/[,%]/g, '')); return Number.isFinite(n) ? n : 0 }
+                              const eqRows   = panel.shareholderTable || []
+                              const pfRows   = panel.preferenceShareholderTable || []
+                              const pfCaption = panel.preferenceShareholderCaption
+                              const totalEqShares = eqRows.reduce((sum, r) => sum + numOf(r.shares), 0)
+                              const totalEqPct    = eqRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
+                              const renderTable = (rows, accentText, totalShares, totalPct) => (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border-collapse text-xs">
+                                    <thead>
+                                      <tr className="bg-gray-900">
+                                        <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Shareholder</th>
+                                        <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Category</th>
+                                        <th className="text-right py-2 px-3 text-white/80 font-bold text-[11px]">Shares</th>
+                                        <th className="text-right py-2 px-3 text-[#ff7010] font-bold text-[11px]">%</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {rows.map((r, i) => (
+                                        <tr key={i} className={`border-b border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                          <td className="py-2 px-3 font-semibold text-gray-800 max-w-[160px] truncate">{r.name}</td>
+                                          <td className="py-2 px-3 text-gray-500">{r.category || '—'}</td>
+                                          <td className="py-2 px-3 text-right tabular-nums text-gray-700">{r.shares || '—'}</td>
+                                          <td className={`py-2 px-3 text-right tabular-nums font-black ${accentText}`}>{r.percentage || '—'}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                    <tfoot>
+                                      <tr className="border-t-2 border-gray-800">
+                                        <td colSpan={2} className="py-2 px-3 font-black text-gray-900">Total</td>
+                                        <td className="py-2 px-3 text-right tabular-nums font-black text-gray-900">{totalShares.toLocaleString('en-IN')}</td>
+                                        <td className="py-2 px-3 text-right tabular-nums font-black text-gray-900">{totalPct.toFixed(2)}%</td>
+                                      </tr>
+                                    </tfoot>
+                                  </table>
+                                </div>
+                              )
+                              return (
+                                <div key={panel.year} className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden">
+                                  <div className="h-1 bg-gradient-to-r from-indigo-600 to-purple-400" />
+                                  <div className="p-4">
+                                    <p className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-3">FY {panel.year}</p>
+                                    {eqRows.length > 0 && (
+                                      <div className="mb-1">
+                                        <p className="text-xs font-bold text-gray-800 mb-2">Equity Shareholders ({eqRows.length})</p>
+                                        {renderTable(eqRows, 'text-indigo-600', totalEqShares, totalEqPct)}
+                                      </div>
+                                    )}
+                                    {pfRows.length > 0 && (() => {
+                                      const totalPfShares = pfRows.reduce((sum, r) => sum + numOf(r.shares), 0)
+                                      const totalPfPct    = pfRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
+                                      return (
+                                        <div className={eqRows.length > 0 ? 'mt-4 pt-4 border-t border-gray-100' : ''}>
+                                          <p className="text-xs font-bold text-gray-800 mb-2">{pfCaption || `Preference Shareholders (${pfRows.length})`}</p>
+                                          {renderTable(pfRows, 'text-purple-600', totalPfShares, totalPfPct)}
+                                        </div>
+                                      )
+                                    })()}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       {/* helper: chart card wrapper */}
                       {(() => {
