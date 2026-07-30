@@ -11,8 +11,7 @@ const config = {
     import.meta.env.VITE_COLLECT_URL ||
     (isProd
       ? 'https://web.dealstreetjournal.com/dsj/collect'
-      : 'http://localhost:8081/dsj/collect'),
-  IP_API_URL: import.meta.env.VITE_IP_API_URL || 'https://ipapi.co/json/',
+      : 'http://localhost:8081/dsj/collect'),  IP_API_URL: import.meta.env.VITE_IP_API_URL || 'https://ipapi.co/json/',
   SITE_URL:
     import.meta.env.VITE_SITE_URL ||
     (isProd ? 'https://dealstreetjournal.com' : 'http://localhost:5173'),
