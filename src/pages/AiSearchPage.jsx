@@ -578,9 +578,13 @@ const dateLabel = (iso) => {
   return 'Earlier'
 }
 
+// Grouped/labeled by LAST ACTIVITY (updatedAt), not when the conversation first started
+// (createdAt) — continuing a 3-day-old conversation today moves it into "Today", same as
+// ChatGPT/Claude's own history list. Falls back to createdAt for older rows saved before
+// updatedAt existed.
 const groupHistory = (list) => {
   const g = { Today: [], Yesterday: [], 'This Week': [], Earlier: [] }
-  list.forEach(item => { const k = dateLabel(item.createdAt); if (g[k]) g[k].push(item) })
+  list.forEach(item => { const k = dateLabel(item.updatedAt || item.createdAt); if (g[k]) g[k].push(item) })
   return g
 }
 
@@ -3024,6 +3028,12 @@ export default function AiSearchPage() {
   const [historyLoading,    setHistoryLoading]    = useState(false)
   const [activeHistoryId,   setActiveHistoryId]   = useState(null)
 
+  // Groups every search in this browser thread under ONE history entry server-side
+  // (ChatGPT/Claude-style — ID stays the same across follow-ups, only resets on "New
+  // chat" or when a different past conversation is loaded from the sidebar) instead of
+  // each search saving as its own separate row.
+  const [conversationId, setConversationId] = useState(() => crypto.randomUUID())
+
   // The saved/dragged resultWidth (up to RESULT_WIDTH_MAX=1600) can end up wider
   // than what's actually visible on THIS screen once the sidebar eats into the
   // available space, or on a narrower window than whenever it was last dragged —
@@ -3253,7 +3263,7 @@ export default function AiSearchPage() {
     // the catch block, past any success:false check placed after the await.
     const trySearch = async (q) => {
       try {
-        const data = await aiFreeSearch(q)
+        const data = await aiFreeSearch(q, conversationId)
         return { ok: data.success !== false, data, message: data.message }
       } catch (e) {
         return { ok: false, data: null, message: e?.response?.data?.message || 'Search failed. Please try again.' }
@@ -3286,8 +3296,10 @@ export default function AiSearchPage() {
     setPendingQuery(null)
   }
 
-  // ── Load history result — starts a FRESH conversation with just this one
-  //    restored turn, replacing whatever's currently in the thread ──────────
+  // ── Load history result — restores the WHOLE saved conversation (every turn, in
+  //    order), replacing whatever's currently in the thread. Continuing to chat
+  //    afterward appends to this SAME conversation server-side (conversationId
+  //    carries over), same as reopening a past chat in ChatGPT/Claude. ──────────
 
   const loadHistoryResult = async (item) => {
     setTurns([])
@@ -3298,8 +3310,9 @@ export default function AiSearchPage() {
     setStep(0)
     try {
       const data = await getAiHistoryDetail(item.id)
-      if (data && data.success !== false) {
-        setTurns([{ ...classifyTurn(item.query, data), historyId: item.id }])
+      if (data && data.success !== false && Array.isArray(data.turns) && data.turns.length > 0) {
+        setTurns(data.turns.map(t => ({ ...classifyTurn(t.query, t.result), historyId: item.id })))
+        setConversationId(data.conversationId || item.conversationId || crypto.randomUUID())
       } else {
         setTurns([makeErrorTurn(item.query, 'Could not load this history item.')])
       }
@@ -3315,6 +3328,7 @@ export default function AiSearchPage() {
   const handleNewChat = () => {
     setTurns([])
     setActiveHistoryId(null)
+    setConversationId(crypto.randomUUID())
     setQuery('')
     inputRef.current?.focus()
   }
@@ -3326,7 +3340,7 @@ export default function AiSearchPage() {
     try {
       await deleteAiHistoryItem(id)
       setHistory(prev => prev.filter(h => h.id !== id))
-      if (activeHistoryId === id) { setTurns([]); setActiveHistoryId(null) }
+      if (activeHistoryId === id) { setTurns([]); setActiveHistoryId(null); setConversationId(crypto.randomUUID()) }
     } catch { /* ignore */ }
   }
 
@@ -3334,7 +3348,7 @@ export default function AiSearchPage() {
     if (!window.confirm('Delete all search history?')) return
     try {
       await clearAiHistory()
-      setHistory([]); setTurns([]); setActiveHistoryId(null)
+      setHistory([]); setTurns([]); setActiveHistoryId(null); setConversationId(crypto.randomUUID())
     } catch { /* ignore */ }
   }
 
@@ -3462,7 +3476,7 @@ export default function AiSearchPage() {
                     {item.companyName || item.detectedCompany || 'Company'}
                   </p>
                   <p className="text-[11px] text-gray-400 truncate mt-0.5 pr-5">{item.query}</p>
-                  <p className="text-[10px] text-gray-300 mt-0.5">{timeAgo(item.createdAt)}</p>
+                  <p className="text-[10px] text-gray-300 mt-0.5">{timeAgo(item.updatedAt || item.createdAt)}</p>
                   <button onClick={(e) => deleteItem(e, item.id)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1">
                     <FaTimes className="text-xs" />
