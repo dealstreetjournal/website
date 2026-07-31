@@ -12,7 +12,6 @@ import spinner from './assets/spinner.png'
 import ProtectedRoute from './components/ProtectedRoute'
 import { CartProvider } from './context/cart/CartProvider'
 import { AuthProvider } from './context/auth/AuthProvider'
-import useContentProtection from './components/useContentProtection'
 
 // Lazy load pages
 const Home = lazy(() => import('./pages/Home'))
@@ -44,6 +43,18 @@ const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
 
 const router = createBrowserRouter(
   createRoutesFromElements(
+    <>
+    {/* AI Search runs full-screen, outside <Layout/> — no site header/footer,
+        just the AI page itself with its own "Back to website" button (see
+        AiSearchPage.jsx) since the normal nav isn't there to get back with. */}
+    <Route
+      path="/company-ai"
+      element={
+        <Suspense fallback={<div className="flex items-center justify-center min-h-[80vh]"><img src={spinner} alt="Loading" className="w-12 h-12 animate-spin mb-2 mix-blend-multiply" /></div>}>
+          <AiSearchPage />
+        </Suspense>
+      }
+    />
     <Route element={<Layout />}>
       <Route
         index
@@ -443,15 +454,6 @@ const router = createBrowserRouter(
       />
 
       <Route
-        path="/company-ai"
-        element={
-          <Suspense fallback={<div className="flex items-center justify-center min-h-[80vh]"><img src={spinner} alt="Loading" className="w-12 h-12 animate-spin mb-2 mix-blend-multiply" /></div>}>
-            <AiSearchPage />
-          </Suspense>
-        }
-      />
-
-      <Route
         path="/dsj-insight"
         element={
           <Suspense
@@ -704,12 +706,11 @@ const router = createBrowserRouter(
         }
       />
     </Route>
+    </>
   )
 )
 
 function App() {
-  useContentProtection()
-
   return (
     <AuthProvider>
       <CartProvider>
