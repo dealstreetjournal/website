@@ -125,6 +125,17 @@ const isFinancialStatementSearch = (query, lastSearchedTypes) => {
 // own company + question before actually searching.
 const isBareYearAnswer = (q) => /^(fy\s*)?\d{4}(\s*-\s*\d{2,4})?$/i.test(q.trim()) || /^all(\s+years?)?$/i.test(q.trim())
 
+// A stitched-together query lands in front of TWO different backend year-detectors that
+// don't agree on syntax: plain statement/data lookups accept a bare trailing year fine, but
+// the custom-calculation engine (AiCalcEngine, for ratio/chain-style asks like "X divided by
+// Y") only recognizes a year preceded by "in"/"for"/"during" — a bare trailing year there is
+// silently ignored and every operand falls back to its most-recent-year value instead. Found
+// live: answering a "which year?" prompt with just "2021-22" after a ratio-style question
+// picked FY2024-25's numbers instead, with no visible year anywhere in the answer. Prepending
+// "in " before a REAL year (not "all"/"all years", which isn't a year at all) satisfies both
+// detectors at once and is a no-op for the plain-lookup path either way.
+const withYearPreposition = (q) => /^all(\s+years?)?$/i.test(q.trim()) ? q : `in ${q}`
+
 // A bare "carry on with what we were just looking at" word — "detail", "more",
 // "expand", ... — with no topic of its own. Typed alone, this doesn't fail as
 // "not found" (there's no company name needed for the backend to return SOME
@@ -136,12 +147,17 @@ const isBareYearAnswer = (q) => /^(fy\s*)?\d{4}(\s*-\s*\d{2,4})?$/i.test(q.trim(
 const isGenericContinuation = (q) =>
   /^(detail|details|more|more\s+detail|more\s+details|full\s+detail|full\s+details|show\s+(me\s+)?(the\s+)?detail|show\s+(me\s+)?more|tell\s+me\s+more|expand|elaborate)s?$/i.test(q.trim())
 
-// Strips an already-baked-in "FY 2023-24" (or bare "2023-24") from a carried-forward
-// topic string before stitching on a NEW bare-year (or "all") answer — otherwise
-// re-attaching a previous turn's own query verbatim would combine an old specific
-// year with the new one (or with "all"), asking for both at once instead of letting
-// the new answer actually replace it.
-const stripYearFromQuery = (q) => (q || '').replace(/\b(fy\s*)?\d{4}\s*-\s*\d{2,4}\b|\bfy\s*\d{4}\b/gi, '').replace(/\s+/g, ' ').trim()
+// Strips an already-baked-in "FY 2023-24"/"in 2023-24" (or bare "2023-24") from a
+// carried-forward topic string before stitching on a NEW bare-year (or "all") answer —
+// otherwise re-attaching a previous turn's own query verbatim would combine an old
+// specific year with the new one (or with "all"), asking for both at once instead of
+// letting the new answer actually replace it. Strips the "in"/"for"/"during" preposition
+// along with the year (see withYearPreposition) so a leftover bare "in"/"for" doesn't sit
+// dangling in front of whatever gets appended next.
+const stripYearFromQuery = (q) => (q || '')
+  .replace(/\b(?:in|for|during)\s+(?:fy\s*)?\d{4}\s*-\s*\d{2,4}\b|\b(?:in|for|during)\s+fy\s*\d{4}\b/gi, '')
+  .replace(/\b(fy\s*)?\d{4}\s*-\s*\d{2,4}\b|\bfy\s*\d{4}\b/gi, '')
+  .replace(/\s+/g, ' ').trim()
 
 // ── Company Overview data extraction ──────────────────────────────────────
 // Everything here is pulled from data that already exists elsewhere in the
@@ -3201,7 +3217,7 @@ export default function AiSearchPage() {
     const lastTurn = turns[turns.length - 1]
     let apiQ = typedQ
     if (lastTurn?.kind === 'yearPrompt' && isBareYearAnswer(typedQ)) {
-      apiQ = `${lastTurn.result.companyName || ''} ${lastTurn.result.query || ''} ${typedQ}`.trim()
+      apiQ = `${lastTurn.result.companyName || ''} ${lastTurn.result.query || ''} ${withYearPreposition(typedQ)}`.trim()
     } else if (isBareYearAnswer(typedQ) || isGenericContinuation(typedQ)) {
       // A bare "detail"/"more"/"expand" — or a bare year/"all" typed any time
       // later, not just right after a "which year?" prompt — has no topic of its
@@ -3221,7 +3237,8 @@ export default function AiSearchPage() {
         const baseQuery = isBareYearAnswer(typedQ)
           ? stripYearFromQuery(lastContext.result.query)
           : (lastContext.result.query || '')
-        apiQ = `${lastContext.result.companyName || ''} ${baseQuery} ${typedQ}`.trim()
+        const stitchedAnswer = isBareYearAnswer(typedQ) ? withYearPreposition(typedQ) : typedQ
+        apiQ = `${lastContext.result.companyName || ''} ${baseQuery} ${stitchedAnswer}`.trim()
       }
     }
 
