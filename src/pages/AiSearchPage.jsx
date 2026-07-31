@@ -6,6 +6,7 @@ import {
   FaHistory, FaBars, FaTrash, FaChartPie, FaUsers, FaHandshake,
   FaMoneyBillWave, FaChartLine, FaDownload, FaTable,
   FaExclamationTriangle, FaChevronRight, FaExpandAlt, FaCompressAlt,
+  FaPlus, FaUser,
 } from 'react-icons/fa'
 import {
   Chart as ChartJS,
@@ -525,15 +526,6 @@ const PDF_LABELS = {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const EXAMPLES = [
-  'financial statement',
-  'EBITDA margin analysis',
-  'cap table and shareholding',
-  'related party transactions',
-  'overhead costs and burn rate',
-  'ROE and investor ratios',
-]
-
 // Written the way an assistant would narrate its own thinking, not a database/ETL pipeline
 // ("scanning", "extracting records") — found live: that phrasing read as a mechanical data
 // pull rather than an AI actually reasoning about the question, on every single search.
@@ -570,531 +562,33 @@ const timeAgo = (iso) => {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
+// ── Conversation turns ──────────────────────────────────────────────────────
+// One "turn" = one user question + the AI's response to it. The page renders an
+// ordered array of these (see `turns` state in AiSearchPage) so older turns stay
+// fully visible and independently interactive after newer ones are appended,
+// ChatGPT/Claude-style, instead of the AI's answer replacing the previous one.
 
-// ── Main component ────────────────────────────────────────────────────────────
-
-export default function AiSearchPage() {
-  useEffect(() => { document.title = 'Company Intelligence | DealStreetJournal' }, [])
-
-  const { user } = useAuth()
-  const isAuth   = !!user
-
-  // Search state
-  const [query,       setQuery]       = useState('')
-  const [isSearching, setIsSearching] = useState(false)
-  const [result,      setResult]      = useState(null)
-  const [error,       setError]       = useState(null)
-  const [step,        setStep]        = useState(0)
-
-  // Result column width — wide by default so tables/charts use the available
-  // screen space instead of sitting in a narrow centered column; drag the
-  // handles on the search bar to resize by hand, remembered per-browser.
-  const RESULT_WIDTH_MIN = 640
-  const RESULT_WIDTH_MAX = 1600
-  const [resultWidth, setResultWidth] = useState(() => {
-    const saved = Number(localStorage.getItem('dsjAiResultWidth'))
-    return saved >= RESULT_WIDTH_MIN && saved <= RESULT_WIDTH_MAX ? saved : 1152
-  })
-  useEffect(() => { localStorage.setItem('dsjAiResultWidth', String(resultWidth)) }, [resultWidth])
-
-  const [isResizing, setIsResizing] = useState(false)
-  const resizeRef = useRef({ startX: 0, startWidth: 0, side: 'right' })
-
-  const startResize = (e, side) => {
-    e.preventDefault()
-    resizeRef.current = { startX: e.clientX, startWidth: resultWidth, side }
-    setIsResizing(true)
-  }
-
-  // Dragging either edge grows/shrinks the column symmetrically (it's centered
-  // via mx-auto), so the edge under the cursor tracks the mouse 1:1 — hence
-  // the 2x on the width delta.
-  useEffect(() => {
-    if (!isResizing) return
-    document.body.style.userSelect = 'none'
-    const onMove = (e) => {
-      const { startX, startWidth, side } = resizeRef.current
-      const delta = (e.clientX - startX) * (side === 'right' ? 2 : -2)
-      setResultWidth(Math.min(RESULT_WIDTH_MAX, Math.max(RESULT_WIDTH_MIN, startWidth + delta)))
-    }
-    const onUp = () => setIsResizing(false)
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      document.body.style.userSelect = ''
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-  }, [isResizing])
-
-  // Sidebar state
-  const [sidebarOpen,       setSidebarOpen]       = useState(true)
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [history,           setHistory]           = useState([])
-  const [historyLoading,    setHistoryLoading]    = useState(false)
-  const [activeHistoryId,   setActiveHistoryId]   = useState(null)
-
-  // Report selector state (bottom section — changes.png)
-  const [selectedYears,      setSelectedYears]      = useState([])
-  const [selectedTypes,      setSelectedTypes]      = useState(['financialStatements'])
-  const [lastSearchedTypes,  setLastSearchedTypes]  = useState([])
-  const [lastSearchedYears,  setLastSearchedYears]  = useState([])
-
-  // Shareholding Pattern category filter (Founder/Angel Investor/VC/...) — clicked in the
-  // result itself, filters the already-loaded shareholder table/pie client-side instead of
-  // requiring a brand new search query. Separate state for Equity vs Preference shareholders
-  // since the two tables can have different categories (e.g. "CCPS Holder" only on preference).
-  const [shCategoryFilter,   setShCategoryFilter]   = useState(null)
-  const [prefCategoryFilter, setPrefCategoryFilter] = useState(null)
-
-  // Full financial statement accordion state — { "bs-2": false, ... } keyed by
-  // `${statementKey}-${groupIndex}`. Expanded by default (whole statement visible
-  // with no clicking needed) — a key is only present once a heading is explicitly
-  // collapsed.
-  const [openStatementGroups, setOpenStatementGroups] = useState({})
-  const toggleStatementGroup = (key) =>
-    setOpenStatementGroups(prev => ({ ...prev, [key]: prev[key] === false ? true : false }))
-
-  // Autocomplete state
-  const [suggestions,     setSuggestions]     = useState([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [activeSugIdx,    setActiveSugIdx]    = useState(-1)
-  const suggestTimer = useRef(null)
-  const suggestRef   = useRef(null)
-
-  const resultRef = useRef(null)
-  const inputRef  = useRef(null)
-  const mainRef   = useRef(null)
-
-  // ── Load history ────────────────────────────────────────────────────────────
-
-  const loadHistory = useCallback(async () => {
-    if (!isAuth) return
-    setHistoryLoading(true)
-    try {
-      const data = await getAiHistory()
-      setHistory(Array.isArray(data) ? data : [])
-    } catch { /* silently ignore */ }
-    finally { setHistoryLoading(false) }
-  }, [isAuth])
-
-  useEffect(() => { loadHistory() }, [loadHistory])
-
-  // ── Autocomplete ─────────────────────────────────────────────────────────────
-
-  const fetchSuggestions = (val) => {
-    clearTimeout(suggestTimer.current)
-    if (val.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return }
-    suggestTimer.current = setTimeout(async () => {
-      try {
-        const data = await getAiSuggestions(val.trim())
-        setSuggestions(Array.isArray(data) ? data : [])
-        setShowSuggestions(true)
-        setActiveSugIdx(-1)
-      } catch { /* ignore */ }
-    }, 250)
-  }
-
-  // Close suggestions when clicking outside
-  useEffect(() => {
-    const handler = (e) => {
-      if (suggestRef.current && !suggestRef.current.contains(e.target)) {
-        setShowSuggestions(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const pickSuggestion = (name) => {
-    setQuery(name)
-    setSuggestions([])
-    setShowSuggestions(false)
-    setActiveSugIdx(-1)
-    inputRef.current?.focus()
-  }
-
-  const handleInputChange = (e) => {
-    const val = e.target.value
-    setQuery(val)
-    fetchSuggestions(val)
-  }
-
-  const handleInputKeyDown = (e) => {
-    if (!showSuggestions || suggestions.length === 0) {
-      if (e.key === 'Enter') doSearch()
-      return
-    }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActiveSugIdx(i => Math.min(i + 1, suggestions.length - 1))
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActiveSugIdx(i => Math.max(i - 1, -1))
-    } else if (e.key === 'Enter') {
-      e.preventDefault()
-      if (activeSugIdx >= 0) {
-        pickSuggestion(suggestions[activeSugIdx])
-      } else {
-        setShowSuggestions(false)
-        doSearch()
-      }
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false)
-    }
-  }
-
-  // ── Thinking animation ──────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!isSearching) return
-    const id = setInterval(() => setStep(s => (s + 1) % THINKING_STEPS.length), 1600)
-    return () => clearInterval(id)
-  }, [isSearching])
-
-  // ── Search ──────────────────────────────────────────────────────────────────
-
-  const doSearch = async (q, keepSearchedTypes = false) => {
-    const searchQ = (q || query).trim()
-    if (!searchQ) return
-    setShowSuggestions(false)
-    setSuggestions([])
-    setIsSearching(true)
-    setResult(null)
-    setError(null)
-    setActiveHistoryId(null)
-    setStep(0)
-    if (!keepSearchedTypes) { setLastSearchedTypes([]); setLastSearchedYears([]) }
-    // scroll main area to top so thinking animation is visible
-    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-    try {
-      const data = await aiFreeSearch(searchQ)
-      if (!data.success) { setError(data.message || 'No results found.'); return }
-      setResult(data)
-      if (isAuth) loadHistory()
-    } catch (e) {
-      setError(e?.response?.data?.message || 'Search failed. Please try again.')
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  // ── Load history result ─────────────────────────────────────────────────────
-
-  const loadHistoryResult = async (item) => {
-    setResult(null); setError(null)
-    setActiveHistoryId(item.id)
-    setQuery(item.query)
-    setMobileSidebarOpen(false)
-    setIsSearching(true); setStep(0)
-    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-    try {
-      const data = await getAiHistoryDetail(item.id)
-      if (data && data.success !== false) setResult(data)
-      else setError('Could not load this history item.')
-    } catch { setError('Failed to load history.') }
-    finally { setIsSearching(false) }
-  }
-
-  // ── Delete / clear history ──────────────────────────────────────────────────
-
-  const deleteItem = async (e, id) => {
-    e.stopPropagation()
-    try {
-      await deleteAiHistoryItem(id)
-      setHistory(prev => prev.filter(h => h.id !== id))
-      if (activeHistoryId === id) { setResult(null); setActiveHistoryId(null) }
-    } catch { /* ignore */ }
-  }
-
-  const handleClearAll = async () => {
-    if (!window.confirm('Delete all search history?')) return
-    try {
-      await clearAiHistory()
-      setHistory([]); setResult(null); setActiveHistoryId(null)
-    } catch { /* ignore */ }
-  }
-
-  // ── Initialise selectors when result arrives ──────────────────────────────
-
-  useEffect(() => {
-    if (!result) return
-    if (lastSearchedYears.length > 0) {
-      // Analyze was clicked with specific years — restore exactly those selections
-      setSelectedYears([...lastSearchedYears])
-    } else if (result.yearIndex != null && result.yearIndex >= 0) {
-      // Plain search that mentioned a year — highlight that year
-      setSelectedYears([result.yearIndex])
-    } else {
-      setSelectedYears([])
-    }
-    if (lastSearchedTypes.length === 0) {
-      setSelectedTypes([result.pdfType || 'financialStatements'])
-    }
-    setOpenStatementGroups({})
-    setShCategoryFilter(null)
-    setPrefCategoryFilter(null)
-  }, [result?.companyId, result?.query])
-
-  // When the backend asks which year(s) are wanted, pre-fill the search box with the
-  // company + original question and focus it, cursor at the end — the user just types the
-  // year (or "all") themselves and hits Enter, rather than picking from buttons.
-  useEffect(() => {
-    if (!result?.needsYearSelection) return
-    const prefill = `${result.companyName || ''} ${result.query || ''}`.trim() + ' '
-    setQuery(prefill)
-    // Cursor placement has to wait for the NEXT tick, after the input's DOM value has
-    // actually updated to `prefill` — focusing in the same tick puts the cursor at
-    // position 0 (the start), so every character the user types lands in FRONT of the
-    // pre-filled text instead of after it, making the box look like it's "typing itself"
-    // as the old text keeps getting pushed further right.
-    requestAnimationFrame(() => {
-      const el = inputRef.current
-      if (!el) return
-      el.focus()
-      el.setSelectionRange(prefill.length, prefill.length)
-    })
-  }, [result])
-
-  // ── Multi-download (years × types → PDF or ZIP) ───────────────────────────
-
-  const handleMultiDownload = () => {
-    if (!result?.companyId || !selectedTypes.length) return
-    const types = selectedTypes.join(',')
-    const yearParam = selectedYears.length > 0 ? `&yearIndices=${selectedYears.join(',')}` : ''
-    window.open(`${config.DSJ_API_URL}/api/smart-excel/${result.companyId}/download-pdf?type=${types}${yearParam}`, '_blank')
-  }
-
-  // ── PDF download (legacy single button) ──────────────────────────────────
-
-  const handleDownloadPdf = () => {
-    if (!result?.companyId) return
-    const type = result.pdfType || 'financialStatements'
-    const yearParam = result.yearIndex != null ? `&yearIndex=${result.yearIndex}` : ''
-    window.open(`${config.DSJ_API_URL}/api/smart-excel/${result.companyId}/download-pdf?type=${type}${yearParam}`, '_blank')
-  }
-
-  const grouped = groupHistory(history)
-
-  // ── History list (shared between desktop sidebar and mobile drawer) ──────────
-
-  const HistoryList = ({ onClose }) => (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <FaHistory className="text-[#ff7010] text-xs" />
-          <span className="font-bold text-gray-800 text-sm">Search History</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {history.length > 0 && (
-            <button onClick={handleClearAll} title="Clear all"
-              className="text-gray-400 hover:text-red-400 transition-colors">
-              <FaTrash className="text-xs" />
-            </button>
-          )}
-          {onClose && (
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-1">
-              <FaTimes />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* list */}
-      <div className="flex-1 overflow-y-auto">
-        {historyLoading && (
-          <p className="text-center text-xs text-gray-400 py-6">Loading...</p>
-        )}
-        {!historyLoading && history.length === 0 && (
-          <div className="px-4 py-8 text-center">
-            <FaHistory className="text-gray-200 text-3xl mx-auto mb-3" />
-            <p className="text-xs text-gray-400">No searches yet.<br />Your history will appear here.</p>
-          </div>
-        )}
-        {!historyLoading && Object.entries(grouped).map(([group, items]) =>
-          items.length > 0 ? (
-            <div key={group}>
-              <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{group}</p>
-              {items.map(item => (
-                <button key={item.id} onClick={() => loadHistoryResult(item)}
-                  className={`w-full text-left px-4 py-2.5 group relative transition-colors ${
-                    activeHistoryId === item.id
-                      ? 'bg-orange-50 border-r-2 border-[#ff7010]'
-                      : 'hover:bg-gray-50'
-                  }`}>
-                  <p className={`text-xs font-semibold truncate ${activeHistoryId === item.id ? 'text-[#ff7010]' : 'text-gray-800'}`}>
-                    {item.companyName || item.detectedCompany || 'Company'}
-                  </p>
-                  <p className="text-[11px] text-gray-400 truncate mt-0.5 pr-5">{item.query}</p>
-                  <p className="text-[10px] text-gray-300 mt-0.5">{timeAgo(item.createdAt)}</p>
-                  <button onClick={(e) => deleteItem(e, item.id)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1">
-                    <FaTimes className="text-xs" />
-                  </button>
-                </button>
-              ))}
-            </div>
-          ) : null
-        )}
-      </div>
-
-      {/* login prompt */}
-      {!isAuth && (
-        <div className="px-4 py-3 border-t border-gray-100 text-center flex-shrink-0">
-          <p className="text-xs text-gray-400 mb-1">Login to save search history</p>
-          <Link to="/login" className="text-xs text-[#ff7010] font-bold hover:underline">Login →</Link>
-        </div>
-      )}
+const UserBubble = ({ text }) => (
+  <div className="flex justify-end">
+    <div className="max-w-[85%] bg-gray-100 text-gray-900 text-sm rounded-2xl rounded-tr-md px-4 py-2.5">
+      {text}
     </div>
-  )
+  </div>
+)
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+// Stagger the answer's own major sections (header, key metrics, overview,
+// statements, highlights, ...) so the whole turn reads as being assembled
+// progressively — ChatGPT/Claude-style "filling in" — instead of popping in
+// as one flat block. Reuses the same `aiRevealIn` keyframe (index.css) the
+// rest of this page already uses for finer per-item staggering, just at a
+// coarser per-section delay.
+const Reveal = ({ index = 0, children }) => (
+  <div style={{ animation: 'aiRevealIn 0.5s ease-out both', animationDelay: `${index * 0.15}s` }}>
+    {children}
+  </div>
+)
 
-  return (
-    <div className="flex bg-[#F8F9FA]" style={{ minHeight: 'calc(100vh - 72px)' }}>
-
-      {/* ── Desktop sidebar ── */}
-      {sidebarOpen && (
-        <aside className="hidden lg:flex flex-col flex-shrink-0 bg-white border-r border-gray-100"
-          style={{ width: 256, position: 'sticky', top: 92, height: 'calc(100vh - 92px)', alignSelf: 'flex-start' }}>
-          <HistoryList onClose={null} />
-        </aside>
-      )}
-
-      {/* ── Mobile sidebar overlay ── */}
-      {mobileSidebarOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="w-72 bg-white h-full flex flex-col shadow-2xl">
-            <HistoryList onClose={() => setMobileSidebarOpen(false)} />
-          </div>
-          <div className="flex-1 bg-black/40" onClick={() => setMobileSidebarOpen(false)} />
-        </div>
-      )}
-
-      {/* ── Main column ── */}
-      <div className="relative flex-1 flex flex-col min-w-0">
-
-        {/* drag handles — full page height so they can be grabbed at any scroll
-            position, not just up near the search bar; positioned off the edges
-            of the resizable column, which is centered within this column. */}
-        <div onMouseDown={(e) => startResize(e, 'left')} title="Drag to resize"
-          className="hidden lg:block absolute top-0 bottom-0 w-3 cursor-col-resize z-30"
-          style={{ left: `calc(50% - ${resultWidth / 2 + 6}px)` }} />
-        <div onMouseDown={(e) => startResize(e, 'right')} title="Drag to resize"
-          className="hidden lg:block absolute top-0 bottom-0 w-3 cursor-col-resize z-30"
-          style={{ left: `calc(50% + ${resultWidth / 2 - 6}px)` }} />
-
-        {/* Dark search bar — sticky below navbar */}
-        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-4 py-5 flex-shrink-0"
-          style={{ position: 'sticky', top: 72, zIndex: 20 }}>
-          <div className={`relative mx-auto ${isResizing ? '' : 'transition-[max-width] duration-200'}`}
-            style={{ maxWidth: resultWidth }}>
-
-            {/* Top bar */}
-            <div className="flex items-center gap-3 mb-4">
-              {/* desktop: toggle sidebar */}
-              <button onClick={() => setSidebarOpen(p => !p)}
-                className="hidden lg:block text-gray-400 hover:text-white transition-colors" title="Toggle history">
-                <FaBars />
-              </button>
-              {/* mobile: open drawer */}
-              <button onClick={() => setMobileSidebarOpen(true)}
-                className="lg:hidden text-gray-400 hover:text-white transition-colors" title="Search History">
-                <FaHistory />
-              </button>
-
-              <div className="bg-orange-500/20 border border-orange-500/30 text-[#ff7010] text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5">
-                <FaRobot className="text-[10px]" /> DSJ AI
-              </div>
-
-              {/* quick-snap the result column; drag the side handles for fine control */}
-              <button onClick={() => setResultWidth(resultWidth > 900 ? 672 : 1152)}
-                className="hidden sm:block text-gray-400 hover:text-white transition-colors ml-auto"
-                title={resultWidth > 900 ? 'Switch to compact view' : 'Switch to wide view'}>
-                {resultWidth > 900 ? <FaCompressAlt /> : <FaExpandAlt />}
-              </button>
-
-              <div className="text-xs text-gray-500 hidden sm:flex gap-1">
-                <Link to="/dsj-insight" className="hover:text-gray-300">DSJ</Link>
-                <span>/</span>
-                <span className="text-[#ff7010]">DSJ AI</span>
-              </div>
-            </div>
-
-            {/* Search input with autocomplete */}
-            <div className="relative" ref={suggestRef}>
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none" style={{zIndex:2}} />
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={handleInputChange}
-                onKeyDown={handleInputKeyDown}
-                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                placeholder="Type company name or ask a question..."
-                className="w-full pl-11 pr-28 py-3.5 rounded-xl bg-white border-0 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff7010] shadow-lg"
-                autoFocus
-                autoComplete="off"
-              />
-              {query && (
-                <button onClick={() => { setQuery(''); setSuggestions([]); setShowSuggestions(false); inputRef.current?.focus() }}
-                  className="absolute right-24 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" style={{zIndex:2}}>
-                  <FaTimes className="text-sm" />
-                </button>
-              )}
-              <button onClick={() => doSearch()} disabled={isSearching || !query.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff7010] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#e06000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed" style={{zIndex:2}}>
-                {isSearching ? '...' : 'Search'}
-              </button>
-
-              {/* Dropdown suggestions */}
-              {showSuggestions && suggestions.length > 0 && (
-                <ul className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden" style={{zIndex:50}}>
-                  {suggestions.map((name, i) => (
-                    <li key={name}
-                      onMouseDown={e => { e.preventDefault(); pickSuggestion(name) }}
-                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${
-                        i === activeSugIdx ? 'bg-orange-50 text-[#ff7010]' : 'text-gray-800 hover:bg-gray-50'
-                      }`}>
-                      <FaBuilding className={`flex-shrink-0 text-xs ${i === activeSugIdx ? 'text-[#ff7010]' : 'text-gray-300'}`} />
-                      <span className="truncate">{name}</span>
-                    </li>
-                  ))}
-                  <li className="px-4 py-2 text-[11px] text-gray-400 border-t border-gray-50 bg-gray-50">
-                    Press Enter to search · ↑↓ to navigate
-                  </li>
-                </ul>
-              )}
-            </div>
-
-            {/* Example chips — append to a company name already typed and search
-                right away; with nothing typed yet, just fill the box and focus it
-                (searching the topic alone with no company always fails). */}
-            {!result && !isSearching && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {EXAMPLES.map(ex => (
-                  <button key={ex} onClick={() => {
-                    const base = query.trim()
-                    if (base) { const q = `${base} ${ex}`; setQuery(q); doSearch(q) }
-                    else { setQuery(ex + ' '); inputRef.current?.focus() }
-                  }}
-                    className="text-[11px] text-gray-400 border border-gray-600 hover:border-[#ff7010] hover:text-[#ff7010] px-2.5 py-1 rounded-full transition-colors">
-                    {ex}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Results area — scrolls naturally */}
-        <div className="flex-1 px-4 py-6">
-          <div className={`mx-auto space-y-5 ${isResizing ? '' : 'transition-[max-width] duration-200'}`}
-            style={{ maxWidth: resultWidth }}>
-
-            {/* Thinking animation */}
-            {isSearching && (
+const ThinkingBubble = ({ step }) => (
               <div className="bg-white rounded-2xl shadow-sm p-10 text-center">
                 <div className="flex justify-center gap-1.5 mb-5">
                   {[0,1,2,3,4].map(i => (
@@ -1103,31 +597,22 @@ export default function AiSearchPage() {
                   ))}
                 </div>
                 <p className="text-sm font-semibold text-gray-700 mb-1">{THINKING_STEPS[step]}</p>
-                {query && <p className="text-xs text-gray-400 italic">"{query}"</p>}
                 <style>{`@keyframes aiPulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1.3);opacity:1}}`}</style>
               </div>
-            )}
+)
 
-            {/* Error */}
-            {error && !isSearching && (
+const ErrorTurn = ({ message }) => (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-sm text-red-600 flex items-start gap-3">
                 <FaBuilding className="text-red-300 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-semibold mb-0.5">Not found</p>
-                  <p>{error}</p>
+                  <p>{message}</p>
                 </div>
               </div>
-            )}
+)
 
-            {/* ── Year-selection prompt — the backend defers answering topics that have a
-                 year dimension (Revenue/P&L/Balance Sheet/Cash Flow/EBITDA/Margins/Ratios/...)
-                 until the user says which year(s), rather than silently dumping every year.
-                 No buttons — just the AI asking a question, same as any other AI turn on this
-                 page. The search box is pre-filled (see the useEffect on needsYearSelection
-                 above) with the company + original question, so the user only has to type the
-                 year (or "all") themselves and hit Enter to continue. ── */}
-            {result && !isSearching && result.needsYearSelection && (
-              <div ref={resultRef} className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+const YearPromptTurn = ({ result }) => (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
                     <FaRobot className="text-[#ff7010] text-xs" />
@@ -1142,27 +627,22 @@ export default function AiSearchPage() {
                   </div>
                 </div>
               </div>
-            )}
+)
 
-            {/* ── Multi-company comparison result ── */}
-            {/* ── Top/Bottom N Companies ranking ── e.g. "top 5 companies by turnover".
-                No specific company was named — the backend scanned every company locally
-                (AiRankingEngine, no external API) and ranked them by the matched metric. */}
-            {result && !isSearching && !result.needsYearSelection && result.rankingMode && (
-              <div ref={resultRef}>
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 overflow-hidden mb-5">
-                  <div className="relative bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 px-6 pt-6 pb-7 overflow-hidden">
-                    <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#ff7010]/8 pointer-events-none blur-2xl" />
-                    <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-indigo-500/10 pointer-events-none blur-2xl" />
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ff7010]/40 to-transparent" />
-                    <span className="inline-flex items-center gap-1.5 bg-[#ff7010]/15 border border-[#ff7010]/30 text-[#ff7010] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full relative z-10">
+const RankingTurn = ({ result, onFollowUp }) => (
+              <div>
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
+                  {/* ── Plain text header — no dark card, matches ChatGPT's own minimal
+                       style; the ranking table below is the actual content. ── */}
+                  <div className="px-6 pt-5 pb-4">
+                    <span className="inline-flex items-center gap-1.5 text-[#ff7010] text-[10px] font-black uppercase tracking-widest">
                       <FaChartBar className="text-[10px]" />
                       {result.direction === 'bottom' ? 'Bottom' : 'Top'} {result.count} by {result.metric}
                     </span>
-                    <h1 className="text-white font-black text-xl md:text-2xl mt-3 relative z-10 capitalize">
+                    <h1 className="text-gray-900 font-bold text-lg mt-1.5 capitalize">
                       {result.query}
                     </h1>
-                    <p className="text-white/55 text-xs mt-1.5 relative z-10">
+                    <p className="text-gray-400 text-xs mt-1">
                       Ranked locally across {result.totalMatched} compan{result.totalMatched === 1 ? 'y' : 'ies'} with data for {result.metric}
                     </p>
                   </div>
@@ -1185,7 +665,7 @@ export default function AiSearchPage() {
                         <tbody>
                           {result.companies.map((c) => (
                             <tr key={c.companyId} className={`border-b border-gray-100 ${c.rank % 2 === 0 ? 'bg-gray-50/50' : ''} hover:bg-orange-50/40 cursor-pointer`}
-                              onClick={() => doSearch(`${c.companyName} financial overview`)}>
+                              onClick={() => onFollowUp(`${c.companyName} financial overview`)}>
                               <td className="py-3 px-4 text-xs font-black text-[#ff7010]">{c.rank}</td>
                               <td className="py-3 px-4 text-xs font-bold text-gray-900">{c.companyName}</td>
                               <td className="py-3 px-4 text-xs text-gray-500">{c.industry || '—'}</td>
@@ -1203,22 +683,21 @@ export default function AiSearchPage() {
                   )}
                 </div>
               </div>
-            )}
+)
 
-            {result && !isSearching && !result.needsYearSelection && !result.rankingMode && result.comparisonMode && (
-              <div ref={resultRef}>
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 overflow-hidden mb-5">
-                  <div className="relative bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 px-6 pt-6 pb-7 overflow-hidden">
-                    <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#ff7010]/8 pointer-events-none blur-2xl" />
-                    <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-indigo-500/10 pointer-events-none blur-2xl" />
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ff7010]/40 to-transparent" />
-                    <span className="inline-flex items-center gap-1.5 bg-[#ff7010]/15 border border-[#ff7010]/30 text-[#ff7010] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full relative z-10">
+const ComparisonTurn = ({ result }) => (
+              <div>
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
+                  {/* ── Plain text header — no dark card, matches ChatGPT's own minimal
+                       style; the comparison table below is the actual content. ── */}
+                  <div className="px-6 pt-5 pb-4">
+                    <span className="inline-flex items-center gap-1.5 text-[#ff7010] text-[10px] font-black uppercase tracking-widest">
                       <FaChartBar className="text-[10px]" /> Comparing {result.companies.length} Companies
                     </span>
-                    <h1 className="text-white font-black text-xl md:text-2xl mt-3 relative z-10">
+                    <h1 className="text-gray-900 font-bold text-lg mt-1.5">
                       {(result.query || 'Comparison').charAt(0).toUpperCase() + (result.query || 'comparison').slice(1)}
                     </h1>
-                    <p className="text-white/55 text-xs mt-1.5 relative z-10">
+                    <p className="text-gray-400 text-xs mt-1">
                       {result.companies.map(c => c.companyName || c.detectedCompany).filter(Boolean).join('  •  ')}
                     </p>
                   </div>
@@ -1441,10 +920,61 @@ export default function AiSearchPage() {
                   ))}
                 </div>
               </div>
-            )}
+)
 
-            {/* Result */}
-            {result && !isSearching && !result.comparisonMode && !result.needsYearSelection && !result.rankingMode && (() => {
+const AssistantAnswerTurn = ({ result, onFollowUp }) => {
+  // Report selector state — LOCAL to this turn (was page-level before the
+  // conversation-thread redesign) so an older turn's year/type selectors keep working
+  // independently after newer turns are appended.
+  const [selectedYears,      setSelectedYears]      = useState([])
+  const [selectedTypes,      setSelectedTypes]      = useState(['financialStatements'])
+  // Never set to anything else (confirmed dead — no caller in this codebase ever populates
+  // these), kept as plain constants rather than state so nothing tries to mutate them.
+  const lastSearchedTypes = []
+  const lastSearchedYears = []
+
+  // Shareholding Pattern category filter (Founder/Angel Investor/VC/...) — clicked in the
+  // result itself, filters the already-loaded shareholder table/pie client-side instead of
+  // requiring a brand new search query. Separate state for Equity vs Preference shareholders
+  // since the two tables can have different categories (e.g. "CCPS Holder" only on preference).
+  const [shCategoryFilter,   setShCategoryFilter]   = useState(null)
+  const [prefCategoryFilter, setPrefCategoryFilter] = useState(null)
+
+  // Full financial statement accordion state — { "bs-2": false, ... } keyed by
+  // `${statementKey}-${groupIndex}`. Expanded by default (whole statement visible
+  // with no clicking needed) — a key is only present once a heading is explicitly
+  // collapsed.
+  const [openStatementGroups, setOpenStatementGroups] = useState({})
+  const toggleStatementGroup = (key) =>
+    setOpenStatementGroups(prev => ({ ...prev, [key]: prev[key] === false ? true : false }))
+
+  useEffect(() => {
+    if (!result) return
+    if (lastSearchedYears.length > 0) {
+      // Analyze was clicked with specific years — restore exactly those selections
+      setSelectedYears([...lastSearchedYears])
+    } else if (result.yearIndex != null && result.yearIndex >= 0) {
+      // Plain search that mentioned a year — highlight that year
+      setSelectedYears([result.yearIndex])
+    } else {
+      setSelectedYears([])
+    }
+    if (lastSearchedTypes.length === 0) {
+      setSelectedTypes([result.pdfType || 'financialStatements'])
+    }
+    setOpenStatementGroups({})
+    setShCategoryFilter(null)
+    setPrefCategoryFilter(null)
+  }, [result?.companyId, result?.query])
+
+  // ── Multi-download (years × types → PDF or ZIP) ───────────────────────────
+  const handleMultiDownload = () => {
+    if (!result?.companyId || !selectedTypes.length) return
+    const types = selectedTypes.join(',')
+    const yearParam = selectedYears.length > 0 ? `&yearIndices=${selectedYears.join(',')}` : ''
+    window.open(`${config.DSJ_API_URL}/api/smart-excel/${result.companyId}/download-pdf?type=${types}${yearParam}`, '_blank')
+  }
+
               // A "financial statement" search shows ONLY financial-statement content
               // (Annual Performance blurb, Financials at a Glance, the Balance
               // Sheet/P&L/Cash Flow statements) — Company Overview, key metrics,
@@ -1456,13 +986,14 @@ export default function AiSearchPage() {
               const singleMetricMode   = detectSingleMetricMode(result.query, result)
               const singleMetricConfig = singleMetricMode ? getSingleMetricConfig(singleMetricMode, result) : null
               return (
-              <div ref={resultRef}>
+              <div>
 
                 {/* ── AI Calculated Answer — free-form calculation the rule-based engine
                     above couldn't answer directly (a custom ratio, cross-statement math,
                     etc.), computed locally by AiCalcEngine from this company's own parsed
                     financial data — no external API call. Only present when the backend
                     actually ran that fallback. */}
+                <Reveal index={0}>
                 {result.aiCalculation && (
                   <div className="bg-white rounded-2xl shadow-lg border border-indigo-100 overflow-hidden mb-5">
                     <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3 flex items-center justify-between gap-2">
@@ -1546,52 +1077,34 @@ export default function AiSearchPage() {
                     </div>
                   </div>
                 )}
+                </Reveal>
 
                 {/* ── TOP: Premium Financial Intelligence Report ── */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 overflow-hidden mb-5">
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
 
-                  {/* ── Hero header — dark gradient ── */}
-                  <div className="relative bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 px-6 pt-6 pb-7 overflow-hidden">
-                    {/* decorative blobs */}
-                    <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-[#ff7010]/8 pointer-events-none blur-2xl" />
-                    <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-indigo-500/10 pointer-events-none blur-2xl" />
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#ff7010]/40 to-transparent" />
-
-                    {/* top row — tags */}
-                    <div className="flex items-center justify-between gap-3 mb-4 relative z-10">
-                      <div className="flex flex-wrap gap-1.5">
-                        {result.industry && (
-                          <span className="bg-white/10 backdrop-blur-sm text-white/80 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-white/10">
-                            {result.industry}
-                          </span>
-                        )}
-                        {result.cin && (
-                          <span className="bg-white/6 text-white/40 text-[10px] px-2.5 py-1 rounded-full border border-white/8">
-                            {result.cin}
-                          </span>
-                        )}
-                      </div>
-                      <span className="flex-shrink-0 bg-[#ff7010]/15 border border-[#ff7010]/35 text-[#ff7010] text-[10px] font-bold px-3 py-1 rounded-full tracking-wide">
-                        {result.selectedYear ? `FY ${result.selectedYear}` : 'Multi-Year'} Update
+                  {/* ── Plain text header — no dark card, no decorative blur blobs;
+                       just company name + a one-line summary, ChatGPT-style, since the
+                       user's own question above already gives the full context. ── */}
+                  <Reveal index={1}>
+                  <div className="px-6 pt-5 pb-4">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                      {result.industry && (
+                        <span className="text-gray-400 text-[10px] font-semibold">{result.industry}</span>
+                      )}
+                      {result.industry && result.cin && <span className="text-gray-300 text-[10px]">·</span>}
+                      {result.cin && (
+                        <span className="text-gray-300 text-[10px]">{result.cin}</span>
+                      )}
+                      <span className="text-[#ff7010] text-[10px] font-bold ml-auto">
+                        {result.selectedYear ? `FY ${result.selectedYear}` : 'Multi-Year'}
                       </span>
                     </div>
-
-                    {/* company + headline */}
-                    <h1 className="text-white font-black text-2xl leading-tight mb-2 relative z-10 tracking-tight">
+                    <h1 className="text-gray-900 font-bold text-xl leading-tight">
                       {result.companyName}
                     </h1>
-                    <p className="text-white/55 text-[13px] leading-relaxed relative z-10 max-w-xl">
+                    <p className="text-gray-400 text-[13px] leading-relaxed mt-1 max-w-xl">
                       {result.summary?.split('.')[0] || `${result.companyName} Financial Performance`}.
                     </p>
-
-                    {/* bottom tag row */}
-                    <div className="flex flex-wrap items-center gap-2 mt-4 relative z-10">
-                      {['Revenue','EBITDA','Margins','YoY Growth','Distribution'].map(tag => (
-                        <span key={tag} className="text-[10px] text-white/30 font-medium border border-white/10 px-2 py-0.5 rounded-md">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
                   </div>
 
                   {/* ── Active report type badges ── */}
@@ -1651,6 +1164,7 @@ export default function AiSearchPage() {
                       </div>
                     </div>
                   )}
+                  </Reveal>
 
                   {/* ── Key metrics strip — drop raw Excel formula labels like "Profit After
                        Tax (PAT) [(C ) - (D)]", which read as technical noise rather than a
@@ -1658,6 +1172,7 @@ export default function AiSearchPage() {
                        Skipped for "general" (plain company-name-only search) — Revenue/PAT
                        already show as normal cards inside Company Overview below, so this
                        top strip would just be the same numbers shown a second time, first. ── */}
+                  <Reveal index={2}>
                   {!isFinancialStatementQuery && result.intent !== 'general' && (() => {
                     let cleanKeyMetrics = result.keyMetrics || []
                     // Drop the PBT/PAT bottom-line metrics specifically when they're just
@@ -1701,6 +1216,7 @@ export default function AiSearchPage() {
                     </div>
                     )
                   })()}
+                  </Reveal>
 
                   {/* ── Company Overview — shown for a general search, pulls together data
                        that already exists elsewhere on the page (balance sheet, ratios,
@@ -1715,6 +1231,7 @@ export default function AiSearchPage() {
                        backend's own classification) rather than re-testing the query text,
                        since that's already authoritative and query-text regexes here have
                        caused this exact class of bug before (see SINGLE_METRIC_MATCHERS). ── */}
+                  <Reveal index={3}>
                   {!isFinancialStatementQuery && !singleMetricMode && result.intent !== 'ebitda' && (() => {
                     const meta = result.companyMeta || {}
                     const cd   = result.chartData || {}
@@ -2124,7 +1641,7 @@ export default function AiSearchPage() {
                            the earliest one with financial data aren't offered here — this
                            company's incorporation date isn't on record, so there's no reliable
                            way to know how far back to go.) ── */}
-                      {allFyYears.length > 1 && (
+                      {/* {allFyYears.length > 1 && (
                         <div className="mx-4 mt-4 flex flex-wrap items-center gap-1.5">
                           <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mr-1">Years</span>
                           {allFyYears.map((yr, i) => {
@@ -2140,7 +1657,7 @@ export default function AiSearchPage() {
                             )
                           })}
                         </div>
-                      )}
+                      )} */}
 
                       {/* ── Year filter banner ── */}
                       {selectedYears.length > 0 && (
@@ -2493,39 +2010,78 @@ export default function AiSearchPage() {
                             {shareholderYearPanels.map((panel) => {
                               const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(/[,%]/g, '')); return Number.isFinite(n) ? n : 0 }
                               const eqRows   = panel.shareholderTable || []
+                              const eqPie    = panel.shareholderPieChart
                               const pfRows   = panel.preferenceShareholderTable || []
+                              const pfPie    = panel.preferenceShareholderPieChart
                               const pfCaption = panel.preferenceShareholderCaption
                               const totalEqShares = eqRows.reduce((sum, r) => sum + numOf(r.shares), 0)
                               const totalEqPct    = eqRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
-                              const renderTable = (rows, accentText, totalShares, totalPct) => (
-                                <div className="overflow-x-auto">
-                                  <table className="w-full border-collapse text-xs">
-                                    <thead>
-                                      <tr className="bg-gray-900">
-                                        <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Shareholder</th>
-                                        <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Category</th>
-                                        <th className="text-right py-2 px-3 text-white/80 font-bold text-[11px]">Shares</th>
-                                        <th className="text-right py-2 px-3 text-[#ff7010] font-bold text-[11px]">%</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {rows.map((r, i) => (
-                                        <tr key={i} className={`border-b border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                                          <td className="py-2 px-3 font-semibold text-gray-800 max-w-[160px] truncate">{r.name}</td>
-                                          <td className="py-2 px-3 text-gray-500">{r.category || '—'}</td>
-                                          <td className="py-2 px-3 text-right tabular-nums text-gray-700">{r.shares || '—'}</td>
-                                          <td className={`py-2 px-3 text-right tabular-nums font-black ${accentText}`}>{r.percentage || '—'}</td>
+                              // Own card, same polished look as the single-year Shareholding
+                              // Pattern section above (gradient top bar, proper-size chart with
+                              // its own legend) — not a cramped inline pie squeezed next to the
+                              // table. Table 60% / chart 40%, table on the LEFT, chart on the
+                              // RIGHT — same systematic grid pattern, just table-first instead
+                              // of chart-first.
+                              const renderPie = (pie, title) => pie && Object.keys(pie).length > 0 && (
+                                <div className="bg-white rounded-2xl shadow-md border border-indigo-100 overflow-hidden">
+                                  <div className="h-1 bg-gradient-to-r from-indigo-500 to-indigo-300" />
+                                  <div className="p-4">
+                                    <p className="text-xs font-bold text-gray-800 mb-0.5">{title}</p>
+                                    <p className="text-[10px] text-gray-400 mb-3">% share distribution</p>
+                                    <div style={{ height: 220, width: '100%', position: 'relative' }}>
+                                      <Doughnut data={{
+                                        labels: Object.keys(pie),
+                                        datasets: [{ data: Object.values(pie), backgroundColor: DONUT_COLORS, borderWidth: 3, borderColor: '#fff', hoverOffset: 10 }]
+                                      }} options={{
+                                        ...doughnutOpts,
+                                        cutout: '55%',
+                                        plugins: {
+                                          legend: { position: 'bottom', labels: { font: { size: 10, weight: '600' }, color: '#6b7280', boxWidth: 9, boxHeight: 9, usePointStyle: true, pointStyle: 'circle', padding: 8 } },
+                                          tooltip: { callbacks: { label: (c) => ` ${c.label}: ${c.raw}%` }, backgroundColor: '#1a1f36', padding: 10, cornerRadius: 8 }
+                                        }
+                                      }} />
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                              const renderTable = (rows, title, sub, accentText, accentBg, totalShares, totalPct) => (
+                                <div className="bg-white rounded-2xl shadow-md border border-indigo-100 overflow-hidden">
+                                  <div className="h-1 bg-gradient-to-r from-indigo-600 to-purple-400" />
+                                  <div className="p-4 overflow-x-auto">
+                                    <p className="text-xs font-bold text-gray-800 mb-0.5">{title}</p>
+                                    <p className="text-[10px] text-gray-400 mb-3">{sub}</p>
+                                    <table className="w-full border-collapse text-xs">
+                                      <thead>
+                                        <tr className="bg-gray-900">
+                                          <th className="text-left py-2.5 px-3 text-white/80 font-bold text-[11px]">Shareholder</th>
+                                          <th className="text-left py-2.5 px-3 text-white/80 font-bold text-[11px]">Category</th>
+                                          <th className="text-right py-2.5 px-3 text-white/80 font-bold text-[11px]">Shares</th>
+                                          <th className="text-right py-2.5 px-3 text-[#ff7010] font-bold text-[11px]">%</th>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                    <tfoot>
-                                      <tr className="border-t-2 border-gray-800">
-                                        <td colSpan={2} className="py-2 px-3 font-black text-gray-900">Total</td>
-                                        <td className="py-2 px-3 text-right tabular-nums font-black text-gray-900">{totalShares.toLocaleString('en-IN')}</td>
-                                        <td className="py-2 px-3 text-right tabular-nums font-black text-gray-900">{totalPct.toFixed(2)}%</td>
-                                      </tr>
-                                    </tfoot>
-                                  </table>
+                                      </thead>
+                                      <tbody>
+                                        {rows.map((r, i) => (
+                                          <tr key={i} className={`border-b border-gray-100 hover:bg-indigo-50/30 transition-colors ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                            <td className="py-2.5 px-3 font-semibold text-gray-800 max-w-[160px] truncate">{r.name}</td>
+                                            <td className="py-2.5 px-3 text-gray-500">{r.category || '—'}</td>
+                                            <td className="py-2.5 px-3 text-right tabular-nums text-gray-700 font-medium">{r.shares || '—'}</td>
+                                            <td className={`py-2.5 px-3 text-right tabular-nums font-black ${accentText}`}>
+                                              <span className={`${accentBg} px-2 py-0.5 rounded-md`}>{r.percentage || '—'}</span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                      <tfoot>
+                                        <tr className="border-t-2 border-gray-800">
+                                          <td colSpan={2} className="py-2.5 px-3 font-black text-gray-900">Total</td>
+                                          <td className="py-2.5 px-3 text-right tabular-nums font-black text-gray-900">{totalShares.toLocaleString('en-IN')}</td>
+                                          <td className="py-2.5 px-3 text-right tabular-nums font-black text-gray-900">
+                                            <span className={`${accentBg} px-2 py-0.5 rounded-md`}>{totalPct.toFixed(2)}%</span>
+                                          </td>
+                                        </tr>
+                                      </tfoot>
+                                    </table>
+                                  </div>
                                 </div>
                               )
                               return (
@@ -2534,18 +2090,18 @@ export default function AiSearchPage() {
                                   <div className="p-4">
                                     <p className="text-xs font-black text-indigo-700 uppercase tracking-widest mb-3">FY {panel.year}</p>
                                     {eqRows.length > 0 && (
-                                      <div className="mb-1">
-                                        <p className="text-xs font-bold text-gray-800 mb-2">Equity Shareholders ({eqRows.length})</p>
-                                        {renderTable(eqRows, 'text-indigo-600', totalEqShares, totalEqPct)}
+                                      <div className="mb-1 grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start">
+                                        {renderTable(eqRows, `Equity Shareholders (${eqRows.length})`, `${eqRows.length} shareholders on record`, 'text-indigo-600', 'bg-indigo-50', totalEqShares, totalEqPct)}
+                                        {renderPie(eqPie, 'Equity Shareholding')}
                                       </div>
                                     )}
                                     {pfRows.length > 0 && (() => {
                                       const totalPfShares = pfRows.reduce((sum, r) => sum + numOf(r.shares), 0)
                                       const totalPfPct    = pfRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
                                       return (
-                                        <div className={eqRows.length > 0 ? 'mt-4 pt-4 border-t border-gray-100' : ''}>
-                                          <p className="text-xs font-bold text-gray-800 mb-2">{pfCaption || `Preference Shareholders (${pfRows.length})`}</p>
-                                          {renderTable(pfRows, 'text-purple-600', totalPfShares, totalPfPct)}
+                                        <div className={`grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start ${eqRows.length > 0 ? 'mt-4 pt-4 border-t border-gray-100' : ''}`}>
+                                          {renderTable(pfRows, pfCaption || `Preference Shareholders (${pfRows.length})`, `${pfRows.length} holder(s) on record`, 'text-purple-600', 'bg-purple-50', totalPfShares, totalPfPct)}
+                                          {renderPie(pfPie, 'Preference Shareholding')}
                                         </div>
                                       )
                                     })()}
@@ -3093,8 +2649,10 @@ export default function AiSearchPage() {
 
                     </>)
                   })()}
+                  </Reveal>
 
                   {/* ── Annual Performance ── */}
+                  <Reveal index={4}>
                   {!singleMetricMode && (lastSearchedTypes.length === 0 || lastSearchedTypes.includes('financialStatements')) && result.summary && (
                     <div className="px-6 py-5 border-t border-b border-gray-100 bg-gradient-to-r from-orange-50/30 to-transparent">
                       <div className="flex items-center justify-between gap-2 mb-2">
@@ -3107,12 +2665,14 @@ export default function AiSearchPage() {
                       <p className="text-sm text-gray-600 leading-relaxed pl-3"><TypewriterText text={result.summary} /></p>
                     </div>
                   )}
+                  </Reveal>
 
 
                   {/* ── Financial Table (financial intents only) ── */}
                   {/* Suppressed alongside the AI Calculated Answer card for the same reason
                        as the Financial Statements block below — don't show the raw Excel
                        numbers a second time once the computed answer is already on screen. */}
+                  <Reveal index={5}>
                   {!result.aiCalculation && !singleMetricMode && (lastSearchedTypes.length === 0 || lastSearchedTypes.includes('financialStatements')) && result.chartData?.tableData?.length > 0 && result.financialYears?.length > 0 && (() => {
                     const allYears   = result.financialYears
                     const activeIdxs = selectedYears.length > 0
@@ -3159,6 +2719,7 @@ export default function AiSearchPage() {
                     </div>
                     )
                   })()}
+                  </Reveal>
 
                   {/* ── Full Financial Statements: Balance Sheet / P&L / Cash Flow ──
                        Bold section headings (e.g. "Shareholders' Funds", "Non-Current
@@ -3170,6 +2731,7 @@ export default function AiSearchPage() {
                        that card already gives the computed answer; the raw Excel-order
                        statement table underneath it just duplicated the same numbers in a
                        second, unasked-for format. */}
+                  <Reveal index={6}>
                   {!result.aiCalculation &&
                     (isFinancialStatementSearch(result.query, lastSearchedTypes) ||
                      ['revenue', 'profit', 'balance', 'cashflow', 'expense', 'margin'].includes(result.intent)) &&
@@ -3245,8 +2807,10 @@ export default function AiSearchPage() {
                       </div>
                     )
                   })()}
+                  </Reveal>
 
                   {/* ── Key Highlights ── */}
+                  <Reveal index={7}>
                   {!isFinancialStatementQuery && !singleMetricMode && result.insights?.length > 0 && (
                     <div className="px-6 py-6 border-b border-gray-100">
                       <div className="flex items-center gap-2.5 mb-4">
@@ -3286,7 +2850,7 @@ export default function AiSearchPage() {
                         </button>
                         {result.financialYears?.length > 1 && (
                           <button
-                            onClick={() => doSearch(`${result.companyName || result.detectedCompany || ''} compare all years ${result.query || ''}`.trim())}
+                            onClick={() => onFollowUp(`${result.companyName || result.detectedCompany || ''} compare all years ${result.query || ''}`.trim())}
                             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 text-xs font-bold transition-colors">
                             <FaSearch className="text-[10px]" />
                             Compare {result.financialYears.map(y => `FY ${y}`).join(' vs ')}
@@ -3295,6 +2859,7 @@ export default function AiSearchPage() {
                       </div>
                     </div>
                   )}
+                  </Reveal>
 
 
                 </div>
@@ -3302,26 +2867,560 @@ export default function AiSearchPage() {
 
               </div>
               )
-            })()}
+}
+
+const Turn = ({ turn, onFollowUp, scrollAnchorRef }) => (
+  <div className="space-y-3" ref={scrollAnchorRef}>
+    <UserBubble text={turn.userQuery} />
+    {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} />}
+    {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} />}
+    {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
+    {turn.kind === 'comparison' && <ComparisonTurn result={turn.result} />}
+    {turn.kind === 'answer'     && <AssistantAnswerTurn result={turn.result} onFollowUp={onFollowUp} />}
+  </div>
+)
+
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function AiSearchPage() {
+  useEffect(() => { document.title = 'Company Intelligence | DealStreetJournal' }, [])
+
+  const { user } = useAuth()
+  const isAuth   = !!user
+
+  // Search / conversation state — `turns` is the ordered thread (newest = last
+  // element); a new search APPENDS a turn instead of replacing the page's one
+  // active result, so older turns stay visible and interactive (ChatGPT/Claude-
+  // style) instead of disappearing the moment a follow-up question is asked.
+  const [query,        setQuery]        = useState('')
+  const [pendingQuery, setPendingQuery] = useState(null) // non-null while a search is in flight
+  const isSearching = pendingQuery !== null
+  const [turns,        setTurns]        = useState([])
+  const [step,         setStep]         = useState(0)
+
+  // Result column width — wide by default so tables/charts use the available
+  // screen space instead of sitting in a narrow centered column; drag the
+  // handles on the search bar to resize by hand, remembered per-browser.
+  const RESULT_WIDTH_MIN = 640
+  const RESULT_WIDTH_MAX = 1600
+  const [resultWidth, setResultWidth] = useState(() => {
+    const saved = Number(localStorage.getItem('dsjAiResultWidth'))
+    return saved >= RESULT_WIDTH_MIN && saved <= RESULT_WIDTH_MAX ? saved : 1152
+  })
+  useEffect(() => { localStorage.setItem('dsjAiResultWidth', String(resultWidth)) }, [resultWidth])
+
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeRef = useRef({ startX: 0, startWidth: 0, side: 'right' })
+
+  const startResize = (e, side) => {
+    e.preventDefault()
+    resizeRef.current = { startX: e.clientX, startWidth: resultWidth, side }
+    setIsResizing(true)
+  }
+
+  // Dragging either edge grows/shrinks the column symmetrically (it's centered
+  // via mx-auto), so the edge under the cursor tracks the mouse 1:1 — hence
+  // the 2x on the width delta.
+  useEffect(() => {
+    if (!isResizing) return
+    document.body.style.userSelect = 'none'
+    const onMove = (e) => {
+      const { startX, startWidth, side } = resizeRef.current
+      const delta = (e.clientX - startX) * (side === 'right' ? 2 : -2)
+      setResultWidth(Math.min(RESULT_WIDTH_MAX, Math.max(RESULT_WIDTH_MIN, startWidth + delta)))
+    }
+    const onUp = () => setIsResizing(false)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [isResizing])
+
+  // Sidebar state
+  const [sidebarOpen,       setSidebarOpen]       = useState(true)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [history,           setHistory]           = useState([])
+  const [historyLoading,    setHistoryLoading]    = useState(false)
+  const [activeHistoryId,   setActiveHistoryId]   = useState(null)
+
+  // Autocomplete state
+  const [suggestions,     setSuggestions]     = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [activeSugIdx,    setActiveSugIdx]    = useState(-1)
+  const suggestTimer = useRef(null)
+  const suggestRef   = useRef(null)
+
+  const inputRef          = useRef(null)
+  // ChatGPT/Claude-style scroll anchoring: instead of chasing the bottom of the
+  // growing answer, we scroll so the user's OWN just-sent question lands near the
+  // top of the viewport and the answer fills in below it. `scrollAnchorRef` always
+  // points at "the newest thing on screen" — the in-flight pending bubble while a
+  // search is running, or the latest completed turn once it lands — because both
+  // attach the same ref and JSX render order (turns.map, then the pending block)
+  // means whichever is current wins.
+  const scrollAnchorRef   = useRef(null)
+  const threadScrollRef   = useRef(null) // the thread's own overflow-y-auto pane — scrolled directly (not via scrollIntoView) so the outer document/window never moves, only this pane
+
+  // ── Load history ────────────────────────────────────────────────────────────
+
+  const loadHistory = useCallback(async () => {
+    if (!isAuth) return
+    setHistoryLoading(true)
+    try {
+      const data = await getAiHistory()
+      setHistory(Array.isArray(data) ? data : [])
+    } catch { /* silently ignore */ }
+    finally { setHistoryLoading(false) }
+  }, [isAuth])
+
+  useEffect(() => { loadHistory() }, [loadHistory])
+
+  // ── Autocomplete ─────────────────────────────────────────────────────────────
+
+  const fetchSuggestions = (val) => {
+    clearTimeout(suggestTimer.current)
+    if (val.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return }
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        const data = await getAiSuggestions(val.trim())
+        setSuggestions(Array.isArray(data) ? data : [])
+        setShowSuggestions(true)
+        setActiveSugIdx(-1)
+      } catch { /* ignore */ }
+    }, 250)
+  }
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (suggestRef.current && !suggestRef.current.contains(e.target)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const pickSuggestion = (name) => {
+    setQuery(name)
+    setSuggestions([])
+    setShowSuggestions(false)
+    setActiveSugIdx(-1)
+    inputRef.current?.focus()
+  }
+
+  const handleInputChange = (e) => {
+    const val = e.target.value
+    setQuery(val)
+    fetchSuggestions(val)
+  }
+
+  const handleInputKeyDown = (e) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === 'Enter') doSearch()
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveSugIdx(i => Math.min(i + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveSugIdx(i => Math.max(i - 1, -1))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (activeSugIdx >= 0) {
+        pickSuggestion(suggestions[activeSugIdx])
+      } else {
+        setShowSuggestions(false)
+        doSearch()
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
+    }
+  }
+
+  // ── Thinking animation ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!isSearching) return
+    const id = setInterval(() => setStep(s => (s + 1) % THINKING_STEPS.length), 1600)
+    return () => clearInterval(id)
+  }, [isSearching])
+
+  // ── Search — appends a turn to the thread instead of replacing the page's
+  //    one active result ────────────────────────────────────────────────────
+
+  const classifyTurn = (userQuery, data) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    if (data.needsYearSelection) return { id, userQuery, kind: 'yearPrompt', result: data }
+    if (data.rankingMode)        return { id, userQuery, kind: 'ranking',    result: data }
+    if (data.comparisonMode)     return { id, userQuery, kind: 'comparison', result: data }
+    return { id, userQuery, kind: 'answer', result: data }
+  }
+
+  const makeErrorTurn = (userQuery, message) => ({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    userQuery, kind: 'error', result: null, errorMessage: message,
+  })
+
+  const doSearch = async (q) => {
+    const searchQ = (q || query).trim()
+    if (!searchQ) return
+    setShowSuggestions(false)
+    setSuggestions([])
+    setPendingQuery(searchQ)
+    setActiveHistoryId(null)
+    setStep(0)
+    try {
+      const data = await aiFreeSearch(searchQ)
+      if (!data.success) {
+        setTurns(prev => [...prev, makeErrorTurn(searchQ, data.message || 'No results found.')])
+        return
+      }
+      setTurns(prev => [...prev, classifyTurn(searchQ, data)])
+      if (isAuth) loadHistory()
+    } catch (e) {
+      setTurns(prev => [...prev, makeErrorTurn(searchQ, e?.response?.data?.message || 'Search failed. Please try again.')])
+    } finally {
+      setPendingQuery(null)
+    }
+  }
+
+  // ── Load history result — starts a FRESH conversation with just this one
+  //    restored turn, replacing whatever's currently in the thread ──────────
+
+  const loadHistoryResult = async (item) => {
+    setTurns([])
+    setActiveHistoryId(item.id)
+    setQuery(item.query)
+    setMobileSidebarOpen(false)
+    setPendingQuery(item.query)
+    setStep(0)
+    try {
+      const data = await getAiHistoryDetail(item.id)
+      if (data && data.success !== false) {
+        setTurns([{ ...classifyTurn(item.query, data), historyId: item.id }])
+      } else {
+        setTurns([makeErrorTurn(item.query, 'Could not load this history item.')])
+      }
+    } catch {
+      setTurns([makeErrorTurn(item.query, 'Failed to load history.')])
+    } finally {
+      setPendingQuery(null)
+    }
+  }
+
+  // ── New chat — clears the thread back to the empty state ──────────────────
+
+  const handleNewChat = () => {
+    setTurns([])
+    setActiveHistoryId(null)
+    setQuery('')
+    inputRef.current?.focus()
+  }
+
+  // ── Delete / clear history ──────────────────────────────────────────────────
+
+  const deleteItem = async (e, id) => {
+    e.stopPropagation()
+    try {
+      await deleteAiHistoryItem(id)
+      setHistory(prev => prev.filter(h => h.id !== id))
+      if (activeHistoryId === id) { setTurns([]); setActiveHistoryId(null) }
+    } catch { /* ignore */ }
+  }
+
+  const handleClearAll = async () => {
+    if (!window.confirm('Delete all search history?')) return
+    try {
+      await clearAiHistory()
+      setHistory([]); setTurns([]); setActiveHistoryId(null)
+    } catch { /* ignore */ }
+  }
+
+  // When the backend asks which year(s) are wanted, pre-fill the search box with the
+  // company + original question and focus it, cursor at the end — the user just types the
+  // year (or "all") themselves and hits Enter, rather than picking from buttons. Keyed off
+  // the newest turn (not a single `result`) since the year-prompt is now just one more turn
+  // in the thread — the user's typed answer becomes the NEXT turn, appended after it.
+  useEffect(() => {
+    const last = turns[turns.length - 1]
+    if (!last || last.kind !== 'yearPrompt') return
+    const prefill = `${last.result.companyName || ''} ${last.result.query || ''}`.trim() + ' '
+    setQuery(prefill)
+    // Cursor placement has to wait for the NEXT tick, after the input's DOM value has
+    // actually updated to `prefill` — focusing in the same tick puts the cursor at
+    // position 0 (the start), so every character the user types lands in FRONT of the
+    // pre-filled text instead of after it, making the box look like it's "typing itself"
+    // as the old text keeps getting pushed further right.
+    requestAnimationFrame(() => {
+      const el = inputRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(prefill.length, prefill.length)
+    })
+  }, [turns])
+
+  // Scroll so the newest question lands near the TOP of the viewport (not the
+  // bottom of the growing answer) — same as ChatGPT/Claude: your just-sent message
+  // stays put near the top while the answer fills in below it, instead of the view
+  // chasing the bottom of the content as it renders/streams. Scrolls the thread's
+  // OWN overflow-y-auto pane directly (container.scrollTo) rather than
+  // target.scrollIntoView() — scrollIntoView walks up every scrollable ancestor
+  // including the outer document, which has a taller-than-viewport footer below
+  // <main>, so it was dragging the whole page down and pushing the composer out
+  // from its pinned bottom position instead of only scrolling inside the pane.
+  useEffect(() => {
+    const container = threadScrollRef.current
+    const target = scrollAnchorRef.current
+    if (!container || !target) return
+
+    const delta = target.getBoundingClientRect().top - container.getBoundingClientRect().top
+    container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' })
+
+    // Phase 2: while the newest turn's sections stagger-reveal (see `Reveal`,
+    // 8 sections × 0.15s + 0.5s animation ≈ 1.7s), keep gently nudging the
+    // scroll further down to follow them — same as ChatGPT/Claude auto-following
+    // a response as it streams in — but back off the instant the user scrolls
+    // manually so we never fight their own scrolling.
+    let userInterrupted = false
+    const onUserScroll = () => { userInterrupted = true }
+    container.addEventListener('wheel', onUserScroll, { passive: true })
+    container.addEventListener('touchmove', onUserScroll, { passive: true })
+
+    const REVEAL_MS = 1800
+    const startedAt = Date.now()
+    let rafId
+    const follow = () => {
+      if (userInterrupted) return
+      if (Date.now() - startedAt > REVEAL_MS) return
+      const maxScroll = container.scrollHeight - container.clientHeight
+      if (container.scrollTop < maxScroll) {
+        container.scrollTop += Math.min(4, maxScroll - container.scrollTop)
+      }
+      rafId = requestAnimationFrame(follow)
+    }
+    // Give the initial smooth scrollTo a head start before the frame-by-frame follow kicks in.
+    const timer = setTimeout(() => { rafId = requestAnimationFrame(follow) }, 350)
+
+    return () => {
+      clearTimeout(timer)
+      if (rafId) cancelAnimationFrame(rafId)
+      container.removeEventListener('wheel', onUserScroll)
+      container.removeEventListener('touchmove', onUserScroll)
+    }
+  }, [turns.length, pendingQuery])
+
+  const grouped = groupHistory(history)
+
+  // ── History list (shared between desktop sidebar and mobile drawer) ──────────
+
+  const HistoryList = ({ onClose }) => (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* header */}
+      <div className="flex items-center justify-between px-3 py-3 flex-shrink-0">
+        <div className="flex items-center gap-2 px-1">
+          <FaHistory className="text-[#ff7010] text-xs" />
+          <span className="font-bold text-gray-700 text-sm">Search History</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {history.length > 0 && (
+            <button onClick={handleClearAll} title="Clear all"
+              className="text-gray-400 hover:text-red-500 hover:bg-gray-200/60 rounded-md p-1.5 transition-colors">
+              <FaTrash className="text-xs" />
+            </button>
+          )}
+          {onClose && (
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 hover:bg-gray-200/60 rounded-md p-1.5 ml-0.5 transition-colors">
+              <FaTimes />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* New chat — a proper menu row, ChatGPT-style, not just a small corner icon */}
+      <div className="px-3 pb-2 flex-shrink-0">
+        <button onClick={handleNewChat}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-200/60 transition-colors">
+          <FaPlus className="text-[11px] text-gray-500 pointer-events-none" />
+          New chat
+        </button>
+      </div>
+
+      {/* list */}
+      <div className="flex-1 overflow-y-auto px-1">
+        {historyLoading && (
+          <p className="text-center text-xs text-gray-400 py-6">Loading...</p>
+        )}
+        {!historyLoading && history.length === 0 && (
+          <div className="px-4 py-8 text-center">
+            <FaHistory className="text-gray-200 text-3xl mx-auto mb-3" />
+            <p className="text-xs text-gray-400">No searches yet.<br />Your history will appear here.</p>
+          </div>
+        )}
+        {!historyLoading && Object.entries(grouped).map(([group, items]) =>
+          items.length > 0 ? (
+            <div key={group}>
+              <p className="px-3 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{group}</p>
+              {items.map(item => (
+                <button key={item.id} onClick={() => loadHistoryResult(item)}
+                  className={`w-full text-left px-3 py-2.5 group relative rounded-lg transition-colors ${
+                    activeHistoryId === item.id
+                      ? 'bg-orange-50 text-[#ff7010]'
+                      : 'hover:bg-gray-200/60'
+                  }`}>
+                  <p className={`text-xs font-semibold truncate ${activeHistoryId === item.id ? 'text-[#ff7010]' : 'text-gray-800'}`}>
+                    {item.companyName || item.detectedCompany || 'Company'}
+                  </p>
+                  <p className="text-[11px] text-gray-400 truncate mt-0.5 pr-5">{item.query}</p>
+                  <p className="text-[10px] text-gray-300 mt-0.5">{timeAgo(item.createdAt)}</p>
+                  <button onClick={(e) => deleteItem(e, item.id)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-1">
+                    <FaTimes className="text-xs" />
+                  </button>
+                </button>
+              ))}
+            </div>
+          ) : null
+        )}
+      </div>
+
+      {/* login prompt */}
+      {!isAuth && (
+        <div className="px-4 py-3 border-t border-gray-200 text-center flex-shrink-0">
+          <p className="text-xs text-gray-400 mb-1">Login to save search history</p>
+          <Link to="/login" className="text-xs text-[#ff7010] font-bold hover:underline">Login →</Link>
+        </div>
+      )}
+    </div>
+  )
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  // Layout.jsx's own <main> is `mt-18 lg:mt-23` (72px, then 92px from the lg breakpoint up)
+  // — every height below hardcodes the SAME two numbers via responsive Tailwind classes (not
+  // a single inline-style pixel value, which can't express a breakpoint change) so this
+  // page's own height always matches exactly how much room <main> has actually left below
+  // the navbar. Found live: a fixed `calc(100vh - 72px)` was correct below lg but 20px too
+  // tall from lg upward, pushing the bottom composer 20px past the real bottom of the
+  // visible viewport at any desktop-width screen.
+  return (
+    <div className="flex bg-white min-h-[calc(100vh-72px)] lg:min-h-[calc(100vh-92px)]">
+
+      {/* ── Desktop sidebar — light, matching ChatGPT's own actual sidebar
+           (near-white, not dark — a subtle right border is the only separation
+           from the conversation pane next to it). ── */}
+      {sidebarOpen && (
+        <aside className="hidden lg:flex flex-col flex-shrink-0 bg-[#F9F9F9] border-r border-gray-200"
+          style={{ width: 256, position: 'sticky', top: 92, height: 'calc(100vh - 92px)', alignSelf: 'flex-start' }}>
+          <HistoryList onClose={null} />
+        </aside>
+      )}
+
+      {/* ── Mobile sidebar overlay ── */}
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden">
+          <div className="w-72 bg-[#F9F9F9] h-full flex flex-col shadow-2xl">
+            <HistoryList onClose={() => setMobileSidebarOpen(false)} />
+          </div>
+          <div className="flex-1 bg-black/40" onClick={() => setMobileSidebarOpen(false)} />
+        </div>
+      )}
+
+      {/* ── Main column — a fixed-height flex pane (not one that grows with
+           content) so the composer sits pinned to its bottom edge even when the
+           thread is short/empty; the thread area below scrolls INTERNALLY
+           (overflow-y-auto) instead of the whole document scrolling, same
+           "app pane with an outer page around it" pattern most chat UIs use. ── */}
+      <div className="relative flex-1 flex flex-col min-w-0 h-[calc(100vh-72px)] lg:h-[calc(100vh-92px)]">
+
+        {/* drag handles — full pane height so they can be grabbed at any scroll
+            position, not just up near the composer; positioned off the edges
+            of the resizable column, which is centered within this column. */}
+        <div onMouseDown={(e) => startResize(e, 'left')} title="Drag to resize"
+          className="hidden lg:block absolute top-0 bottom-0 w-3 cursor-col-resize z-30"
+          style={{ left: `calc(50% - ${resultWidth / 2 + 6}px)` }} />
+        <div onMouseDown={(e) => startResize(e, 'right')} title="Drag to resize"
+          className="hidden lg:block absolute top-0 bottom-0 w-3 cursor-col-resize z-30"
+          style={{ left: `calc(50% + ${resultWidth / 2 - 6}px)` }} />
+
+        {/* ── Slim top header — navigation/chrome only (sidebar toggle, brand badge,
+             New chat, width toggle, breadcrumb). Kept separate from the composer,
+             which now lives at the BOTTOM of the viewport, ChatGPT/Claude-style. ── */}
+        <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-4 py-3 flex-shrink-0 sticky top-[72px] lg:top-[92px] z-20">
+          <div className="relative mx-auto flex items-center gap-3"
+            style={{ maxWidth: resultWidth }}>
+            {/* desktop: toggle sidebar */}
+            <button onClick={() => setSidebarOpen(p => !p)}
+              className="hidden lg:block text-gray-400 hover:text-white transition-colors" title="Toggle history">
+              <FaBars />
+            </button>
+            {/* mobile: open drawer */}
+            <button onClick={() => setMobileSidebarOpen(true)}
+              className="lg:hidden text-gray-400 hover:text-white transition-colors" title="Search History">
+              <FaHistory />
+            </button>
+
+            <div className="bg-orange-500/20 border border-orange-500/30 text-[#ff7010] text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5">
+              <FaRobot className="text-[10px]" /> DSJ AI
+            </div>
+
+            <button onClick={handleNewChat} title="New chat"
+              className="text-gray-400 hover:text-white transition-colors">
+              <FaPlus className="text-xs pointer-events-none" />
+            </button>
+
+            {/* quick-snap the result column; drag the side handles for fine control */}
+            <button onClick={() => setResultWidth(resultWidth > 900 ? 672 : 1152)}
+              className="hidden sm:block text-gray-400 hover:text-white transition-colors ml-auto"
+              title={resultWidth > 900 ? 'Switch to compact view' : 'Switch to wide view'}>
+              {resultWidth > 900 ? <FaCompressAlt /> : <FaExpandAlt />}
+            </button>
+
+            <div className="text-xs text-gray-500 hidden sm:flex gap-1">
+              <Link to="/dsj-insight" className="hover:text-gray-300">DSJ</Link>
+              <span>/</span>
+              <span className="text-[#ff7010]">DSJ AI</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Scrolling conversation thread — scrolls INTERNALLY within the
+             fixed-height main column (see above) rather than the whole document,
+             so the composer below stays pinned to the pane's bottom edge
+             regardless of how much (or little) content is in the thread. ── */}
+        <div ref={threadScrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-6 flex flex-col">
+          <div className={`mx-auto space-y-5 w-full flex-1 flex flex-col ${turns.length === 0 ? 'justify-center' : ''} ${isResizing ? '' : 'transition-[max-width] duration-200'}`}
+            style={{ maxWidth: resultWidth }}>
 
             {/* Empty state — Claude-style suggestion cards covering everything the old
-                Generate Report panel offered, now that search is the only way in. */}
-            {!isSearching && !result && !error && (
-              <div className="text-center py-10">
-                <div className="w-16 h-16 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center mx-auto mb-4">
-                  <FaRobot className="text-[#ff7010] text-2xl" />
+                Generate Report panel offered, now that search is the only way in.
+                Vertically centered in the ACTUAL available thread height via the parent's
+                own `flex-1` above (not an arbitrary vh guess) — found live: a min-h-[Xvh] on
+                just this div did nothing once the content's own natural height already
+                exceeded it, since min-height only matters when it's the LARGER of the two;
+                centering has to come from a flex ancestor that truly spans the full
+                available height instead. */}
+            {turns.length === 0 && !isSearching && (
+              <div className="text-center py-6">
+                <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center mx-auto mb-3">
+                  <FaRobot className="text-[#ff7010] text-xl" />
                 </div>
-                <h3 className="font-bold text-gray-700 mb-2">Search any company</h3>
+                <h3 className="font-bold text-gray-700 mb-1.5">Search any company</h3>
                 <p className="text-sm text-gray-400 max-w-xs mx-auto">
                   Type the company name above — with or without a question. Get instant financial analysis and download the full PDF report.
                 </p>
                 {!isAuth && (
-                  <p className="text-xs text-gray-400 mt-4">
+                  <p className="text-xs text-gray-400 mt-3">
                     <Link to="/login" className="text-[#ff7010] font-semibold hover:underline">Login</Link> to save your search history
                   </p>
                 )}
 
-                <div className="max-w-xl mx-auto mt-8 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
+                <div className="max-w-xl mx-auto mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
                   {SUGGESTION_CARDS.map(card => {
                     const CardIcon = card.Icon
                     return (
@@ -3337,7 +3436,7 @@ export default function AiSearchPage() {
                             inputRef.current?.focus()
                           }
                         }}
-                        className="flex items-start gap-3 p-3.5 bg-white border border-gray-100 rounded-xl hover:border-[#ff7010]/40 hover:shadow-sm transition-all group">
+                        className="flex items-start gap-2.5 p-2.5 bg-white border border-gray-100 rounded-xl hover:border-[#ff7010]/40 hover:shadow-sm transition-all group">
                         <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0 group-hover:bg-orange-100">
                           <CardIcon className="text-[#ff7010] text-xs" />
                         </div>
@@ -3352,8 +3451,81 @@ export default function AiSearchPage() {
               </div>
             )}
 
+            {turns.map((turn, idx) => (
+              <Turn key={turn.id} turn={turn} onFollowUp={doSearch}
+                scrollAnchorRef={idx === turns.length - 1 ? scrollAnchorRef : undefined} />
+            ))}
+
+            {isSearching && (
+              <div className="space-y-3" ref={scrollAnchorRef}>
+                <UserBubble text={pendingQuery} />
+                <ThinkingBubble step={step} />
+              </div>
+            )}
           </div>
         </div>
+
+        {/* ── Bottom composer — the LAST flex child of the fixed-height main
+             column above, with the thread area as the only `flex-1` child, so
+             this naturally sits pinned at the pane's bottom edge (ChatGPT/Claude
+             style) with no sticky/fixed positioning needed. Plain white/light —
+             no dark bar — matching ChatGPT/Claude's own composer, which floats on
+             the same light background as the conversation itself. ── */}
+        <div className="bg-white px-4 pt-4 pb-6 flex-shrink-0 border-t border-gray-100"
+          style={{ zIndex: 20 }}>
+          <div className={`relative mx-auto ${isResizing ? '' : 'transition-[max-width] duration-200'}`}
+            style={{ maxWidth: resultWidth }}>
+
+            {/* Search input with autocomplete */}
+            <div className="relative" ref={suggestRef}>
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none" style={{zIndex:2}} />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                placeholder="Type company name or ask a question..."
+                className="w-full pl-11 pr-28 py-3.5 rounded-full bg-white border border-gray-200 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff7010]/40 focus:border-[#ff7010]/60 shadow-sm"
+                autoFocus
+                autoComplete="off"
+              />
+              {query && (
+                <button onClick={() => { setQuery(''); setSuggestions([]); setShowSuggestions(false); inputRef.current?.focus() }}
+                  className="absolute right-24 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" style={{zIndex:2}}>
+                  <FaTimes className="text-sm" />
+                </button>
+              )}
+              <button onClick={() => doSearch()} disabled={isSearching || !query.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff7010] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#e06000] transition-colors disabled:opacity-40 disabled:cursor-not-allowed" style={{zIndex:2}}>
+                {isSearching ? '...' : 'Search'}
+              </button>
+
+              {/* Dropdown suggestions — opens UPWARD since the composer now sits at the
+                  bottom of the viewport (ChatGPT/Claude convention) instead of the top. */}
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute left-0 right-0 bottom-full mb-1 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden" style={{zIndex:50}}>
+                  {suggestions.map((name, i) => (
+                    <li key={name}
+                      onMouseDown={e => { e.preventDefault(); pickSuggestion(name) }}
+                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${
+                        i === activeSugIdx ? 'bg-orange-50 text-[#ff7010]' : 'text-gray-800 hover:bg-gray-50'
+                      }`}>
+                      <FaBuilding className={`flex-shrink-0 text-xs ${i === activeSugIdx ? 'text-[#ff7010]' : 'text-gray-300'}`} />
+                      <span className="truncate">{name}</span>
+                    </li>
+                  ))}
+                  <li className="px-4 py-2 text-[11px] text-gray-400 border-t border-gray-50 bg-gray-50">
+                    Press Enter to search · ↑↓ to navigate
+                  </li>
+                </ul>
+              )}
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
   )
