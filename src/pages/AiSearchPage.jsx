@@ -1193,7 +1193,15 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                         <div className="flex justify-end mb-1">
                           <CopyButton
                             className="text-gray-300 hover:text-gray-600 flex-shrink-0"
-                            text={result.aiCalculation.perYear
+                            text={result.aiCalculation.compareMode
+                              ? (result.aiCalculation.perYearCompare
+                                  ? [`${result.aiCalculation.leftLabel} vs ${result.aiCalculation.rightLabel}`,
+                                     ...result.aiCalculation.perYearCompare.map(y =>
+                                       `FY ${y.year}: ${y.leftValue ?? '—'}${result.aiCalculation.leftUnit || ''} vs ${y.rightValue ?? '—'}${result.aiCalculation.rightUnit || ''}`)]
+                                  : [`${result.aiCalculation.leftLabel}: ${result.aiCalculation.leftValue}${result.aiCalculation.leftUnit || ''}`,
+                                     `${result.aiCalculation.rightLabel}: ${result.aiCalculation.rightValue}${result.aiCalculation.rightUnit || ''}`]
+                                ).join('\n')
+                              : result.aiCalculation.perYear
                               ? [result.aiCalculation.label, ...result.aiCalculation.perYear.map(y => `FY ${y.year}: ${y.formula}`)].filter(Boolean).join('\n')
                               : [
                                   result.aiCalculation.value != null
@@ -1203,11 +1211,87 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 ].filter(Boolean).join('\n')}
                           />
                         </div>
-                        {result.aiCalculation.error ? (
+                        {result.aiCalculation.compareMode ? (
+                          <>
+                            {/* "X compare Y"/"X vs Y" — two figures shown side by side, NOT
+                                divided into one ratio (Narendra Sir, 2026-08-01: "compare ko
+                                divide kar raha hai, divide nahi karna chahiye" — "compare" now
+                                has its own dedicated shape on the backend instead of being
+                                treated as a division operator). */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.leftLabel}</p>
+                                <p className="text-xl font-black text-gray-900">
+                                  {result.aiCalculation.leftValue != null
+                                    ? result.aiCalculation.leftValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+                                    : '—'}
+                                  {result.aiCalculation.leftUnit || ''}
+                                </p>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.rightLabel}</p>
+                                <p className="text-xl font-black text-gray-900">
+                                  {result.aiCalculation.rightValue != null
+                                    ? result.aiCalculation.rightValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+                                    : '—'}
+                                  {result.aiCalculation.rightUnit || ''}
+                                </p>
+                              </div>
+                            </div>
+                            {result.aiCalculation.perYearCompare?.length > 1 && (
+                              <div className="mt-3" style={{ height: 180 }}>
+                                <Bar
+                                  data={{
+                                    labels: result.aiCalculation.perYearCompare.map(y => y.year),
+                                    datasets: [
+                                      { label: result.aiCalculation.leftLabel, data: result.aiCalculation.perYearCompare.map(y => y.leftValue), backgroundColor: '#ff7010', borderRadius: 5 },
+                                      { label: result.aiCalculation.rightLabel, data: result.aiCalculation.perYearCompare.map(y => y.rightValue), backgroundColor: '#1a1f36', borderRadius: 5 },
+                                    ],
+                                  }}
+                                  options={{
+                                    responsive: true, maintainAspectRatio: false,
+                                    plugins: {
+                                      legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 9, boxHeight: 9, borderRadius: 3, padding: 8, usePointStyle: true, pointStyle: 'circle' } },
+                                      tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.raw?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` } },
+                                    },
+                                    scales: {
+                                      x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
+                                      y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
+                                    },
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </>
+                        ) : result.aiCalculation.error ? (
                           <p className="text-sm text-gray-500">{result.aiCalculation.answer}</p>
                         ) : result.aiCalculation.perYear ? (
                           <>
                             <p className="text-sm font-bold text-gray-800 mb-3">{result.aiCalculation.label}</p>
+                            {/* Graph alongside the table for a multi-year calculation — a single
+                                year stays plain data with no chart (see FocusedMetricTurn's same
+                                rule); "all years"/"year wise" is what earns the trend chart
+                                (Narendra Sir, 2026-08-01: "all karne pe graph ke sath table bhi
+                                do"). */}
+                            {result.aiCalculation.perYear.length > 1 && (
+                              <div className="mb-3" style={{ height: 160 }}>
+                                <Bar
+                                  data={{
+                                    labels: result.aiCalculation.perYear.map(y => y.year),
+                                    datasets: [{
+                                      data: result.aiCalculation.perYear.map(y => y.value),
+                                      backgroundColor: '#ff7010', hoverBackgroundColor: '#1a1f36', borderRadius: 5,
+                                    }],
+                                  }}
+                                  options={barOpts(
+                                    (result.aiCalculation.unit || '').includes('%')
+                                      ? (v) => `${v.toFixed(1)}%`
+                                      : (v) => `${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.unit || ''}`,
+                                    null
+                                  )}
+                                />
+                              </div>
+                            )}
                             <table className="w-full border-collapse text-xs mb-2">
                               <tbody>
                                 {result.aiCalculation.perYear.map((y, i) => (
