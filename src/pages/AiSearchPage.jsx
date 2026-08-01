@@ -663,6 +663,122 @@ const YearPromptTurn = ({ result }) => (
               </div>
 )
 
+// Pure term-definition answer ("explain EBITDA", "what is current ratio") — no company data at
+// all, so it deliberately skips the whole AssistantAnswerTurn dashboard (hero header, charts,
+// statements) and just shows the term + its plain-English definition. Also doubles as the
+// "vague ask" rescue card ("what is this", bare "which"/"who"/"that") via result.glossaryHelp —
+// a short list of clickable example questions instead of a dead-end error.
+const GlossaryTurn = ({ result, onFollowUp }) => (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+                    <FaLightbulb className="text-[#ff7010] text-xs" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {result.glossaryHelp ? (
+                      <>
+                        <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                          <TypewriterText text={result.message || ''} />
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {(result.examples || []).map((ex, i) => (
+                            <button
+                              key={i}
+                              onClick={() => onFollowUp?.(ex)}
+                              className="px-3 py-1.5 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-[#ff7010] text-xs font-semibold transition-colors">
+                              {ex}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-bold text-gray-800 mb-1.5">{result.term}</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          <TypewriterText text={result.definition || ''} />
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+)
+
+// Strips the "[(ix)=(i)-(iv)]"-style Excel formula noise and a trailing "(2023-24)" year
+// suffix from a keyMetrics label — same cleanup AssistantAnswerTurn's own key-metrics strip
+// already does, duplicated here (not shared) since it's two lines and this component doesn't
+// otherwise depend on that file's local render-scope state.
+const cleanMetricLabel = (label) =>
+  (label || '').replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s*\(\d{4}-\d{2,4}\)\s*$/, '')
+    .replace(/\s+/g, ' ').trim()
+
+// A single, specific line-item lookup ("total current assets 2023-24", "trade receivables",
+// "EBITDA") — the backend's own `focusedMetric` flag means it matched exactly ONE row, not a
+// broad topic. Deliberately minimal and identical in shape every time: just the metric name and
+// its value (+ a compact per-year breakdown when more than one year of data came back) — no
+// company hero header, no CIN/industry badges, no trend chart. Narendra Sir, 2026-08-01: "sab
+// ans ek barabar formate me rakho, ek barabar format simple me" — every one of these answers,
+// across every statement/tab, was rendering through the full AssistantAnswerTurn dashboard
+// (company name card + a bar chart) regardless of how narrow the actual question was; this gives
+// focused questions their own consistently plain answer shape instead.
+const FocusedMetricTurn = ({ result }) => {
+  const metrics = result.keyMetrics || []
+  // The backend's own record of which row it matched wins — found live: for some intents
+  // keyMetrics still carries several related rows (a same-topic bucket), not just the one this
+  // query actually asked about ("total liabilities" matched keyMetrics also containing Total
+  // Assets/Net Worth/Borrowings alongside it) — filtering to the one whose label the backend
+  // itself named avoids showing the whole bucket for a question that named one specific figure.
+  const metric = (result.focusedMetricLabel
+    && metrics.find(m => m.label?.startsWith(result.focusedMetricLabel))) || metrics[0]
+  const series = result.chartData?.singleMetricChart || []
+  // A row whose label carries "%" holds a percentage, not a currency amount — same test
+  // getSingleMetricConfig already uses for the same reason (fmtMn would print "-₹21.20 Mn" for
+  // a -21.2% margin instead of "-21.2%").
+  const isPercent = /%/.test(metric?.label || '')
+  const yFmt = isPercent ? (v) => `${v.toFixed(1)}%` : fmtMn
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+          <FaChartBar className="text-[#ff7010] text-xs" />
+        </div>
+        <div className="flex-1 min-w-0">
+          {metric ? (
+            <>
+              <p className="text-sm font-bold text-gray-800 mb-1">{cleanMetricLabel(metric.label)}</p>
+              <p className="text-2xl font-black text-gray-900">{metric.value}</p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-500">No data on record for this.</p>
+          )}
+          {/* A graph only makes sense once there's a trend to show — asking for ONE year
+              ("total current assets 2024-25") stays plain data, just the value above; naming
+              two or more years ("2023-24, 2024-25") is what turns this into a chart (Narendra
+              Sir, 2026-08-01: "single year me graph nahi, jab 2-3 years poochhu tab graph"). */}
+          {series.length > 1 && (
+            <div className="mt-3" style={{ height: 160 }}>
+              <Bar
+                data={{
+                  labels: series.map(d => d.year),
+                  datasets: [{ data: series.map(d => d.value), backgroundColor: '#ff7010', hoverBackgroundColor: '#1a1f36', borderRadius: 5 }],
+                }}
+                options={barOpts(yFmt, null)}
+              />
+            </div>
+          )}
+          {result.insights?.length > 0 && (
+            <div className="mt-3 space-y-1">
+              {result.insights.map((ins, i) => (
+                <p key={i} className="text-xs text-gray-500 leading-relaxed">{ins}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const RankingTurn = ({ result, onFollowUp }) => (
               <div>
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
@@ -1069,7 +1185,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                   ? `${result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}`
                                   : null,
                                 result.aiCalculation.formula,
-                                result.aiCalculation.explanation,
                               ].filter(Boolean).join('\n')}
                         />
                       </div>
@@ -1106,9 +1221,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                               ))}
                             </div>
                           </details>
-                          {result.aiCalculation.explanation && (
-                            <p className="text-xs text-gray-400 mt-2">{result.aiCalculation.explanation}</p>
-                          )}
                         </>
                       ) : (
                         <>
@@ -1125,9 +1237,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                             <p className="text-xs font-mono text-gray-500 bg-gray-50 rounded-lg px-3 py-2 mb-2 break-words">
                               {result.aiCalculation.formula}
                             </p>
-                          )}
-                          {result.aiCalculation.explanation && (
-                            <p className="text-xs text-gray-400">{result.aiCalculation.explanation}</p>
                           )}
                         </>
                       )}
@@ -2943,9 +3052,11 @@ const Turn = ({ turn, onFollowUp, scrollAnchorRef }) => (
   <div className="space-y-3" ref={scrollAnchorRef}>
     <UserBubble text={turn.userQuery} />
     {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} />}
+    {turn.kind === 'glossary'   && <GlossaryTurn result={turn.result} onFollowUp={onFollowUp} />}
     {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} />}
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
     {turn.kind === 'comparison' && <ComparisonTurn result={turn.result} />}
+    {turn.kind === 'metric'     && <FocusedMetricTurn result={turn.result} />}
     {turn.kind === 'answer'     && <AssistantAnswerTurn result={turn.result} onFollowUp={onFollowUp} />}
   </div>
 )
@@ -3196,9 +3307,11 @@ export default function AiSearchPage() {
 
   const classifyTurn = (userQuery, data) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    if (data.glossary || data.glossaryHelp) return { id, userQuery, kind: 'glossary', result: data }
     if (data.needsYearSelection) return { id, userQuery, kind: 'yearPrompt', result: data }
     if (data.rankingMode)        return { id, userQuery, kind: 'ranking',    result: data }
     if (data.comparisonMode)     return { id, userQuery, kind: 'comparison', result: data }
+    if (data.focusedMetric && !data.aiCalculation) return { id, userQuery, kind: 'metric', result: data }
     return { id, userQuery, kind: 'answer', result: data }
   }
 
