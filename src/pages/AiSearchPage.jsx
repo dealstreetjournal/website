@@ -1218,48 +1218,79 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 divide kar raha hai, divide nahi karna chahiye" — "compare" now
                                 has its own dedicated shape on the backend instead of being
                                 treated as a division operator). */}
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.leftLabel}</p>
-                                <p className="text-xl font-black text-gray-900">
-                                  {result.aiCalculation.leftValue != null
-                                    ? result.aiCalculation.leftValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
-                                    : '—'}
-                                  {result.aiCalculation.leftUnit || ''}
-                                </p>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.rightLabel}</p>
-                                <p className="text-xl font-black text-gray-900">
-                                  {result.aiCalculation.rightValue != null
-                                    ? result.aiCalculation.rightValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
-                                    : '—'}
-                                  {result.aiCalculation.rightUnit || ''}
-                                </p>
-                              </div>
-                            </div>
-                            {result.aiCalculation.perYearCompare?.length > 1 && (
-                              <div className="mt-3" style={{ height: 180 }}>
-                                <Bar
-                                  data={{
-                                    labels: result.aiCalculation.perYearCompare.map(y => y.year),
-                                    datasets: [
-                                      { label: result.aiCalculation.leftLabel, data: result.aiCalculation.perYearCompare.map(y => y.leftValue), backgroundColor: '#ff7010', borderRadius: 5 },
-                                      { label: result.aiCalculation.rightLabel, data: result.aiCalculation.perYearCompare.map(y => y.rightValue), backgroundColor: '#1a1f36', borderRadius: 5 },
-                                    ],
-                                  }}
-                                  options={{
-                                    responsive: true, maintainAspectRatio: false,
-                                    plugins: {
-                                      legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 9, boxHeight: 9, borderRadius: 3, padding: 8, usePointStyle: true, pointStyle: 'circle' } },
-                                      tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.raw?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` } },
-                                    },
-                                    scales: {
-                                      x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
-                                      y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
-                                    },
-                                  }}
-                                />
+                            {result.aiCalculation.perYearCompare?.length > 0 ? (
+                              <>
+                                {/* Graph AND table together for "all years"/"year wise" compare
+                                    (Narendra Sir, 2026-08-01: "table nahi aaya, table bhi dikhao
+                                    all karne pe") — same "graph only once there's a trend, table
+                                    always" rule as every other multi-year card on this page. */}
+                                {result.aiCalculation.perYearCompare.length > 1 && (
+                                  <div className="mb-3" style={{ height: 180 }}>
+                                    <Bar
+                                      data={{
+                                        labels: result.aiCalculation.perYearCompare.map(y => y.year),
+                                        datasets: [
+                                          { label: result.aiCalculation.leftLabel, data: result.aiCalculation.perYearCompare.map(y => y.leftValue), backgroundColor: '#ff7010', borderRadius: 5 },
+                                          { label: result.aiCalculation.rightLabel, data: result.aiCalculation.perYearCompare.map(y => y.rightValue), backgroundColor: '#1a1f36', borderRadius: 5 },
+                                        ],
+                                      }}
+                                      options={{
+                                        responsive: true, maintainAspectRatio: false,
+                                        plugins: {
+                                          legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 9, boxHeight: 9, borderRadius: 3, padding: 8, usePointStyle: true, pointStyle: 'circle' } },
+                                          tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.raw?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` } },
+                                        },
+                                        scales: {
+                                          x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
+                                          y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
+                                        },
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                <table className="w-full border-collapse text-xs">
+                                  <thead>
+                                    <tr className="border-b border-gray-100">
+                                      <th className="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase">Year</th>
+                                      <th className="text-right py-1.5 px-2 text-[10px] font-bold uppercase truncate" style={{ color: '#ff7010' }}>{result.aiCalculation.leftLabel}</th>
+                                      <th className="text-right py-1.5 px-2 text-[10px] font-bold uppercase text-gray-700 truncate">{result.aiCalculation.rightLabel}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {result.aiCalculation.perYearCompare.map((y, i) => (
+                                      <tr key={y.year} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                        <td className="py-1.5 px-2 font-semibold text-gray-600">FY {y.year}</td>
+                                        <td className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
+                                          {y.leftValue != null ? y.leftValue.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}{result.aiCalculation.leftUnit || ''}
+                                        </td>
+                                        <td className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
+                                          {y.rightValue != null ? y.rightValue.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}{result.aiCalculation.rightUnit || ''}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.leftLabel}</p>
+                                  <p className="text-xl font-black text-gray-900">
+                                    {result.aiCalculation.leftValue != null
+                                      ? result.aiCalculation.leftValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+                                      : '—'}
+                                    {result.aiCalculation.leftUnit || ''}
+                                  </p>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.rightLabel}</p>
+                                  <p className="text-xl font-black text-gray-900">
+                                    {result.aiCalculation.rightValue != null
+                                      ? result.aiCalculation.rightValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+                                      : '—'}
+                                    {result.aiCalculation.rightUnit || ''}
+                                  </p>
+                                </div>
                               </div>
                             )}
                           </>
