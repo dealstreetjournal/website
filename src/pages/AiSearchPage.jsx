@@ -110,6 +110,18 @@ const isFinancialStatementSearch = (query, lastSearchedTypes) => {
   const q = (query || '').toLowerCase().trim()
   if (!q) return false
   if (/financial statements?/.test(q)) return true
+  // Naming one specific statement by name — "balance sheet", "profit and loss"/"p&l",
+  // "cash flow statement" — also counts, same narrow treatment as "financial statement(s)"
+  // itself. Found live (Narendra Sir, 2026-08-01): asking for just the balance sheet was
+  // rendering the full Company Overview/Key Highlights dashboard around it instead of just
+  // the statement table, because only the literal phrase "financial statement(s)" was
+  // recognized here — a plain "balance sheet" (or its resubmitted "balance sheet in
+  // <year>" form, from answering the year-selection prompt) fell through to the general
+  // treatment even though the backend itself already narrows its OWN response for this
+  // exact case (AiSearchService's own singleStatementTopic/narrowTopicMode).
+  if (/\bbalance sheet\b/.test(q)) return true
+  if (/\bprofit\s*(?:(?:and|&)\s*loss|\/\s*loss)\b|\bp\s*&\s*l\b/.test(q)) return true
+  if (/\bcash flow(?:\s+statement)?\b/.test(q)) return true
   // Match the Analyze button's keyword set by word, not as one exact contiguous
   // phrase — the company name can land anywhere in the typed query, and words
   // may come in any order, so an exact-substring check missed real variants.
@@ -1166,80 +1178,87 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                     actually ran that fallback. */}
                 <Reveal index={0}>
                 {result.aiCalculation && (
-                  // Modern card, same shape/detail as every other result card on this page
-                  // (big value, formula, explanation, per-year table) — just without a bold
-                  // colored header block or a "Calculation" label sitting above it; a slim
-                  // accent bar is the only color, same restrained touch the shareholder-panel
-                  // cards elsewhere on this page use.
-                  <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 overflow-hidden mb-5">
-                    <div className="h-1 bg-gradient-to-r from-indigo-500 to-indigo-300" />
-                    <div className="p-5">
-                      <div className="flex justify-end mb-1">
-                        <CopyButton
-                          className="text-gray-300 hover:text-gray-600 flex-shrink-0"
-                          text={result.aiCalculation.perYear
-                            ? [result.aiCalculation.label, ...result.aiCalculation.perYear.map(y => `FY ${y.year}: ${y.formula}`)].filter(Boolean).join('\n')
-                            : [
-                                result.aiCalculation.answer,
-                                result.aiCalculation.value != null
-                                  ? `${result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}`
-                                  : null,
-                                result.aiCalculation.formula,
-                              ].filter(Boolean).join('\n')}
-                        />
+                  // Same card shape as FocusedMetricTurn's plain data-lookup answer (orange
+                  // avatar, title, big value, small caption underneath) — a calculated ratio
+                  // and a raw looked-up figure are both just "the answer" to the user, so they
+                  // read identically now instead of one having a colored header bar and an
+                  // indigo number while the other stayed plain (Narendra Sir, 2026-08-01: "dono
+                  // ek jaisa nahi hai, ek jaisa karo — upar wale jaisa simple").
+                  <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5 mb-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+                        <FaChartBar className="text-[#ff7010] text-xs" />
                       </div>
-                      {result.aiCalculation.error ? (
-                        <p className="text-sm text-gray-500">{result.aiCalculation.answer}</p>
-                      ) : result.aiCalculation.perYear ? (
-                        <>
-                          <p className="text-sm font-bold text-gray-800 mb-3">{result.aiCalculation.label}</p>
-                          <table className="w-full border-collapse text-xs mb-2">
-                            <thead>
-                              <tr className="bg-gray-900">
-                                <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px]">Year</th>
-                                <th className="text-right py-2 px-3 text-white/80 font-bold text-[11px]">Value</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {result.aiCalculation.perYear.map((y, i) => (
-                                <tr key={y.year} className={`border-b border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                                  <td className="py-2 px-3 font-semibold text-gray-700">FY {y.year}</td>
-                                  <td className="py-2 px-3 text-right font-black text-indigo-600 tabular-nums">
-                                    {y.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}{result.aiCalculation.unit || ''}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          <details className="text-xs text-gray-400">
-                            <summary className="cursor-pointer hover:text-gray-600 select-none">Show formula for each year</summary>
-                            <div className="mt-2 space-y-1.5">
-                              {result.aiCalculation.perYear.map(y => (
-                                <p key={y.year} className="font-mono bg-gray-50 rounded-lg px-3 py-2 break-words">
-                                  <span className="font-bold text-gray-600">FY {y.year}: </span>{y.formula}
-                                </p>
-                              ))}
-                            </div>
-                          </details>
-                        </>
-                      ) : (
-                        <>
-                          {result.aiCalculation.answer && (
-                            <p className="text-sm text-gray-800 leading-relaxed mb-3">{result.aiCalculation.answer}</p>
-                          )}
-                          {result.aiCalculation.value != null && (
-                            <p className="text-2xl font-black text-indigo-600 mb-3">
-                              {result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                              {result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}
-                            </p>
-                          )}
-                          {result.aiCalculation.formula && (
-                            <p className="text-xs font-mono text-gray-500 bg-gray-50 rounded-lg px-3 py-2 mb-2 break-words">
-                              {result.aiCalculation.formula}
-                            </p>
-                          )}
-                        </>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-end mb-1">
+                          <CopyButton
+                            className="text-gray-300 hover:text-gray-600 flex-shrink-0"
+                            text={result.aiCalculation.perYear
+                              ? [result.aiCalculation.label, ...result.aiCalculation.perYear.map(y => `FY ${y.year}: ${y.formula}`)].filter(Boolean).join('\n')
+                              : [
+                                  result.aiCalculation.value != null
+                                    ? `${result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}`
+                                    : result.aiCalculation.answer,
+                                  result.aiCalculation.formula,
+                                ].filter(Boolean).join('\n')}
+                          />
+                        </div>
+                        {result.aiCalculation.error ? (
+                          <p className="text-sm text-gray-500">{result.aiCalculation.answer}</p>
+                        ) : result.aiCalculation.perYear ? (
+                          <>
+                            <p className="text-sm font-bold text-gray-800 mb-3">{result.aiCalculation.label}</p>
+                            <table className="w-full border-collapse text-xs mb-2">
+                              <tbody>
+                                {result.aiCalculation.perYear.map((y, i) => (
+                                  <tr key={y.year} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                    <td className="py-1.5 px-2 font-semibold text-gray-600">FY {y.year}</td>
+                                    <td className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
+                                      {y.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}{result.aiCalculation.unit || ''}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <details className="text-xs text-gray-400">
+                              <summary className="cursor-pointer hover:text-gray-600 select-none">Show formula for each year</summary>
+                              <div className="mt-2 space-y-1.5">
+                                {result.aiCalculation.perYear.map(y => (
+                                  <p key={y.year} className="font-mono bg-gray-50 rounded-lg px-3 py-2 break-words">
+                                    <span className="font-bold text-gray-600">FY {y.year}: </span>{y.formula}
+                                  </p>
+                                ))}
+                              </div>
+                            </details>
+                          </>
+                        ) : (
+                          <>
+                            {/* Same clean short title FocusedMetricTurn shows above its value
+                                ("Total Current Assets (E)") — the single-value calc branch has
+                                no dedicated short label field from the backend (only perYear
+                                does), so it's derived here from the formula string by dropping
+                                the embedded operand VALUES and the trailing "= result" — "Total
+                                Current Assets (109.12 Mn) ÷ Total Non-current Assets (35.54 Mn)
+                                = 3.07" becomes "Total Current Assets ÷ Total Non-current Assets"
+                                (Narendra Sir, 2026-08-01: this title was missing here while the
+                                other card format has it — both should match). */}
+                            {result.aiCalculation.formula && (
+                              <p className="text-sm font-bold text-gray-800 mb-1">
+                                {result.aiCalculation.formula.replace(/\s*=\s*[\d,.-]+.*$/, '').replace(/\s*\([^)]*\)/g, '').trim()}
+                              </p>
+                            )}
+                            {result.aiCalculation.value != null && (
+                              <p className="text-2xl font-black text-gray-900">
+                                {result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                                {result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}
+                              </p>
+                            )}
+                            {result.aiCalculation.formula && (
+                              <p className="text-xs text-gray-500 mt-2 leading-relaxed">{result.aiCalculation.formula}</p>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1252,37 +1271,19 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                 {!result.aiCalculation && (
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
 
-                  {/* ── Plain text header — no dark card, no decorative blur blobs;
-                       just company name + a one-line summary, ChatGPT-style, since the
-                       user's own question above already gives the full context. ── */}
+                  {/* ── Plain text header — just the company name, small and simple, since
+                       the user's own question above already gives the full context. CIN/
+                       industry badges, the "Multi-Year"/FY pill and the auto-generated summary
+                       line were dropped (Narendra Sir, 2026-08-01: "ye bhi hatao, only company
+                       name simple sa do") — this isn't a company-profile page, it's one line of
+                       an answer. ── */}
                   <Reveal index={1}>
-                  <div className="px-6 pt-5 pb-4">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
-                      {result.industry && (
-                        <span className="text-gray-400 text-[10px] font-semibold">{result.industry}</span>
-                      )}
-                      {result.industry && result.cin && <span className="text-gray-300 text-[10px]">·</span>}
-                      {result.cin && (
-                        <span className="text-gray-300 text-[10px]">{result.cin}</span>
-                      )}
-                      <span className="text-[#ff7010] text-[10px] font-bold ml-auto">
-                        {result.selectedYear ? `FY ${result.selectedYear}` : 'Multi-Year'}
-                      </span>
-                    </div>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h1 className="text-gray-900 font-bold text-xl leading-tight">
-                          {result.companyName}
-                        </h1>
-                        <p className="text-gray-400 text-[13px] leading-relaxed mt-1 max-w-xl">
-                          {result.summary?.split('.')[0] || `${result.companyName} Financial Performance`}.
-                        </p>
-                      </div>
-                      <button onClick={handleCopyAll} title="Copy the whole answer"
-                        className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex-shrink-0">
-                        {copiedAll ? (<><FaCheck className="text-emerald-500" /> Copied</>) : (<><FaCopy /> Copy all</>)}
-                      </button>
-                    </div>
+                  <div className="px-6 pt-4 pb-2 flex items-center justify-between gap-3">
+                    <p className="text-gray-400 text-xs font-semibold truncate">{result.companyName}</p>
+                    <button onClick={handleCopyAll} title="Copy the whole answer"
+                      className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex-shrink-0">
+                      {copiedAll ? (<><FaCheck className="text-emerald-500" /> Copied</>) : (<><FaCopy /> Copy all</>)}
+                    </button>
                   </div>
 
                   {/* ── Active report type badges ── */}
