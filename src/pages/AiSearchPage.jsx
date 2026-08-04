@@ -768,15 +768,35 @@ const FocusedMetricTurn = ({ result }) => {
               two or more years ("2023-24, 2024-25") is what turns this into a chart (Narendra
               Sir, 2026-08-01: "single year me graph nahi, jab 2-3 years poochhu tab graph"). */}
           {series.length > 1 && (
-            <div className="mt-3" style={{ height: 160 }}>
-              <Bar
-                data={{
-                  labels: series.map(d => d.year),
-                  datasets: [{ data: series.map(d => d.value), backgroundColor: '#ff7010', hoverBackgroundColor: '#1a1f36', borderRadius: 5 }],
-                }}
-                options={barOpts(yFmt, null)}
-              />
-            </div>
+            <>
+              <div className="mt-3" style={{ height: 160 }}>
+                <Bar
+                  data={{
+                    labels: series.map(d => d.year),
+                    datasets: [{ data: series.map(d => d.value), backgroundColor: '#ff7010', hoverBackgroundColor: '#1a1f36', borderRadius: 5 }],
+                  }}
+                  options={barOpts(yFmt, null)}
+                />
+              </div>
+              {/* Plain year|value table alongside the trend chart — every OTHER multi-year
+                  card on this page (aiCalculation's perYear, compareMode's perYearCompare)
+                  already pairs its graph with a table; this one only had the graph (Narendra
+                  Sir, 2026-08-04: "detail pe table ban ke aa raha hai, all pe only for graph aa
+                  raha hai, dono mein aana chahiye"). Separate from — and in addition to — the
+                  formula-breakdown table below, which only appears for "detail"/"details". */}
+              <table className="w-full border-collapse text-xs mt-3">
+                <tbody>
+                  {series.map((d, i) => (
+                    <tr key={d.year} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                      <td className="py-1.5 px-2 font-semibold text-gray-600">FY {d.year}</td>
+                      <td className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
+                        {d.value != null ? yFmt(d.value) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
           {/* "EBIT detail"/"gross margin detail"/... — the backend's own formula-chain
               breakdown (numerator/denominator rows the matched figure is built from) — found
