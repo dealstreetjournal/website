@@ -778,6 +778,39 @@ const FocusedMetricTurn = ({ result }) => {
               />
             </div>
           )}
+          {/* "EBIT detail"/"gross margin detail"/... — the backend's own formula-chain
+              breakdown (numerator/denominator rows the matched figure is built from) — found
+              live (Narendra Sir, 2026-08-04): "EBIT detail" showed the trend graph but dropped
+              this table entirely; this component never rendered singleMetricGroupStatement at
+              all, even though the backend was already sending it for every "detail"/"details"
+              ask. */}
+          {result.chartData?.singleMetricGroupStatement?.length > 0 && (
+            <table className="w-full border-collapse text-xs mt-3">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase">Particulars</th>
+                  {(result.financialYears || []).map(yr => (
+                    <th key={yr} className="text-right py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">FY {yr}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {result.chartData.singleMetricGroupStatement.map((row, i) => {
+                  const rowIsPercent = /%/.test(row.label || '')
+                  return (
+                    <tr key={i} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                      <td className="py-1.5 px-2 font-semibold text-gray-600">{cleanMetricLabel(row.label)}</td>
+                      {(row.values || []).map((v, j) => (
+                        <td key={j} className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
+                          {v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v)}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
           {result.insights?.length > 0 && (
             <div className="mt-3 space-y-1">
               {result.insights.map((ins, i) => (
