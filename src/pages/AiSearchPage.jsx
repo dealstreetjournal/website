@@ -808,7 +808,16 @@ const FocusedMetricTurn = ({ result }) => {
   // itself named avoids showing the whole bucket for a question that named one specific figure.
   const metric = (result.focusedMetricLabel
     && metrics.find(m => m.label?.startsWith(result.focusedMetricLabel))) || metrics[0]
-  const series = result.chartData?.singleMetricChart || []
+  // Not every narrow-topic response uses the specificItemMode path's own singleMetricChart —
+  // "gross sales all years" (Revenue intent) sends revenueChart, "EBITDA 2023-24" sends
+  // ebitdaChart — whichever one this particular response actually populated is the series for
+  // the ONE metric being shown above. NOT marginChart — its points are shaped {year,
+  // grossMargin, ebitdaMargin, netMargin}, not this {year, value} shape (moot in practice: the
+  // "margin" intent always sends 0 keyMetrics, which already keeps it out of this component
+  // entirely, per classifyTurn's own gate — but worth being explicit here rather than relying
+  // on that gate alone to avoid ever silently plotting `undefined` for every point).
+  const series = result.chartData?.singleMetricChart || result.chartData?.revenueChart
+    || result.chartData?.ebitdaChart || []
   // A row whose label carries "%" holds a percentage, not a currency amount — same test
   // getSingleMetricConfig already uses for the same reason (fmtMn would print "-₹21.20 Mn" for
   // a -21.2% margin instead of "-21.2%").
@@ -1473,6 +1482,47 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 }))}
                               />
                             )}
+                            {/* "related party transactions" — AiCalcEngine's own bare-phrase
+                                match ("related party transactions" is literally one of
+                                RPT_TRANSACTION_VALUE_GROUP's synonyms in AiCalcEngine.java) wins
+                                and shows the total value card above, but the backend ALSO still
+                                sends the full itemized rptTable/rptBalancesTable alongside it —
+                                the dedicated year-wise RPT section further down this component is
+                                skipped whenever aiCalculation is set, so without this the itemized
+                                party/relationship/nature list was silently dropped even though the
+                                data was right there in the response (Narendra Sir, 2026-08-04:
+                                "related party transactions" should show the actual transactions,
+                                not just one total). "amount" arrives pipe-joined across every FY
+                                in the source sheet, same convention as detailRows/ratiosTable. */}
+                            {result.chartData?.rptTable?.length > 0 && (
+                              <SimpleTable
+                                headers={['Party', 'Relationship', 'Nature', ...(result.financialYears || []).map(yr => `FY ${yr}`)]}
+                                rows={result.chartData.rptTable.map(r => ({
+                                  label: r.party || r.name || '—',
+                                  cells: [
+                                    r.relationship || '—',
+                                    r.nature || r.type || '—',
+                                    ...String(r.amount || '').split('|').map(v => v.trim() || '—'),
+                                  ],
+                                }))}
+                              />
+                            )}
+                            {result.chartData?.rptBalancesTable?.length > 0 && (
+                              <>
+                                <p className="text-xs font-bold text-gray-500 mt-4 mb-1">Balances Outstanding at Year End</p>
+                                <SimpleTable
+                                  headers={['Party', 'Relationship', 'Nature', ...(result.financialYears || []).map(yr => `FY ${yr}`)]}
+                                  rows={result.chartData.rptBalancesTable.map(r => ({
+                                    label: r.party || r.name || '—',
+                                    cells: [
+                                      r.relationship || '—',
+                                      r.nature || r.type || '—',
+                                      ...String(r.amount || '').split('|').map(v => v.trim() || '—'),
+                                    ],
+                                  }))}
+                                />
+                              </>
+                            )}
                           </>
                         )}
                       </div>
@@ -1614,21 +1664,26 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                   })()}
                   </Reveal>
 
-                  {/* ── Company Overview — shown for a general search, pulls together data
-                       that already exists elsewhere on the page (balance sheet, ratios,
-                       burn/ads metrics, RPT, insights) into one at-a-glance snapshot.
-                       Skipped for an explicit "financial statement" search, which shows
-                       only the statements themselves, and for an "ebitda"-intent search
-                       (bare "EBITDA"/"EBITDA detail", or "EBIT" via singleMetricMode) —
-                       both already get their own EBITDA-relevant chart/table/margin/summary
-                       further down, so this generic Total-Assets/ROE/Burn-Rate/RPT snapshot
-                       on top of that just reads as an unrelated "company overview" page
-                       instead of an EBITDA-focused result. Checked on result.intent (the
-                       backend's own classification) rather than re-testing the query text,
-                       since that's already authoritative and query-text regexes here have
-                       caused this exact class of bug before (see SINGLE_METRIC_MATCHERS). ── */}
+                  {/* ── Company Overview — shown ONLY for a genuine general/company-wide
+                       search, pulls together data that already exists elsewhere on the page
+                       (balance sheet, ratios, burn/ads metrics, RPT, insights) into one
+                       at-a-glance snapshot. Skipped for any narrow-topic answer — signalled by
+                       the backend itself via summary/analysis both null (same signal
+                       classifyTurn uses to route focused single-metric answers away from this
+                       whole dashboard) — plus the explicit financial-statement/singleMetric/
+                       ebitda-intent checks kept as belt-and-suspenders. Found live (Narendra
+                       Sir, 2026-08-04): "expense breakdown", "cap table", "related party
+                       transactions" all already have their own dedicated section further down
+                       but were ALSO showing this generic Total-Assets/ROE/Burn-Rate/RPT
+                       snapshot on top — the same "old format" clutter bug as EBITDA/gross
+                       sales, just not one of the 3 queries caught by hand. Checked on
+                       result.intent (the backend's own classification) rather than re-testing
+                       the query text, since that's already authoritative and query-text
+                       regexes here have caused this exact class of bug before (see
+                       SINGLE_METRIC_MATCHERS). ── */}
                   <Reveal index={3}>
-                  {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.intent !== 'ebitda' && (() => {
+                  {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.intent !== 'ebitda'
+                    && !(result.summary == null && result.analysis == null) && (() => {
                     const meta = result.companyMeta || {}
                     const cd   = result.chartData || {}
 
@@ -3530,6 +3585,22 @@ export default function AiSearchPage() {
     if (data.rankingMode)        return { id, userQuery, kind: 'ranking',    result: data }
     if (data.comparisonMode)     return { id, userQuery, kind: 'comparison', result: data }
     if (data.focusedMetric && !data.aiCalculation) return { id, userQuery, kind: 'metric', result: data }
+    // A narrow, single-topic ask that ISN'T the specificItemMode path above but still isn't
+    // the full company overview either — "gross sales all years" (Revenue intent), "EBITDA
+    // 2023-24" (bare, no "detail"), etc. — found live (Narendra Sir, 2026-08-04): these fell
+    // through to the old, heavier multi-section dashboard (company header card, "Financials at
+    // a Glance", "Key Highlights", sometimes two charts at once) instead of the same simple
+    // card every other narrow query on this page now gets. `summary`/`analysis` are BOTH only
+    // ever null for a narrow topic (AiSearchService's own narrowTopicMode) — the real company
+    // overview always fills them in — and a genuine "financial statement" ask (which also nulls
+    // them, but needs its own full statement tables, not a single-value card) is excluded by
+    // name. `keyMetrics` capped at 2 — a bucket with 3+ related figures (financial statement's
+    // own narrowed set, cap table/RPT's 0) reads as "still a small dashboard", not one figure.
+    const metrics = data.keyMetrics || []
+    if (!data.summary && !data.analysis && metrics.length > 0 && metrics.length <= 2
+        && !isFinancialStatementSearch(userQuery, null)) {
+      return { id, userQuery, kind: 'metric', result: data }
+    }
     return { id, userQuery, kind: 'answer', result: data }
   }
 
