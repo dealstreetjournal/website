@@ -716,6 +716,32 @@ const GlossaryTurn = ({ result, onFollowUp }) => (
               </div>
 )
 
+// Red for a loss/negative figure, green for a gain/positive one, plain dark gray for exactly
+// zero or a non-numeric-looking string — the standard finance-app convention, applied by just
+// reading the leading "-" off the already-formatted display string (fmt/fmtMn/percent strings
+// all consistently put the sign there) rather than needing the raw number passed around too.
+const valueColor = (displayValue) => {
+  const s = String(displayValue ?? '')
+  if (/^-/.test(s.replace(/^[₹\s]+/, ''))) return 'text-red-600'
+  if (/^[₹]?0(\.0+)?\s*(mn|%|x)?$/i.test(s.replace(/,/g, '').trim())) return 'text-gray-900'
+  return 'text-emerald-600'
+}
+
+// Small YoY trend pill — reads the backend's own `trend` field ("up"/"down"/"stable"), already
+// computed for every keyMetrics entry but previously never shown anywhere on this simplified
+// card. Renders nothing for "stable"/missing rather than a neutral dash, since a flat trend on
+// a single-year figure isn't informative enough to be worth a badge.
+const TrendBadge = ({ trend }) => {
+  if (trend !== 'up' && trend !== 'down') return null
+  const isUp = trend === 'up'
+  const Icon = isUp ? FaArrowUp : FaArrowDown
+  return (
+    <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-md ${isUp ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'}`}>
+      <Icon className="text-[9px]" /> YoY
+    </span>
+  )
+}
+
 // Strips the "[(ix)=(i)-(iv)]"-style Excel formula noise and a trailing "(2023-24)" year
 // suffix from a keyMetrics label — same cleanup AssistantAnswerTurn's own key-metrics strip
 // already does, duplicated here (not shared) since it's two lines and this component doesn't
@@ -758,7 +784,15 @@ const FocusedMetricTurn = ({ result }) => {
           {metric ? (
             <>
               <p className="text-sm font-bold text-gray-800 mb-1">{cleanMetricLabel(metric.label)}</p>
-              <p className="text-2xl font-black text-gray-900">{metric.value}</p>
+              {/* Colour + trend arrow — the plain black-on-white number read as "just text",
+                  not a finished financial product; red/green + a YoY arrow is the convention
+                  every finance app uses, and costs nothing extra since the backend was already
+                  computing `trend` (Narendra Sir, 2026-08-04: "jo dikhta hai wahi bikta hai" —
+                  make it look like something was actually built, not just plumbing). */}
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <p className={`text-2xl font-black ${valueColor(metric.value)}`}>{metric.value}</p>
+                <TrendBadge trend={metric.trend} />
+              </div>
             </>
           ) : (
             <p className="text-sm text-gray-500">No data on record for this.</p>
@@ -1416,13 +1450,42 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                               </p>
                             )}
                             {result.aiCalculation.value != null && (
-                              <p className="text-2xl font-black text-gray-900">
+                              <p className={`text-2xl font-black ${valueColor(result.aiCalculation.value)}`}>
                                 {result.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                                 {result.aiCalculation.unit ? ` ${result.aiCalculation.unit}` : ''}
                               </p>
                             )}
                             {result.aiCalculation.formula && (
                               <p className="text-xs text-gray-500 mt-2 leading-relaxed">{result.aiCalculation.formula}</p>
+                            )}
+                            {/* "current ratio detail"/"debt to equity build up"/etc. — the
+                                numerator/denominator breakdown, same table shape and rule as
+                                FocusedMetricTurn's own singleMetricGroupStatement (Narendra Sir,
+                                2026-08-04: "current ratio detail" showed no breakdown at all
+                                while "EBIT detail" did — now both do). */}
+                            {result.aiCalculation.detailRows?.length > 0 && (
+                              <table className="w-full border-collapse text-xs mt-3">
+                                <thead>
+                                  <tr className="border-b border-gray-100">
+                                    <th className="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase">Particulars</th>
+                                    {(result.financialYears || []).map(yr => (
+                                      <th key={yr} className="text-right py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">FY {yr}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {result.aiCalculation.detailRows.map((row, i) => (
+                                    <tr key={i} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                                      <td className="py-1.5 px-2 font-semibold text-gray-600">{cleanMetricLabel(row.label)}</td>
+                                      {(row.values || []).map((v, j) => (
+                                        <td key={j} className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
+                                          {v == null ? '—' : fmtMn(v)}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             )}
                           </>
                         )}
