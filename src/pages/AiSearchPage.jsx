@@ -748,7 +748,47 @@ const TrendBadge = ({ trend }) => {
 // otherwise depend on that file's local render-scope state.
 const cleanMetricLabel = (label) =>
   (label || '').replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s*\(\d{4}-\d{2,4}\)\s*$/, '')
-    .replace(/\s+/g, ' ').trim()
+
+// One polished table used everywhere a small year-wise/breakdown table shows up on this page
+// (FocusedMetricTurn's trend table, its "detail" breakdown, aiCalculation's perYear/detail/
+// compare tables) — previously each of those hand-rolled its own <table>, some with a proper
+// dark header bar and some with none at all, so the SAME kind of data looked different from
+// one card to the next (Narendra Sir, 2026-08-04: "table jaisa achha se aaye, copy bhi kar
+// ske" — one consistent, presentable table, with its own copy button so the numbers can be
+// pasted straight into Excel/Sheets). Copies as tab-separated text — that's what a spreadsheet
+// paste expects — not a visually-formatted copy.
+const SimpleTable = ({ headers, rows }) => {
+  const tsv = [headers.join('\t'), ...rows.map(r => [r.label, ...r.cells].join('\t'))].join('\n')
+  return (
+    <div className="mt-3">
+      <div className="flex justify-end mb-1">
+        <CopyButton text={tsv} className="text-gray-300 hover:text-gray-600" />
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-gray-100">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="bg-gray-900">
+              <th className="text-left py-2 px-3 text-white/80 font-bold text-[11px] whitespace-nowrap">{headers[0]}</th>
+              {headers.slice(1).map((h, i) => (
+                <th key={i} className="text-right py-2 px-3 text-white/80 font-bold text-[11px] whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className={`border-b border-gray-100 last:border-b-0 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
+                <td className="py-2 px-3 font-semibold text-gray-700 whitespace-nowrap">{r.label}</td>
+                {r.cells.map((c, j) => (
+                  <td key={j} className={`py-2 px-3 text-right font-black tabular-nums whitespace-nowrap ${r.colorCells ? valueColor(c) : 'text-gray-800'}`}>{c}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
 
 // A single, specific line-item lookup ("total current assets 2023-24", "trade receivables",
 // "EBITDA") — the backend's own `focusedMetric` flag means it matched exactly ONE row, not a
@@ -818,18 +858,10 @@ const FocusedMetricTurn = ({ result }) => {
                   Sir, 2026-08-04: "detail pe table ban ke aa raha hai, all pe only for graph aa
                   raha hai, dono mein aana chahiye"). Separate from — and in addition to — the
                   formula-breakdown table below, which only appears for "detail"/"details". */}
-              <table className="w-full border-collapse text-xs mt-3">
-                <tbody>
-                  {series.map((d, i) => (
-                    <tr key={d.year} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                      <td className="py-1.5 px-2 font-semibold text-gray-600">FY {d.year}</td>
-                      <td className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
-                        {d.value != null ? yFmt(d.value) : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <SimpleTable
+                headers={['Year', 'Value']}
+                rows={series.map(d => ({ label: `FY ${d.year}`, cells: [d.value != null ? yFmt(d.value) : '—'] }))}
+              />
             </>
           )}
           {/* "EBIT detail"/"gross margin detail"/... — the backend's own formula-chain
@@ -839,31 +871,16 @@ const FocusedMetricTurn = ({ result }) => {
               all, even though the backend was already sending it for every "detail"/"details"
               ask. */}
           {result.chartData?.singleMetricGroupStatement?.length > 0 && (
-            <table className="w-full border-collapse text-xs mt-3">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase">Particulars</th>
-                  {(result.financialYears || []).map(yr => (
-                    <th key={yr} className="text-right py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">FY {yr}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {result.chartData.singleMetricGroupStatement.map((row, i) => {
-                  const rowIsPercent = /%/.test(row.label || '')
-                  return (
-                    <tr key={i} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                      <td className="py-1.5 px-2 font-semibold text-gray-600">{cleanMetricLabel(row.label)}</td>
-                      {(row.values || []).map((v, j) => (
-                        <td key={j} className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
-                          {v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v)}
-                        </td>
-                      ))}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <SimpleTable
+              headers={['Particulars', ...(result.financialYears || []).map(yr => `FY ${yr}`)]}
+              rows={result.chartData.singleMetricGroupStatement.map(row => {
+                const rowIsPercent = /%/.test(row.label || '')
+                return {
+                  label: cleanMetricLabel(row.label),
+                  cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v)),
+                }
+              })}
+            />
           )}
           {result.insights?.length > 0 && (
             <div className="mt-3 space-y-1">
@@ -1335,28 +1352,16 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                     />
                                   </div>
                                 )}
-                                <table className="w-full border-collapse text-xs">
-                                  <thead>
-                                    <tr className="border-b border-gray-100">
-                                      <th className="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase">Year</th>
-                                      <th className="text-right py-1.5 px-2 text-[10px] font-bold uppercase truncate" style={{ color: '#ff7010' }}>{result.aiCalculation.leftLabel}</th>
-                                      <th className="text-right py-1.5 px-2 text-[10px] font-bold uppercase text-gray-700 truncate">{result.aiCalculation.rightLabel}</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {result.aiCalculation.perYearCompare.map((y, i) => (
-                                      <tr key={y.year} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                                        <td className="py-1.5 px-2 font-semibold text-gray-600">FY {y.year}</td>
-                                        <td className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
-                                          {y.leftValue != null ? y.leftValue.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}{result.aiCalculation.leftUnit || ''}
-                                        </td>
-                                        <td className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
-                                          {y.rightValue != null ? y.rightValue.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}{result.aiCalculation.rightUnit || ''}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                                <SimpleTable
+                                  headers={['Year', result.aiCalculation.leftLabel, result.aiCalculation.rightLabel]}
+                                  rows={result.aiCalculation.perYearCompare.map(y => ({
+                                    label: `FY ${y.year}`,
+                                    cells: [
+                                      y.leftValue != null ? `${y.leftValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.leftUnit || ''}` : '—',
+                                      y.rightValue != null ? `${y.rightValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.rightUnit || ''}` : '—',
+                                    ],
+                                  }))}
+                                />
                               </>
                             ) : (
                               <div className="grid grid-cols-2 gap-4">
@@ -1410,18 +1415,14 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 />
                               </div>
                             )}
-                            <table className="w-full border-collapse text-xs mb-2">
-                              <tbody>
-                                {result.aiCalculation.perYear.map((y, i) => (
-                                  <tr key={y.year} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                                    <td className="py-1.5 px-2 font-semibold text-gray-600">FY {y.year}</td>
-                                    <td className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
-                                      {y.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}{result.aiCalculation.unit || ''}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                            <SimpleTable
+                              headers={['Year', 'Value']}
+                              rows={result.aiCalculation.perYear.map(y => ({
+                                label: `FY ${y.year}`,
+                                cells: [`${y.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.unit || ''}`],
+                                colorCells: true,
+                              }))}
+                            />
                             <details className="text-xs text-gray-400">
                               <summary className="cursor-pointer hover:text-gray-600 select-none">Show formula for each year</summary>
                               <div className="mt-2 space-y-1.5">
@@ -1464,28 +1465,13 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 2026-08-04: "current ratio detail" showed no breakdown at all
                                 while "EBIT detail" did — now both do). */}
                             {result.aiCalculation.detailRows?.length > 0 && (
-                              <table className="w-full border-collapse text-xs mt-3">
-                                <thead>
-                                  <tr className="border-b border-gray-100">
-                                    <th className="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase">Particulars</th>
-                                    {(result.financialYears || []).map(yr => (
-                                      <th key={yr} className="text-right py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">FY {yr}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {result.aiCalculation.detailRows.map((row, i) => (
-                                    <tr key={i} className={`border-t border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
-                                      <td className="py-1.5 px-2 font-semibold text-gray-600">{cleanMetricLabel(row.label)}</td>
-                                      {(row.values || []).map((v, j) => (
-                                        <td key={j} className="py-1.5 px-2 text-right font-black text-gray-800 tabular-nums">
-                                          {v == null ? '—' : fmtMn(v)}
-                                        </td>
-                                      ))}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                              <SimpleTable
+                                headers={['Particulars', ...(result.financialYears || []).map(yr => `FY ${yr}`)]}
+                                rows={result.aiCalculation.detailRows.map(row => ({
+                                  label: cleanMetricLabel(row.label),
+                                  cells: (row.values || []).map(v => v == null ? '—' : fmtMn(v)),
+                                }))}
+                              />
                             )}
                           </>
                         )}
