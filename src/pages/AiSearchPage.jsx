@@ -1473,15 +1473,30 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 FocusedMetricTurn's own singleMetricGroupStatement (Narendra Sir,
                                 2026-08-04: "current ratio detail" showed no breakdown at all
                                 while "EBIT detail" did — now both do). */}
-                            {result.aiCalculation.detailRows?.length > 0 && (
-                              <SimpleTable
-                                headers={['Particulars', ...(result.financialYears || []).map(yr => `FY ${yr}`)]}
-                                rows={result.aiCalculation.detailRows.map(row => ({
-                                  label: cleanMetricLabel(row.label),
-                                  cells: (row.values || []).map(v => v == null ? '—' : fmtMn(v)),
-                                }))}
-                              />
-                            )}
+                            {result.aiCalculation.detailRows?.length > 0 && (() => {
+                              // "current ratio detail" (no year named) — found live (Narendra
+                              // Sir, 2026-08-04): headers always used the FULL financialYears
+                              // list (5 columns), but computeRatioDetail on the backend defaults
+                              // to just the LATEST year (1 value) when no year was asked for —
+                              // the single value landed under the FIRST year column with the
+                              // other 4 blank, instead of under the latest year it actually is.
+                              // Naming a year explicitly doesn't hit this (financialYears itself
+                              // narrows to that one year then, so lengths already match) — only
+                              // the no-year-named, defaults-to-latest case needed slicing to the
+                              // trailing N years matching however many values actually came back.
+                              const allYears = result.financialYears || []
+                              const rowLen = result.aiCalculation.detailRows[0]?.values?.length || 0
+                              const yearHeaders = rowLen === allYears.length ? allYears : allYears.slice(-rowLen)
+                              return (
+                                <SimpleTable
+                                  headers={['Particulars', ...yearHeaders.map(yr => `FY ${yr}`)]}
+                                  rows={result.aiCalculation.detailRows.map(row => ({
+                                    label: cleanMetricLabel(row.label),
+                                    cells: (row.values || []).map(v => v == null ? '—' : fmtMn(v)),
+                                  }))}
+                                />
+                              )
+                            })()}
                             {/* "related party transactions" — AiCalcEngine's own bare-phrase
                                 match ("related party transactions" is literally one of
                                 RPT_TRANSACTION_VALUE_GROUP's synonyms in AiCalcEngine.java) wins
@@ -1664,26 +1679,29 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                   })()}
                   </Reveal>
 
-                  {/* ── Company Overview — shown ONLY for a genuine general/company-wide
-                       search, pulls together data that already exists elsewhere on the page
-                       (balance sheet, ratios, burn/ads metrics, RPT, insights) into one
-                       at-a-glance snapshot. Skipped for any narrow-topic answer — signalled by
-                       the backend itself via summary/analysis both null (same signal
-                       classifyTurn uses to route focused single-metric answers away from this
-                       whole dashboard) — plus the explicit financial-statement/singleMetric/
-                       ebitda-intent checks kept as belt-and-suspenders. Found live (Narendra
-                       Sir, 2026-08-04): "expense breakdown", "cap table", "related party
-                       transactions" all already have their own dedicated section further down
-                       but were ALSO showing this generic Total-Assets/ROE/Burn-Rate/RPT
-                       snapshot on top — the same "old format" clutter bug as EBITDA/gross
-                       sales, just not one of the 3 queries caught by hand. Checked on
-                       result.intent (the backend's own classification) rather than re-testing
-                       the query text, since that's already authoritative and query-text
-                       regexes here have caused this exact class of bug before (see
-                       SINGLE_METRIC_MATCHERS). ── */}
+                  {/* ── Company Overview — shown for a general search, pulls together data
+                       that already exists elsewhere on the page (balance sheet, ratios,
+                       burn/ads metrics, RPT, insights) into one at-a-glance snapshot.
+                       Skipped for an explicit "financial statement" search, which shows
+                       only the statements themselves, for an "ebitda"-intent search (bare
+                       "EBITDA"/"EBITDA detail", or "EBIT" via singleMetricMode), and for this
+                       specific, individually-verified list of narrow intents that each already
+                       have their own dedicated section further down (expense/margin get the P&L
+                       or Margin Analysis statement + charts, capTable/rpt get their own
+                       shareholder/RPT tables) — every one confirmed live to still render real
+                       content without this snapshot. Deliberately NOT a general "any narrow
+                       topic" rule keyed on summary/analysis being null (tried that — Narendra
+                       Sir, 2026-08-04: "bahut se keyword pe training kar rakha hu wo band ho
+                       rha hai" — several other narrow-intent keywords relied on THIS generic
+                       snapshot as their only real content and went blank when it was hidden
+                       unconditionally; reverted to this explicit, narrow safelist so anything
+                       not on it keeps behaving exactly as before). Checked on result.intent
+                       (the backend's own classification) rather than re-testing the query text,
+                       since that's already authoritative and query-text regexes here have
+                       caused this exact class of bug before (see SINGLE_METRIC_MATCHERS). ── */}
                   <Reveal index={3}>
                   {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.intent !== 'ebitda'
-                    && !(result.summary == null && result.analysis == null) && (() => {
+                    && !['expense', 'margin', 'capTable', 'rpt'].includes(result.intent) && (() => {
                     const meta = result.companyMeta || {}
                     const cd   = result.chartData || {}
 
@@ -2586,7 +2604,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                         </div>
                       )}
                       {!singleMetricMode && showFinancials && (revData.length > 0 || patData.length > 0) && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30">
+                        <div className={`grid ${revData.length > 0 && patData.length > 0 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30`}>
                           {revData.length > 0 && (
                             <ChartCard title="Revenue" accent="#1a1f36">
                               <div style={{height:165}}>
@@ -2660,7 +2678,13 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                             {renderYoyTable(yrsForTables, ebitdaRows)}
                           </div>
                         )}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30">
+                        {/* Both charts side by side when there's a pair; a lone chart (e.g. a bare
+                            "margin" search, which never populates ebitdaChart) spans the full row
+                            instead of sitting in a 2-col grid with an empty column beside it —
+                            found live (Narendra Sir, 2026-08-04): "margin analysis all" showed
+                            Margin Profiles squeezed into the left half with the right half blank,
+                            "graph half me aa rha hai". */}
+                        <div className={`grid ${ebiData.length > 0 && margData.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30`}>
                           {ebiData.length > 0 && (
                             <ChartCard title="EBITDA" accent="#10b981">
                               <div style={{height:165}}>
@@ -2670,7 +2694,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                           )}
                           {margData.length > 1 && (
                             <ChartCard title="Margin Profiles (%)" accent="#ff7010">
-                              <div style={{height:165}}>
+                              <div style={{height: ebiData.length > 0 ? 165 : 220}}>
                                 <Line data={{ labels: margData.map(d => d.year), datasets: [
                                   margData[0]?.grossMargin  !== undefined && { label:'Gross',  data: margData.map(d => d.grossMargin  ?? null), borderColor:'#1a1f36', tension:0.4, fill:false, pointRadius:4, borderWidth:2 },
                                   margData[0]?.ebitdaMargin !== undefined && { label:'EBITDA', data: margData.map(d => d.ebitdaMargin ?? null), borderColor:'#6366f1', tension:0.4, fill:false, pointRadius:4, borderWidth:2 },
@@ -2689,7 +2713,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                         </div>
                       )}
                       {!singleMetricMode && showFinancials && (grwData.length > 0 || cfData.length > 0) && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30">
+                        <div className={`grid ${grwData.length > 0 && cfData.length > 0 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30`}>
                           {grwData.length > 0 && (
                             <ChartCard title="Y-o-Y Growth (%)" accent="#6366f1">
                               <div style={{height:165}}>
@@ -3596,8 +3620,16 @@ export default function AiSearchPage() {
     // them, but needs its own full statement tables, not a single-value card) is excluded by
     // name. `keyMetrics` capped at 2 — a bucket with 3+ related figures (financial statement's
     // own narrowed set, cap table/RPT's 0) reads as "still a small dashboard", not one figure.
+    // `!data.aiCalculation` added after finding live (Narendra Sir, 2026-08-04): "Total Revenue
+    // vs Total Expenses" also matched "Total Revenue" on its own via specificItemMode (so
+    // focusedMetric=true, keyMetrics=[the Total Revenue row]) — this condition doesn't check
+    // aiCalculation the way the one above it does, so it grabbed the query first and rendered
+    // just the single Total Revenue card, silently dropping the "vs Total Expenses"
+    // compareMode card AiCalcEngine had already computed. Same fix as the check above: an
+    // aiCalculation answer always wins and goes to the full 'answer' turn, which is the only
+    // place that actually renders compareMode/perYear/detailRows.
     const metrics = data.keyMetrics || []
-    if (!data.summary && !data.analysis && metrics.length > 0 && metrics.length <= 2
+    if (!data.aiCalculation && !data.summary && !data.analysis && metrics.length > 0 && metrics.length <= 2
         && !isFinancialStatementSearch(userQuery, null)) {
       return { id, userQuery, kind: 'metric', result: data }
     }
