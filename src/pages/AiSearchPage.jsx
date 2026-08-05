@@ -749,6 +749,24 @@ const TrendBadge = ({ trend }) => {
 const cleanMetricLabel = (label) =>
   (label || '').replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s*\(\d{4}-\d{2,4}\)\s*$/, '')
 
+// Removes every "(...)" group, NESTED ones included, by tracking paren depth rather than a
+// single regex pass — found live (Narendra Sir, 2026-08-05): the naive `\([^)]*\)` regex used
+// for a calculated-answer's title stops at the FIRST ")" it sees, so a label containing a
+// nested pair (e.g. AiCalcEngine's own "Net Burn (Annual) (recalculated — source Excel's own
+// "Net burn rate (Monthly)" value differed)") only ever strips up to that inner ")", leaving a
+// garbled fragment like 'Net Burn" value differed)' behind instead of the clean "Net Burn"
+// title every other calculated answer shows.
+const stripAllParens = (s) => {
+  let out = ''
+  let depth = 0
+  for (const ch of s) {
+    if (ch === '(') { depth++; continue }
+    if (ch === ')') { if (depth > 0) depth--; continue }
+    if (depth === 0) out += ch
+  }
+  return out.replace(/\s+/g, ' ').trim()
+}
+
 // One polished table used everywhere a small year-wise/breakdown table shows up on this page
 // (FocusedMetricTurn's trend table, its "detail" breakdown, aiCalculation's perYear/detail/
 // compare tables) — previously each of those hand-rolled its own <table>, some with a proper
@@ -1030,7 +1048,28 @@ const ComparisonTurn = ({ result }) => (
                     let tableTitle = 'Head-to-Head Comparison'
                     let rows = []
 
-                    if (statementDef) {
+                    // "Jidoka compare Anmasa gross margin EBITDA EBIT PAT" — Narendra Sir,
+                    // 2026-08-05 "Key Words" spec: several metrics named side by side, no
+                    // "compare"/"and" between them. Backend attaches these as each company's
+                    // own "multiMetrics" (see AiSearchService.compareCompanies) — checked
+                    // BEFORE statementDef below since naming specific metrics is a more
+                    // precise signal than whichever full statement happened to also populate.
+                    const hasMultiMetrics = result.companies.some(c => c.multiMetrics?.length >= 2)
+
+                    if (hasMultiMetrics) {
+                      const labelOrder = []
+                      const byLabel = new Map()
+                      result.companies.forEach((c, ci) => {
+                        (c.multiMetrics || []).forEach(m => {
+                          const clean = cleanStatementLabel(m.label)
+                          if (!byLabel.has(clean)) { byLabel.set(clean, new Array(result.companies.length).fill(null)); labelOrder.push(clean) }
+                          byLabel.get(clean)[ci] = m.rawValue
+                        })
+                      })
+                      rows = labelOrder
+                        .map(label => ({ label, cells: byLabel.get(label).map(v => (v == null ? null : { value: v })) }))
+                        .filter(row => row.cells.some(cell => cell?.value != null))
+                    } else if (statementDef) {
                       tableTitle = `Head-to-Head Comparison — ${statementDef.title}`
                       const labelOrder = []
                       const byLabel = new Map()
@@ -1063,29 +1102,57 @@ const ComparisonTurn = ({ result }) => (
 
                     if (rows.length === 0) return null
 
-                    // Computed comparison sentences — "who has more, by how much" — only for
-                    // exactly 2 companies (a 3+-way "who's highest" reads awkwardly as prose,
-                    // the table above already covers that case).
-                    const verdicts = result.companies.length === 2 ? rows
+                    // Computed comparison sentences — "who has more, by how much". Highest vs
+                    // lowest among ALL companies in the row (not just a fixed pair), so this
+                    // now also covers 3+-way comparisons (Narendra Sir, 2026-08-05: "jahan bhi
+                    // compare hota hai wahan % me data do") — previously gated to exactly 2
+                    // companies since the old two-value logic below only ever looked at a
+                    // fixed [a, b] pair.
+                    const verdicts = rows
                       .map(row => {
-                        const [a, b] = row.cells
-                        if (a?.value == null || b?.value == null || a.value === b.value) return null
-                        const aHigher = a.value > b.value
-                        const higher = aHigher ? colNames[0] : colNames[1]
-                        const lower  = aHigher ? colNames[1] : colNames[0]
-                        const hiVal  = Math.max(a.value, b.value)
-                        const loVal  = Math.min(a.value, b.value)
-                        const diff   = hiVal - loVal
-                        const pct    = loVal !== 0 ? (diff / Math.abs(loVal)) * 100 : null
-                        return { label: row.label, higher, lower, diff, pct }
+                        let hi = null, hiIdx = -1, lo = null, loIdx = -1
+                        row.cells.forEach((cell, ci) => {
+                          if (cell?.value == null) return
+                          if (hi == null || cell.value > hi) { hi = cell.value; hiIdx = ci }
+                          if (lo == null || cell.value < lo) { lo = cell.value; loIdx = ci }
+                        })
+                        if (hi == null || lo == null || hiIdx === loIdx) return null
+                        const diff = hi - lo
+                        const pct  = lo !== 0 ? (diff / Math.abs(lo)) * 100 : null
+                        return { label: row.label, higher: colNames[hiIdx], lower: colNames[loIdx], diff, pct }
                       })
-                      .filter(Boolean) : []
+                      .filter(Boolean)
+
+                    const chartColors = ['#ff7010', '#1a1f36', '#6366f1', '#10b981', '#f59e0b']
 
                     return (
                       <div className="px-6 py-5 border-t border-gray-100 overflow-x-auto">
                         <div className="flex items-center gap-2 mb-4">
                           <div className="w-1 h-4 rounded-full bg-indigo-500" />
                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-700">{tableTitle}</p>
+                        </div>
+                        {/* Bar chart alongside the table — Narendra Sir, 2026-08-05: "graph bhi
+                            lao jahan bhi compare hota hai". One group of bars per row, one bar
+                            per company, so it works the same for 2 companies or 3+. */}
+                        <div className="mb-5" style={{ height: 220, minWidth: rows.length * 90 }}>
+                          <Bar
+                            data={{
+                              labels: rows.map(r => r.label),
+                              datasets: result.companies.map((c, ci) => ({
+                                label: colNames[ci],
+                                data: rows.map(r => r.cells[ci]?.value ?? null),
+                                backgroundColor: chartColors[ci % chartColors.length],
+                                borderRadius: 4,
+                              })),
+                            }}
+                            options={{
+                              ...barOpts(fmtMn),
+                              plugins: {
+                                ...barOpts(fmtMn).plugins,
+                                legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 9, boxHeight: 9, borderRadius: 3, padding: 8, usePointStyle: true, pointStyle: 'circle' } },
+                              },
+                            }}
+                          />
                         </div>
                         <table className="w-full text-sm border-collapse rounded-xl overflow-hidden min-w-max">
                           <thead>
@@ -1337,18 +1404,54 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                               // "A compare B compare C" — three or more figures at once
                               // (Narendra Sir, 2026-08-05 "Key Words" spec, items 21/22).
                               // Same tile shape as the two-way case below, just N tiles in a
-                              // responsive grid instead of a fixed 2-column one.
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {result.aiCalculation.items.map((it, i) => (
-                                  <div key={i} className="min-w-0">
-                                    <p className="text-xs font-bold text-gray-500 mb-1 truncate">{it.label}</p>
-                                    <p className="text-xl font-black text-gray-900">
-                                      {it.value != null ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
-                                      {it.unit || ''}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
+                              // responsive grid instead of a fixed 2-column one — plus a bar
+                              // chart and %-difference lines against the first item, added
+                              // (Narendra Sir, 2026-08-05: "graph bhi lao, % me data do jahan
+                              // bhi compare hota hai") to match what every other compare shape
+                              // on this page now shows.
+                              <>
+                                <div className="mb-4" style={{ height: 180 }}>
+                                  <Bar
+                                    data={{
+                                      labels: result.aiCalculation.items.map(it => it.label),
+                                      datasets: [{
+                                        data: result.aiCalculation.items.map(it => it.value),
+                                        backgroundColor: ['#ff7010', '#1a1f36', '#6366f1', '#10b981', '#f59e0b'],
+                                        borderRadius: 5,
+                                      }],
+                                    }}
+                                    options={barOpts((v) => `${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.items[0]?.unit || ''}`)}
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-3">
+                                  {result.aiCalculation.items.map((it, i) => (
+                                    <div key={i} className="min-w-0">
+                                      <p className="text-xs font-bold text-gray-500 mb-1 truncate">{it.label}</p>
+                                      <p className="text-xl font-black text-gray-900">
+                                        {it.value != null ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
+                                        {it.unit || ''}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="space-y-1.5">
+                                  {result.aiCalculation.items.slice(1).map((it, i) => {
+                                    const base = result.aiCalculation.items[0]
+                                    if (base.value == null || it.value == null || base.value === 0) return null
+                                    const pct = ((it.value - base.value) / Math.abs(base.value)) * 100
+                                    const up = pct >= 0
+                                    return (
+                                      <p key={i} className="text-xs text-gray-600">
+                                        <span className="font-semibold text-gray-900">{it.label}</span> is{' '}
+                                        <span className={`font-bold ${up ? 'text-emerald-600' : 'text-red-600'}`}>
+                                          {Math.abs(pct).toFixed(1)}% {up ? 'higher' : 'lower'}
+                                        </span>{' '}
+                                        than <span className="font-semibold">{base.label}</span>.
+                                      </p>
+                                    )
+                                  })}
+                                </div>
+                              </>
                             ) : result.aiCalculation.perYearCompare?.length > 0 ? (
                               <>
                                 {/* Graph AND table together for "all years"/"year wise" compare
@@ -1391,26 +1494,62 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 />
                               </>
                             ) : (
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.leftLabel}</p>
-                                  <p className="text-xl font-black text-gray-900">
-                                    {result.aiCalculation.leftValue != null
-                                      ? result.aiCalculation.leftValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
-                                      : '—'}
-                                    {result.aiCalculation.leftUnit || ''}
-                                  </p>
+                              <>
+                                {/* Bar chart + %-difference line for a plain single-year "X vs
+                                    Y" — found live (Narendra Sir, 2026-08-05): only the
+                                    multi-year perYearCompare branch above had a chart; the far
+                                    more common single-year case showed just two bare numbers
+                                    with no visual and no sense of "by how much". */}
+                                {result.aiCalculation.leftValue != null && result.aiCalculation.rightValue != null && (
+                                  <div className="mb-4" style={{ height: 160 }}>
+                                    <Bar
+                                      data={{
+                                        labels: [result.aiCalculation.leftLabel, result.aiCalculation.rightLabel],
+                                        datasets: [{
+                                          data: [result.aiCalculation.leftValue, result.aiCalculation.rightValue],
+                                          backgroundColor: ['#ff7010', '#1a1f36'],
+                                          borderRadius: 5,
+                                        }],
+                                      }}
+                                      options={barOpts((v) => `${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.leftUnit || ''}`)}
+                                    />
+                                  </div>
+                                )}
+                                <div className="grid grid-cols-2 gap-4 mb-3">
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.leftLabel}</p>
+                                    <p className="text-xl font-black text-gray-900">
+                                      {result.aiCalculation.leftValue != null
+                                        ? result.aiCalculation.leftValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+                                        : '—'}
+                                      {result.aiCalculation.leftUnit || ''}
+                                    </p>
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.rightLabel}</p>
+                                    <p className="text-xl font-black text-gray-900">
+                                      {result.aiCalculation.rightValue != null
+                                        ? result.aiCalculation.rightValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+                                        : '—'}
+                                      {result.aiCalculation.rightUnit || ''}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-bold text-gray-500 mb-1 truncate">{result.aiCalculation.rightLabel}</p>
-                                  <p className="text-xl font-black text-gray-900">
-                                    {result.aiCalculation.rightValue != null
-                                      ? result.aiCalculation.rightValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })
-                                      : '—'}
-                                    {result.aiCalculation.rightUnit || ''}
-                                  </p>
-                                </div>
-                              </div>
+                                {result.aiCalculation.leftValue != null && result.aiCalculation.rightValue != null
+                                  && result.aiCalculation.leftValue !== 0 && (() => {
+                                    const pct = ((result.aiCalculation.rightValue - result.aiCalculation.leftValue) / Math.abs(result.aiCalculation.leftValue)) * 100
+                                    const up = pct >= 0
+                                    return (
+                                      <p className="text-xs text-gray-600">
+                                        <span className="font-semibold text-gray-900">{result.aiCalculation.rightLabel}</span> is{' '}
+                                        <span className={`font-bold ${up ? 'text-emerald-600' : 'text-red-600'}`}>
+                                          {Math.abs(pct).toFixed(1)}% {up ? 'higher' : 'lower'}
+                                        </span>{' '}
+                                        than <span className="font-semibold">{result.aiCalculation.leftLabel}</span>.
+                                      </p>
+                                    )
+                                  })()}
+                              </>
                             )}
                           </>
                         ) : result.aiCalculation.error ? (
@@ -1474,7 +1613,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 other card format has it — both should match). */}
                             {result.aiCalculation.formula && (
                               <p className="text-sm font-bold text-gray-800 mb-1">
-                                {result.aiCalculation.formula.replace(/\s*=\s*[\d,.-]+.*$/, '').replace(/\s*\([^)]*\)/g, '').trim()}
+                                {stripAllParens(result.aiCalculation.formula.replace(/\s*=\s*[\d,.-]+.*$/, ''))}
                               </p>
                             )}
                             {result.aiCalculation.value != null && (
