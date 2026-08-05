@@ -3189,9 +3189,14 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                               </div>
                                             )}
 
-                                            {/* significance */}
+                                            {/* significance — full text, not truncated (Narendra
+                                                Sir, 2026-08-05: "signification of ratio... sahi se
+                                                read kyu nahi kar rahe ho" — line-clamp-2 was
+                                                cutting every explanation off after 2 lines with
+                                                "…", even though the real (often 2-4 sentence)
+                                                text was already there in full underneath it). */}
                                             {r.significance && (
-                                              <p className="text-[9px] text-gray-500 leading-tight mt-0.5 line-clamp-2">{r.significance}</p>
+                                              <p className="text-[9px] text-gray-500 leading-relaxed mt-0.5">{r.significance}</p>
                                             )}
                                           </div>
                                         )
