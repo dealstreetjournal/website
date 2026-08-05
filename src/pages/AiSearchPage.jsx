@@ -1307,7 +1307,9 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                           <CopyButton
                             className="text-gray-300 hover:text-gray-600 flex-shrink-0"
                             text={result.aiCalculation.compareMode
-                              ? (result.aiCalculation.perYearCompare
+                              ? (result.aiCalculation.items?.length >= 3
+                                  ? result.aiCalculation.items.map(it => `${it.label}: ${it.value}${it.unit || ''}`)
+                                  : result.aiCalculation.perYearCompare
                                   ? [`${result.aiCalculation.leftLabel} vs ${result.aiCalculation.rightLabel}`,
                                      ...result.aiCalculation.perYearCompare.map(y =>
                                        `FY ${y.year}: ${y.leftValue ?? '—'}${result.aiCalculation.leftUnit || ''} vs ${y.rightValue ?? '—'}${result.aiCalculation.rightUnit || ''}`)]
@@ -1331,7 +1333,23 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 divide kar raha hai, divide nahi karna chahiye" — "compare" now
                                 has its own dedicated shape on the backend instead of being
                                 treated as a division operator). */}
-                            {result.aiCalculation.perYearCompare?.length > 0 ? (
+                            {result.aiCalculation.items?.length >= 3 ? (
+                              // "A compare B compare C" — three or more figures at once
+                              // (Narendra Sir, 2026-08-05 "Key Words" spec, items 21/22).
+                              // Same tile shape as the two-way case below, just N tiles in a
+                              // responsive grid instead of a fixed 2-column one.
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                {result.aiCalculation.items.map((it, i) => (
+                                  <div key={i} className="min-w-0">
+                                    <p className="text-xs font-bold text-gray-500 mb-1 truncate">{it.label}</p>
+                                    <p className="text-xl font-black text-gray-900">
+                                      {it.value != null ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
+                                      {it.unit || ''}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : result.aiCalculation.perYearCompare?.length > 0 ? (
                               <>
                                 {/* Graph AND table together for "all years"/"year wise" compare
                                     (Narendra Sir, 2026-08-01: "table nahi aaya, table bhi dikhao
