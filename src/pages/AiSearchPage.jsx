@@ -251,7 +251,9 @@ const getSingleMetricConfig = (mode, result) => {
     return {
       labelTest: new RegExp('^' + escapeRegex(cleanTitle || 'x'), 'i'),
       title: cleanTitle || 'Value', accent: '#8b5cf6',
-      fmt: isPercent ? (v) => `${v.toFixed(1)}%` : fmtMn,
+      // Same raw-ratio-needs-×100 fix as FocusedMetricTurn's own yFmt above — this series'
+      // values are the same unscaled chartData.singleMetricChart numbers.
+      fmt: isPercent ? (v) => `${(v * 100).toFixed(1)}%` : fmtMn,
       series,
     }
   }
@@ -840,7 +842,14 @@ const FocusedMetricTurn = ({ result }) => {
   // getSingleMetricConfig already uses for the same reason (fmtMn would print "-₹21.20 Mn" for
   // a -21.2% margin instead of "-21.2%").
   const isPercent = /%/.test(metric?.label || '')
-  const yFmt = isPercent ? (v) => `${v.toFixed(1)}%` : fmtMn
+  // chartData.singleMetricChart sends the RAW ratio (0.0532 for 5.32%), never pre-scaled —
+  // found live (Narendra Sir, 2026-08-05): "EBITDA margin all years" showed the top value
+  // correctly as "18.4%" (keyMetrics' own value is pre-formatted server-side) but the per-year
+  // trend table underneath showed "0.1%"/"0.2%" — this multiplier was missing, so a query
+  // where the user never typed "%" at all (a percent row was simply what they asked for, e.g.
+  // "margin") still showed a plainly wrong number instead of no data being percent-scaled
+  // until actually asked for.
+  const yFmt = isPercent ? (v) => `${(v * 100).toFixed(1)}%` : fmtMn
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
       <div className="flex items-start gap-3">
