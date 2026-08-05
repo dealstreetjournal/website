@@ -1374,7 +1374,11 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                           <CopyButton
                             className="text-gray-300 hover:text-gray-600 flex-shrink-0"
                             text={result.aiCalculation.compareMode
-                              ? (result.aiCalculation.items?.length >= 3
+                              ? (result.aiCalculation.itemsPerYear?.length > 0
+                                  ? [result.aiCalculation.items.map(it => it.label).join('\t'),
+                                     ...result.aiCalculation.itemsPerYear.map(y =>
+                                       `FY ${y.year}: ` + y.values.map((v, ii) => `${v ?? '—'}${result.aiCalculation.items[ii]?.unit || ''}`).join(' | '))]
+                                  : result.aiCalculation.items?.length >= 3
                                   ? result.aiCalculation.items.map(it => `${it.label}: ${it.value}${it.unit || ''}`)
                                   : result.aiCalculation.perYearCompare
                                   ? [`${result.aiCalculation.leftLabel} vs ${result.aiCalculation.rightLabel}`,
@@ -1400,7 +1404,43 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                 divide kar raha hai, divide nahi karna chahiye" — "compare" now
                                 has its own dedicated shape on the backend instead of being
                                 treated as a division operator). */}
-                            {result.aiCalculation.items?.length >= 3 ? (
+                            {result.aiCalculation.itemsPerYear?.length > 0 ? (
+                              // "A compare B compare C all years" — Narendra Sir, 2026-08-05:
+                              // "all kiya to all years ke dena chahiye tha... table dena
+                              // chahiye tha" — same graph+table shape the two-operand
+                              // perYearCompare case below already has, extended to N items.
+                              <>
+                                <div className="mb-4" style={{ height: 200 }}>
+                                  <Bar
+                                    data={{
+                                      labels: result.aiCalculation.itemsPerYear.map(y => y.year),
+                                      datasets: result.aiCalculation.items.map((it, ii) => ({
+                                        label: it.label,
+                                        data: result.aiCalculation.itemsPerYear.map(y => y.values[ii]),
+                                        backgroundColor: ['#ff7010', '#1a1f36', '#6366f1', '#10b981', '#f59e0b'][ii % 5],
+                                        borderRadius: 4,
+                                      })),
+                                    }}
+                                    options={{
+                                      ...barOpts((v) => `${v?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.items[0]?.unit || ''}`),
+                                      plugins: {
+                                        ...barOpts(fmtMn).plugins,
+                                        legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 9, boxHeight: 9, borderRadius: 3, padding: 8, usePointStyle: true, pointStyle: 'circle' } },
+                                      },
+                                    }}
+                                  />
+                                </div>
+                                <SimpleTable
+                                  headers={['Year', ...result.aiCalculation.items.map(it => it.label)]}
+                                  rows={result.aiCalculation.itemsPerYear.map(y => ({
+                                    label: `FY ${y.year}`,
+                                    cells: y.values.map((v, ii) => v != null
+                                      ? `${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.items[ii]?.unit || ''}`
+                                      : '—'),
+                                  }))}
+                                />
+                              </>
+                            ) : result.aiCalculation.items?.length >= 3 ? (
                               // "A compare B compare C" — three or more figures at once
                               // (Narendra Sir, 2026-08-05 "Key Words" spec, items 21/22).
                               // Same tile shape as the two-way case below, just N tiles in a
@@ -1455,6 +1495,30 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                     )
                                   })}
                                 </div>
+                                {/* "gross margin vs EBITDA vs EBIT detail" — each compared
+                                    item's own formula breakdown, same as a single "EBITDA
+                                    detail" ask already shows (Narendra Sir, 2026-08-05:
+                                    "detail dalu to detail dena chahiye tha"). One small table
+                                    per item, titled with that item's own row label. */}
+                                {result.aiCalculation.itemDetails?.length > 0 && (
+                                  <div className="mt-4 space-y-4">
+                                    {result.aiCalculation.itemDetails.map((d, i) => (
+                                      <div key={i}>
+                                        <p className="text-xs font-bold text-gray-700 mb-1">{cleanMetricLabel(d.label)} — detail</p>
+                                        <SimpleTable
+                                          headers={['Particulars', ...(result.financialYears || []).map(yr => `FY ${yr}`)]}
+                                          rows={d.rows.map(row => {
+                                            const rowIsPercent = /%/.test(row.label || '')
+                                            return {
+                                              label: cleanMetricLabel(row.label),
+                                              cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v)),
+                                            }
+                                          })}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </>
                             ) : result.aiCalculation.perYearCompare?.length > 0 ? (
                               <>
