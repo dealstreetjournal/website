@@ -1408,8 +1408,23 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                               // chart and %-difference lines against the first item, added
                               // (Narendra Sir, 2026-08-05: "graph bhi lao, % me data do jahan
                               // bhi compare hota hai") to match what every other compare shape
-                              // on this page now shows.
+                              // on this page now shows. Tiles shown BEFORE the chart (Narendra
+                              // Sir, 2026-08-05: "pahle...ye dega uske baad graph aayega") — the
+                              // numbers are the direct answer to what was asked, the chart is
+                              // supporting visual, same order FocusedMetricTurn's own value+
+                              // chart already uses.
                               <>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-3">
+                                  {result.aiCalculation.items.map((it, i) => (
+                                    <div key={i} className="min-w-0">
+                                      <p className="text-xs font-bold text-gray-500 mb-1 truncate">{it.label}</p>
+                                      <p className="text-xl font-black text-gray-900">
+                                        {it.value != null ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
+                                        {it.unit || ''}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
                                 <div className="mb-4" style={{ height: 180 }}>
                                   <Bar
                                     data={{
@@ -1422,17 +1437,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                                     }}
                                     options={barOpts((v) => `${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.items[0]?.unit || ''}`)}
                                   />
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-3">
-                                  {result.aiCalculation.items.map((it, i) => (
-                                    <div key={i} className="min-w-0">
-                                      <p className="text-xs font-bold text-gray-500 mb-1 truncate">{it.label}</p>
-                                      <p className="text-xl font-black text-gray-900">
-                                        {it.value != null ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—'}
-                                        {it.unit || ''}
-                                      </p>
-                                    </div>
-                                  ))}
                                 </div>
                                 <div className="space-y-1.5">
                                   {result.aiCalculation.items.slice(1).map((it, i) => {
