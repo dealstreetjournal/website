@@ -6,7 +6,7 @@ import {
   FaHistory, FaBars, FaTrash, FaChartPie, FaUsers, FaHandshake,
   FaMoneyBillWave, FaChartLine, FaDownload, FaTable,
   FaExclamationTriangle, FaChevronRight, FaExpandAlt, FaCompressAlt,
-  FaPlus, FaUser, FaArrowLeft, FaCopy, FaCheck, FaSignOutAlt,
+  FaPlus, FaUser, FaArrowLeft, FaCopy, FaCheck, FaSignOutAlt, FaPen,
 } from 'react-icons/fa'
 import {
   Chart as ChartJS,
@@ -110,6 +110,15 @@ const isFinancialStatementSearch = (query, lastSearchedTypes) => {
   const q = (query || '').toLowerCase().trim()
   if (!q) return false
   if (/financial statements?/.test(q)) return true
+  // "financials" alone — a common shorthand for "financial statements" (Narendra Sir,
+  // 2026-08-06: "financials = financial statement, ye bhi abhi tak nahi hua"). The backend's
+  // own isFinancialStatementQuery already treats bare "financial" as enough and returns the
+  // same 3-statement data either way — this frontend copy just hadn't caught up, so
+  // "financials" was showing the Company Overview dashboard around the statements instead of
+  // just the statements themselves. Word-bounded and requires the "s" specifically, not bare
+  // "financial" alone, which shows up in unrelated phrases ("financial year," "financial
+  // health") that aren't asking for the statements.
+  if (/\bfinancials\b/.test(q)) return true
   // Naming one specific statement by name — "balance sheet", "profit and loss"/"p&l",
   // "cash flow statement" — also counts, same narrow treatment as "financial statement(s)"
   // itself. Found live (Narendra Sir, 2026-08-01): asking for just the balance sheet was
@@ -365,9 +374,14 @@ const buildExtraGlanceRows = (result) => {
 // year-selection question, so those read as the AI actively composing its answer rather
 // than a static block of text just popping in fully-formed. Re-types from scratch whenever
 // `text` itself changes (a new search result / a new question), not on every re-render.
-const TypewriterText = ({ text, speed = 14 }) => {
-  const [shown, setShown] = useState('')
+// `instant` skips the character-by-character animation entirely and shows the full text
+// right away — used when a turn is being RESTORED from history (Narendra Sir, 2026-08-06:
+// re-opening a saved conversation replayed the same "typing" effect that plays for a live,
+// just-arrived answer, making already-known saved text look like it's arriving fresh again).
+const TypewriterText = ({ text, speed = 14, instant = false }) => {
+  const [shown, setShown] = useState(instant ? (text || '') : '')
   useEffect(() => {
+    if (instant) { setShown(text || ''); return }
     setShown('')
     if (!text) return
     let i = 0
@@ -377,7 +391,7 @@ const TypewriterText = ({ text, speed = 14 }) => {
       if (i >= text.length) clearInterval(id)
     }, speed)
     return () => clearInterval(id)
-  }, [text, speed])
+  }, [text, speed, instant])
   return shown
 }
 
@@ -616,10 +630,26 @@ const timeAgo = (iso) => {
 // fully visible and independently interactive after newer ones are appended,
 // ChatGPT/Claude-style, instead of the AI's answer replacing the previous one.
 
-const UserBubble = ({ text }) => (
-  <div className="flex justify-end">
-    <div className="max-w-[85%] bg-gray-100 text-gray-900 text-sm rounded-2xl rounded-tr-md px-4 py-2.5">
-      {text}
+// `onEdit` (when given) loads this exact text back into the bottom composer for editing —
+// a typo, or just wanting to ask it differently, shouldn't require retyping the whole thing
+// from scratch (Narendra Sir, 2026-08-06: "upar jo search karte hai usko edit karne ka option
+// do, fir se submit kar sakein"). Deliberately does NOT resubmit on its own — it hands the
+// text back to the composer so the user can change it first, same as clicking an autocomplete
+// suggestion does (pickSuggestion), just seeded from a past question instead of a company name.
+const UserBubble = ({ text, onEdit }) => (
+  <div className="flex justify-end group">
+    <div className="max-w-[85%] flex items-center gap-1.5">
+      {onEdit && (
+        <button
+          onClick={() => onEdit(text)}
+          title="Edit and re-ask"
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 flex-shrink-0">
+          <FaPen className="text-[10px]" />
+        </button>
+      )}
+      <div className="bg-gray-100 text-gray-900 text-sm rounded-2xl rounded-tr-md px-4 py-2.5">
+        {text}
+      </div>
     </div>
   </div>
 )
@@ -659,7 +689,7 @@ const ErrorTurn = ({ message }) => (
               </div>
 )
 
-const YearPromptTurn = ({ result }) => (
+const YearPromptTurn = ({ result, instant = false }) => (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
@@ -667,7 +697,7 @@ const YearPromptTurn = ({ result }) => (
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-700 leading-relaxed">
-                      <TypewriterText text={
+                      <TypewriterText instant={instant} text={
                         `Sure, let's look at ${result.companyName || ''}'s ${result.query || ''}. ` +
                         `Which year should I focus on — ${(result.availableYears || []).join(', ')} — or would you like to see all of them?`
                       } />
@@ -682,7 +712,7 @@ const YearPromptTurn = ({ result }) => (
 // statements) and just shows the term + its plain-English definition. Also doubles as the
 // "vague ask" rescue card ("what is this", bare "which"/"who"/"that") via result.glossaryHelp —
 // a short list of clickable example questions instead of a dead-end error.
-const GlossaryTurn = ({ result, onFollowUp }) => (
+const GlossaryTurn = ({ result, onFollowUp, instant = false }) => (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
@@ -692,7 +722,7 @@ const GlossaryTurn = ({ result, onFollowUp }) => (
                     {result.glossaryHelp ? (
                       <>
                         <p className="text-sm text-gray-700 leading-relaxed mb-3">
-                          <TypewriterText text={result.message || ''} />
+                          <TypewriterText instant={instant} text={result.message || ''} />
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {(result.examples || []).map((ex, i) => (
@@ -709,7 +739,7 @@ const GlossaryTurn = ({ result, onFollowUp }) => (
                       <>
                         <p className="text-sm font-bold text-gray-800 mb-1.5">{result.term}</p>
                         <p className="text-sm text-gray-700 leading-relaxed">
-                          <TypewriterText text={result.definition || ''} />
+                          <TypewriterText instant={instant} text={result.definition || ''} />
                         </p>
                       </>
                     )}
@@ -1095,6 +1125,24 @@ const ComparisonTurn = ({ result }) => (
                       rows = labelOrder
                         .map(label => ({ label, cells: byLabel.get(label).map(v => (v == null ? null : { value: v })) }))
                         .filter(row => row.cells.some(cell => cell?.value != null))
+                    } else if (result.companies.some(c => c.chartData?.singleMetricChart?.length > 0)) {
+                      // One specific named metric that isn't Revenue/PAT/EBITDA and doesn't
+                      // populate a full statement — e.g. "CompanyA vs CompanyB gross margin"
+                      // (Narendra Sir, 2026-08-06: same table+graph 3-way comparisons already
+                      // get should also show for 2-way) — each company's own focused-metric
+                      // series (search()'s singleMetricChart, same field FocusedMetricTurn
+                      // plots for a single-company ask) becomes the one comparison row.
+                      const withFocus = result.companies.find(c => c.focusedMetricLabel)
+                      const label = cleanMetricLabel(withFocus?.focusedMetricLabel
+                        || result.companies.find(c => c.keyMetrics?.[0]?.label)?.keyMetrics[0].label
+                        || 'Value')
+                      rows = [{
+                        label,
+                        cells: result.companies.map(c => {
+                          const v = latestArrValue((c.chartData?.singleMetricChart || []).map(p => p.value))
+                          return v == null ? null : { value: v }
+                        }),
+                      }].filter(row => row.cells.some(cell => cell?.value != null))
                     } else {
                       const metricDefs = [
                         { label: 'Revenue',             chart: 'revenueChart' },
@@ -1104,7 +1152,10 @@ const ComparisonTurn = ({ result }) => (
                       rows = metricDefs
                         .map(md => ({
                           label: md.label,
-                          cells: result.companies.map(c => latestArrValue(c.chartData?.[md.chart])),
+                          cells: result.companies.map(c => {
+                            const v = latestArrValue(c.chartData?.[md.chart])
+                            return v == null ? null : { value: v }
+                          }),
                         }))
                         .filter(row => row.cells.some(cell => cell?.value != null))
                     }
@@ -1273,7 +1324,7 @@ const ComparisonTurn = ({ result }) => (
               </div>
 )
 
-const AssistantAnswerTurn = ({ result, onFollowUp }) => {
+const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
   // Report selector state — LOCAL to this turn (was page-level before the
   // conversation-thread redesign) so an older turn's year/type selectors keep working
   // independently after newer turns are appended.
@@ -3376,7 +3427,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
                         </div>
                         <CopyButton className="text-gray-400 hover:text-gray-700" text={result.summary} />
                       </div>
-                      <p className="text-sm text-gray-600 leading-relaxed pl-3"><TypewriterText text={result.summary} /></p>
+                      <p className="text-sm text-gray-600 leading-relaxed pl-3"><TypewriterText instant={instant} text={result.summary} /></p>
                     </div>
                   )}
                   </Reveal>
@@ -3584,18 +3635,23 @@ const AssistantAnswerTurn = ({ result, onFollowUp }) => {
               )
 }
 
-const Turn = ({ turn, onFollowUp, scrollAnchorRef }) => (
+const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
+  // Turns restored from sidebar history (loadHistoryResult stamps every one of them with
+  // the source item's id) show their saved text immediately — no replayed "typing" effect.
+  const instant = !!turn.historyId
+  return (
   <div className="space-y-3" ref={scrollAnchorRef}>
-    <UserBubble text={turn.userQuery} />
+    <UserBubble text={turn.userQuery} onEdit={onEditQuery} />
     {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} />}
-    {turn.kind === 'glossary'   && <GlossaryTurn result={turn.result} onFollowUp={onFollowUp} />}
-    {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} />}
+    {turn.kind === 'glossary'   && <GlossaryTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
+    {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
     {turn.kind === 'comparison' && <ComparisonTurn result={turn.result} />}
     {turn.kind === 'metric'     && <FocusedMetricTurn result={turn.result} />}
-    {turn.kind === 'answer'     && <AssistantAnswerTurn result={turn.result} onFollowUp={onFollowUp} />}
+    {turn.kind === 'answer'     && <AssistantAnswerTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
   </div>
-)
+  )
+}
 
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -3798,6 +3854,16 @@ export default function AiSearchPage() {
     setShowSuggestions(false)
     setActiveSugIdx(-1)
     inputRef.current?.focus()
+  }
+
+  // Loads a past question back into the composer for editing, instead of resubmitting it
+  // verbatim — the user fixes the typo/rephrases, then hits Enter themselves same as any
+  // other search (see UserBubble's onEdit).
+  const handleEditQuery = (text) => {
+    setQuery(text)
+    setShowSuggestions(false)
+    inputRef.current?.focus()
+    inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
   const handleInputChange = (e) => {
@@ -4369,7 +4435,7 @@ export default function AiSearchPage() {
             )}
 
             {turns.map((turn, idx) => (
-              <Turn key={turn.id} turn={turn} onFollowUp={doSearch}
+              <Turn key={turn.id} turn={turn} onFollowUp={doSearch} onEditQuery={handleEditQuery}
                 scrollAnchorRef={idx === turns.length - 1 ? scrollAnchorRef : undefined} />
             ))}
 
