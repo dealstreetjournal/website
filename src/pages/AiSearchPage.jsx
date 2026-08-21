@@ -115,10 +115,16 @@ const isFinancialStatementSearch = (query, lastSearchedTypes) => {
   // own isFinancialStatementQuery already treats bare "financial" as enough and returns the
   // same 3-statement data either way — this frontend copy just hadn't caught up, so
   // "financials" was showing the Company Overview dashboard around the statements instead of
-  // just the statements themselves. Word-bounded and requires the "s" specifically, not bare
-  // "financial" alone, which shows up in unrelated phrases ("financial year," "financial
-  // health") that aren't asking for the statements.
-  if (/\bfinancials\b/.test(q)) return true
+  // just the statements themselves.
+  // Bare "financial" (no "s") now matches too (Narendra Sir, 2026-08-20: "financials = financial"
+  // — explicitly asked for exact parity with "financials", overriding the earlier deliberate
+  // exclusion here). Backend payload was already byte-for-byte identical either way; only this
+  // frontend copy still drew a line between them, so "Astrotalk financial 2023-24" fell through
+  // to the broader Company Overview treatment while "financials" got the narrow statements-only
+  // view — same data, visibly different page. The false-positive risk this exclusion originally
+  // guarded against ("financial year," "financial health") is the same tradeoff the backend's
+  // own check already accepts, so matching it here is consistent, not a new risk.
+  if (/\bfinancials?\b/.test(q)) return true
   // Naming one specific statement by name — "balance sheet", "profit and loss"/"p&l",
   // "cash flow statement" — also counts, same narrow treatment as "financial statement(s)"
   // itself. Found live (Narendra Sir, 2026-08-01): asking for just the balance sheet was
@@ -2274,7 +2280,17 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     const ebiData  = filterYr(cd.ebitdaChart   || []).filter(d => d.value != null)
                     const margData = filterYr(cd.marginChart   || []).filter(d => Object.keys(d).length > 1)
                     const grwData  = filterYr(cd.growthChart   || [])
-                    const cfData   = filterYr(cd.cashFlowChart || [])
+                    // cashFlowChart is a 3-line Operating/Investing/Financing SUMMARY of the
+                    // same data the full cashFlowStatement below already shows in complete
+                    // detail — found live (Narendra Sir: "cashflow statement old wala aa raha
+                    // hai"): asking for the cash flow statement showed this condensed summary
+                    // card AND the full itemized statement together, the summary reading as a
+                    // stale/older view sitting above the real one. Same "richer view wins"
+                    // precedent as the Overhead Costs *Chart vs *Statement fix — only suppressed
+                    // when the full statement is ALSO present; a general company-overview search
+                    // (which never shows the full raw statement) still gets this summary as its
+                    // only cash-flow view, unaffected.
+                    const cfData   = cd.cashFlowStatement?.length > 0 ? [] : filterYr(cd.cashFlowChart || [])
                     const rveData  = filterYr(cd.revVsExpChart || [])
 
                     // Table rows for Revenue/PAT/EBITDA/Cash-Flow — built against yrsForTables
@@ -2306,10 +2322,19 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     const rptRows         = cd.rptTable                 // [{party,relationship,nature,amount}]
                     const rptBalRows      = cd.rptBalancesTable
                     const ratiosRows      = cd.ratiosTable              // [{category,name,formula,value,significance}]
-                    const burnRows        = cd.burnMetricsChart
-                    const empRows         = cd.employeeExpChart
-                    const otherExpRows    = cd.otherExpChart
-                    const adsRows         = cd.adsMetricsChart
+                    // Each *Chart key is the OLDER, simpler render (no Total row, no Y-o-Y, no
+                    // % of Revenue) of the exact same box the newer "Financial" section below
+                    // renders from the matching *Statement key (Total row included, richer
+                    // formatting) — found live (Narendra Sir): "other expenses"/"advertisement
+                    // cost" showed the SAME data TWICE on the page, once in each format, because
+                    // both sections' own gates fire together for an expense-topic query. Only
+                    // falls back to the older Chart rows when the richer Statement isn't present
+                    // at all (so nothing regresses for whatever narrower case still relies on
+                    // just the Chart key) — the *Statement version wins whenever both exist.
+                    const burnRows        = cd.burnMetricsStatement?.length > 0 ? null : cd.burnMetricsChart
+                    const empRows         = cd.employeeExpensesStatement?.length > 0 ? null : cd.employeeExpChart
+                    const otherExpRows    = cd.otherExpensesStatement?.length > 0 ? null : cd.otherExpChart
+                    const adsRows         = cd.adsMetricsStatement?.length > 0 ? null : cd.adsMetricsChart
 
                     // ── Intent-gated visibility ──
                     // If user clicked Analyze with specific types → use those; else fall back to backend intent
@@ -3934,8 +3959,19 @@ export default function AiSearchPage() {
     // aiCalculation answer always wins and goes to the full 'answer' turn, which is the only
     // place that actually renders compareMode/perYear/detailRows.
     const metrics = data.keyMetrics || []
+    // The Overhead-Costs tab's own whole-box tables (Other/Employee Expenses, Burn Metrics, Ads
+    // Metrics) land in these chartData keys — 'metric' turns route to FocusedMetricTurn, which
+    // only ever renders singleMetricChart/singleMetricGroupStatement and has no idea these keys
+    // exist. Found live (Narendra Sir): "other expenses detail" has focusedMetric:false and just
+    // ONE keyMetrics tile (the aggregate total), so it satisfied every condition below and got
+    // classified 'metric' — silently dropping the 12-row itemized breakdown (Total row included)
+    // the backend had already correctly computed in otherExpensesStatement, which only the
+    // 'answer' turn actually knows how to render. Same "needs its own full table, not a
+    // single-value card" reasoning as the isFinancialStatementSearch exclusion right above.
+    const hasWholeBoxStatement = ['otherExpensesStatement', 'employeeExpensesStatement',
+      'burnMetricsStatement', 'adsMetricsStatement'].some(k => data.chartData?.[k]?.length > 0)
     if (!data.aiCalculation && !data.summary && !data.analysis && metrics.length > 0 && metrics.length <= 2
-        && !isFinancialStatementSearch(userQuery, null)) {
+        && !isFinancialStatementSearch(userQuery, null) && !hasWholeBoxStatement) {
       return { id, userQuery, kind: 'metric', result: data }
     }
     return { id, userQuery, kind: 'answer', result: data }
@@ -4017,7 +4053,23 @@ export default function AiSearchPage() {
     // most recently identified company in THIS thread attached before actually
     // giving up, same idea as the bare-year stitching above but for any other
     // company-less follow-up, not just a year answer.
-    if (!result.ok) {
+    //
+    // A bare metric NAME with no company (e.g. just "EBIT" typed right after asking
+    // about a company's EBITDA) doesn't fail this way at all — the backend has its own
+    // "define this term" glossary fallback for exactly that shape of query, which
+    // returns success:true, so the retry-on-failure branch below never even sees it.
+    // Found live (Narendra Sir): typing "EBIT" as a follow-up right after "Astrotalk
+    // ... EBITDA 2023-24" showed a textbook definition of EBIT instead of Astrotalk's
+    // own EBIT figure — technically a valid answer to "what is EBIT" in isolation, but
+    // not what continuing a conversation about a specific company means. Whenever the
+    // thread already has a company AND the query didn't name one AND the backend chose
+    // the glossary fallback, retry the SAME way as the not-found case — if the
+    // company-attached retry succeeds, it's almost certainly what was actually meant,
+    // so it wins over the generic definition.
+    const isUnattributedGlossary = result.ok && result.data?.glossary
+      && [...turns].reverse().find(t => t.result?.companyName)?.result?.companyName
+      && !apiQ.toLowerCase().includes([...turns].reverse().find(t => t.result?.companyName).result.companyName.toLowerCase())
+    if (!result.ok || isUnattributedGlossary) {
       const lastCompanyName = [...turns].reverse().find(t => t.result?.companyName)?.result?.companyName
       if (lastCompanyName && !apiQ.toLowerCase().includes(lastCompanyName.toLowerCase())) {
         const retry = await trySearch(`${lastCompanyName} ${apiQ}`.trim())
