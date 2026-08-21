@@ -35,11 +35,17 @@ import { logout as logoutApi } from '../api/authApi'
 // Always Millions — regardless of magnitude, every currency figure across the page (stat
 // cards, charts, comparison tables, YoY tables) renders in this one consistent unit instead
 // of switching between Lakh/Crore (or raw thousands) depending on size.
+// 2 decimal places — matches the backend's OWN canonical formatter (fmtMn() in
+// AiSearchService.java, %.2f) exactly. Found live (Narendra Sir, 2026-08-21: "kahi data de
+// rahe 25.66mn or kahi de rahe ho 26 mn ye to glt hai naa"): this frontend copy used only 1
+// decimal place, so the SAME figure showed as "₹5014.77 Mn" in a backend-pre-formatted
+// keyMetrics value but "₹5,014.8 Mn" wherever this function formatted the raw chart/table
+// value right next to it on the same card — same number, visibly different precision.
 const fmtMn = (v) => {
-  if (v == null || v === 0) return '₹0.0 Mn'
+  if (v == null || v === 0) return '₹0.00 Mn'
   const millions = Math.abs(v) / 1000
   const sign = v < 0 ? '-₹' : '₹'
-  return sign + millions.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Mn'
+  return sign + millions.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Mn'
 }
 
 // ── Full financial statement helpers (Balance Sheet / P&L / Cash Flow) ───────
@@ -85,7 +91,13 @@ const fmtStatementNum = (v, label) => {
     const formatted = Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: isInt ? 0 : 2, maximumFractionDigits: 2 })
     return v < 0 ? `(${formatted})` : formatted
   }
-  const formatted = (Math.abs(v) / 1000).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' Mn'
+  // 2 decimal places — matches fmtMn() above and the backend's own canonical formatter
+  // exactly (Narendra Sir, 2026-08-21: "kahi data de rahe 25.66mn or kahi de rahe ho 26 mn ye
+  // to glt hai naa"). This Balance Sheet/P&L/Cash Flow statement table was its own separate
+  // 1-decimal formatter, so the exact same row's value could round differently here than in
+  // the keyMetrics tile or singleMetricChart table showing the same figure elsewhere on the
+  // page.
+  const formatted = (Math.abs(v) / 1000).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Mn'
   return v < 0 ? `(${formatted})` : formatted
 }
 
@@ -954,6 +966,9 @@ const FocusedMetricTurn = ({ result }) => {
               })}
             />
           )}
+          {/* Temporarily disabled (Narendra Sir, 2026-08-21: "data ke niche jo tum comment
+              dete ho usko abhi ke liye comment kar do please only for data do") — uncomment to
+              restore.
           {result.insights?.length > 0 && (
             <div className="mt-3 space-y-1">
               {result.insights.map((ins, i) => (
@@ -961,6 +976,7 @@ const FocusedMetricTurn = ({ result }) => {
               ))}
             </div>
           )}
+          */}
         </div>
       </div>
     </div>
@@ -1315,6 +1331,8 @@ const ComparisonTurn = ({ result }) => (
                         {!c.success && (
                           <p className="text-xs text-gray-400 italic">{c.message || 'No data available.'}</p>
                         )}
+                        {/* Temporarily disabled (Narendra Sir, 2026-08-21: "please only for
+                            data do"), uncomment to restore.
                         {c.insights?.length > 0 ? c.insights.slice(0, 6).map((ins, i) => (
                           <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
                             <span className="w-4 h-4 rounded-md bg-[#ff7010] text-white text-[9px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
@@ -1323,6 +1341,7 @@ const ComparisonTurn = ({ result }) => (
                         )) : c.success && (
                           <p className="text-xs text-gray-400 italic">No specific insight found for this query.</p>
                         )}
+                        */}
                       </div>
                     </div>
                   ))}
@@ -2162,7 +2181,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             </div>
                           )}
 
-                          {/* keyword highlights */}
+                          {/* keyword highlights — temporarily disabled (Narendra Sir,
+                              2026-08-21: "please only for data do"), uncomment to restore.
                           {highlights.length > 0 && (
                             <div>
                               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Key Highlights</p>
@@ -2177,6 +2197,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               </ul>
                             </div>
                           )}
+                          */}
                         </div>
                       </div>
                     )
@@ -3603,6 +3624,10 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                   <Reveal index={7}>
                   {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.insights?.length > 0 && (
                     <div className="px-6 py-6 border-b border-gray-100">
+                      {/* Header + insight cards temporarily disabled (Narendra Sir, 2026-08-21:
+                          "data ke niche jo tum comment dete ho usko abhi ke liye comment kar do
+                          please only for data do") — Quick Actions below stay live. Uncomment to
+                          restore.
                       <div className="flex items-center gap-2.5 mb-4">
                         <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
                           <FaStar className="text-[#ff7010] text-xs" />
@@ -3628,6 +3653,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                           )
                         })}
                       </div>
+                      */}
 
                       {/* ── Quick actions ── */}
                       <div className="flex flex-wrap gap-2 mt-4">
