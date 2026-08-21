@@ -4198,37 +4198,15 @@ export default function AiSearchPage() {
     const delta = target.getBoundingClientRect().top - container.getBoundingClientRect().top
     container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' })
 
-    // Phase 2: while the newest turn's sections stagger-reveal (see `Reveal`,
-    // 8 sections × 0.15s + 0.5s animation ≈ 1.7s), keep gently nudging the
-    // scroll further down to follow them — same as ChatGPT/Claude auto-following
-    // a response as it streams in — but back off the instant the user scrolls
-    // manually so we never fight their own scrolling.
-    let userInterrupted = false
-    const onUserScroll = () => { userInterrupted = true }
-    container.addEventListener('wheel', onUserScroll, { passive: true })
-    container.addEventListener('touchmove', onUserScroll, { passive: true })
-
-    const REVEAL_MS = 1800
-    const startedAt = Date.now()
-    let rafId
-    const follow = () => {
-      if (userInterrupted) return
-      if (Date.now() - startedAt > REVEAL_MS) return
-      const maxScroll = container.scrollHeight - container.clientHeight
-      if (container.scrollTop < maxScroll) {
-        container.scrollTop += Math.min(4, maxScroll - container.scrollTop)
-      }
-      rafId = requestAnimationFrame(follow)
-    }
-    // Give the initial smooth scrollTo a head start before the frame-by-frame follow kicks in.
-    const timer = setTimeout(() => { rafId = requestAnimationFrame(follow) }, 350)
-
-    return () => {
-      clearTimeout(timer)
-      if (rafId) cancelAnimationFrame(rafId)
-      container.removeEventListener('wheel', onUserScroll)
-      container.removeEventListener('touchmove', onUserScroll)
-    }
+    // The "keep nudging down to follow the stagger-reveal" phase that used to run here for
+    // ~1.8s after landing (mimicking ChatGPT's auto-follow-while-streaming) is REMOVED
+    // (Narendra Sir, 2026-08-21: "financial statement all likha... wo upper se dikhna chahiye
+    // wo niche aane laga tha... jaha se start hua hai wahi dikhna chahiye tha") — for a TALL
+    // response (e.g. "financial statement all", which stacks Balance Sheet + P&L + Cash Flow
+    // in full), it kept pushing scrollTop toward the bottom for the whole 1.8s, dragging the
+    // view well past the just-asked question instead of leaving it pinned near the top. The
+    // single scrollTo above (pinning the new question near the top) is the whole intended
+    // behaviour now — nothing continues to move the view after that.
   }, [turns.length, pendingQuery])
 
   const grouped = groupHistory(history)
