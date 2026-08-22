@@ -41,11 +41,21 @@ import { logout as logoutApi } from '../api/authApi'
 // decimal place, so the SAME figure showed as "₹5014.77 Mn" in a backend-pre-formatted
 // keyMetrics value but "₹5,014.8 Mn" wherever this function formatted the raw chart/table
 // value right next to it on the same card — same number, visibly different precision.
-const fmtMn = (v) => {
-  if (v == null || v === 0) return '₹0.00 Mn'
+// Multiplier FROM Millions (fmtMn's own existing "raw/1000 = Mn" baseline) TO each unit the
+// backend's currencyUnit field can send — e.g. 1 Mn = 10 Lakh, 1 Mn = 0.1 Cr — mirrors
+// AiSearchService's UnitPref exactly (Narendra Sir, 2026-08-22: "wo bhi kar do" — extending
+// the "in crore"/"in lakh"/etc. query-requested-unit feature to the chart/table numbers too,
+// not just the headline/insight text the backend itself formats).
+const MN_TO_UNIT_MULTIPLIER = { Mn: 1, Thousand: 1000, Hundred: 10000, Lakh: 10, Cr: 0.1, Bn: 0.001 }
+// unit defaults to 'Mn' so every EXISTING call site (which never passed one) keeps behaving
+// exactly as before — only call sites that explicitly have a turn's own result.currencyUnit in
+// scope pass it through.
+const fmtMn = (v, unit = 'Mn') => {
+  if (v == null || v === 0) return `₹0.00 ${unit}`
   const millions = Math.abs(v) / 1000
+  const scaled = millions * (MN_TO_UNIT_MULTIPLIER[unit] ?? 1)
   const sign = v < 0 ? '-₹' : '₹'
-  return sign + millions.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Mn'
+  return sign + scaled.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + unit
 }
 
 // ── Full financial statement helpers (Balance Sheet / P&L / Cash Flow) ───────
@@ -84,7 +94,7 @@ const isNonCurrencyStatementRow = (label) => NON_CURRENCY_ROW_RE.test(label || '
 // Millions — same unit as every stat card/chart on the page — with parentheses for
 // negatives; ratio/multiple/count/month-duration rows stay as plain Indian-grouped numbers
 // since they were never a rupee amount to begin with.
-const fmtStatementNum = (v, label) => {
+const fmtStatementNum = (v, label, unit = 'Mn') => {
   if (v == null || v === 0) return '—'
   if (isNonCurrencyStatementRow(label)) {
     const isInt = Number.isInteger(v)
@@ -96,8 +106,10 @@ const fmtStatementNum = (v, label) => {
   // to glt hai naa"). This Balance Sheet/P&L/Cash Flow statement table was its own separate
   // 1-decimal formatter, so the exact same row's value could round differently here than in
   // the keyMetrics tile or singleMetricChart table showing the same figure elsewhere on the
-  // page.
-  const formatted = (Math.abs(v) / 1000).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Mn'
+  // page. unit defaults to 'Mn' (see fmtMn's own comment) — StatementBlock passes its
+  // currencyUnit prop through when the query asked for a different one.
+  const scaled = (Math.abs(v) / 1000) * (MN_TO_UNIT_MULTIPLIER[unit] ?? 1)
+  const formatted = scaled.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + unit
   return v < 0 ? `(${formatted})` : formatted
 }
 
@@ -254,7 +266,7 @@ const getSingleMetricConfig = (mode, result) => {
       const depr = deprRow?.values?.[i]
       return (d.value != null && depr != null) ? { year: d.year, value: d.value - depr } : null
     }).filter(Boolean)
-    return { labelTest: /^ebit\b/i, title: 'EBIT', accent: '#6366f1', fmt: fmtMn, series }
+    return { labelTest: /^ebit\b/i, title: 'EBIT', accent: '#6366f1', fmt: (v) => fmtMn(v, result.currencyUnit), isCurrency: true, series }
   }
   if (mode === 'generic') {
     const series = cd.singleMetricChart || []
@@ -280,7 +292,8 @@ const getSingleMetricConfig = (mode, result) => {
       title: cleanTitle || 'Value', accent: '#8b5cf6',
       // Same raw-ratio-needs-×100 fix as FocusedMetricTurn's own yFmt above — this series'
       // values are the same unscaled chartData.singleMetricChart numbers.
-      fmt: isPercent ? (v) => `${(v * 100).toFixed(1)}%` : fmtMn,
+      fmt: isPercent ? (v) => `${(v * 100).toFixed(1)}%` : (v) => fmtMn(v, result.currencyUnit),
+      isCurrency: !isPercent,
       series,
     }
   }
@@ -371,7 +384,7 @@ const buildExtraGlanceRows = (result) => {
   })
 
   const pctRow = (label, values) => buildYoyRow(label, values, v => `${v.toFixed(1)}%`)
-  const curRow = (label, values) => buildYoyRow(label, values, fmtMn, revenueSeries)
+  const curRow = (label, values) => buildYoyRow(label, values, (v) => fmtMn(v, result.currencyUnit), revenueSeries)
 
   return [
     totalLiabRow && curRow('Total Liabilities',    seriesFromStatementRow(totalLiabRow)),
@@ -428,7 +441,7 @@ const OverviewStat = ({ label, value, delay = 0 }) => (
 // expanded by default so every line is visible with no clicking — click a
 // heading only if you want to collapse that section.
 const StatementBlock = (props) => {
-  const { title, accent, Icon, rows, activeIdxs, visibleYrs, statementKey, openGroups, onToggle } = props
+  const { title, accent, Icon, rows, activeIdxs, visibleYrs, statementKey, openGroups, onToggle, currencyUnit = 'Mn' } = props
   const groups = groupStatementRows(rows)
   // Some schedules (e.g. Other Expenses, Employee Expenses) are only itemised in the source
   // Excel for a subset of the company's financial years — every line-item row's values array
@@ -517,7 +530,7 @@ Some items aren't itemised in the source Excel for {totalOnlyYrs.map(y => `FY ${
                           const pair = k > 0 ? yoyPairForCol(k - 1) : null
                           return (
                             <td key={j} className={`text-right py-2.5 px-4 min-w-[110px] whitespace-nowrap tabular-nums ${isTotal ? 'font-bold text-gray-900' : 'text-gray-700'}`}>
-                              {fmtStatementNum(row.values?.[j], row.label)}
+                              {fmtStatementNum(row.values?.[j], row.label, currencyUnit)}
                               <span className={`block w-fit ml-auto px-1.5 py-0.5 rounded-md text-[9px] font-black mt-1 ${!pair ? 'invisible' :
                                   pair.yoyPositive === true  ? 'bg-green-50 text-green-700'
                                 : pair.yoyPositive === false ? 'bg-red-50 text-red-600'
@@ -572,14 +585,14 @@ const lineOpts = {
   },
 }
 
-const doughnutOpts = {
+const doughnutOpts = (unit = 'Mn') => ({
   responsive: true, maintainAspectRatio: false,
   cutout: '62%',
   plugins: {
     legend: { position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 10, padding: 6 } },
-    tooltip: { callbacks: { label: (c) => ` ${c.label}: ${fmtMn(c.raw)}` } },
+    tooltip: { callbacks: { label: (c) => ` ${c.label}: ${fmtMn(c.raw, unit)}` } },
   },
-}
+})
 
 
 // ── Report types (matches changes.png) ───────────────────────────────────────
@@ -897,7 +910,7 @@ const FocusedMetricTurn = ({ result }) => {
   // where the user never typed "%" at all (a percent row was simply what they asked for, e.g.
   // "margin") still showed a plainly wrong number instead of no data being percent-scaled
   // until actually asked for.
-  const yFmt = isPercent ? (v) => `${(v * 100).toFixed(1)}%` : fmtMn
+  const yFmt = isPercent ? (v) => `${(v * 100).toFixed(1)}%` : (v) => fmtMn(v, result.currencyUnit)
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
       <div className="flex items-start gap-3">
@@ -961,7 +974,7 @@ const FocusedMetricTurn = ({ result }) => {
                 const rowIsPercent = /%/.test(row.label || '')
                 return {
                   label: cleanMetricLabel(row.label),
-                  cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v)),
+                  cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v, result.currencyUnit)),
                 }
               })}
             />
@@ -1026,7 +1039,7 @@ const RankingTurn = ({ result, onFollowUp }) => (
                               <td className="py-3 px-4 text-right text-xs font-bold text-gray-800 tabular-nums">
                                 {/[%]/.test(c.matchedLabel || '') || /margin|growth|roe|roce|roa|rate/i.test(result.metric)
                                   ? `${c.value.toFixed(2)}%`
-                                  : fmtMn(c.value)}
+                                  : fmtMn(c.value, result.currencyUnit)}
                                 <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{c.matchedLabel}</span>
                               </td>
                             </tr>
@@ -1228,9 +1241,9 @@ const ComparisonTurn = ({ result }) => (
                               })),
                             }}
                             options={{
-                              ...barOpts(fmtMn),
+                              ...barOpts((v) => fmtMn(v, result.currencyUnit)),
                               plugins: {
-                                ...barOpts(fmtMn).plugins,
+                                ...barOpts((v) => fmtMn(v, result.currencyUnit)).plugins,
                                 legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 9, boxHeight: 9, borderRadius: 3, padding: 8, usePointStyle: true, pointStyle: 'circle' } },
                               },
                             }}
@@ -1251,7 +1264,7 @@ const ComparisonTurn = ({ result }) => (
                                 <td className="py-3 px-4 text-gray-700 text-xs font-semibold whitespace-nowrap">{row.label}</td>
                                 {row.cells.map((cell, j) => (
                                   <td key={j} className="py-3 px-3 text-right text-xs text-gray-800 tabular-nums font-bold whitespace-nowrap">
-                                    {cell?.value != null ? fmtMn(cell.value) : '—'}
+                                    {cell?.value != null ? fmtMn(cell.value, result.currencyUnit) : '—'}
                                     {cell?.year != null && <span className="block text-[9px] font-normal text-gray-400 mt-0.5">FY {cell.year}</span>}
                                   </td>
                                 ))}
@@ -1269,7 +1282,7 @@ const ComparisonTurn = ({ result }) => (
                                 <FaChartBar className="text-indigo-400 mt-0.5 flex-shrink-0" />
                                 <span>
                                   <span className="font-bold text-gray-900">{v.higher}</span> has higher {v.label} than{' '}
-                                  <span className="font-semibold">{v.lower}</span> by {fmtMn(v.diff)}
+                                  <span className="font-semibold">{v.lower}</span> by {fmtMn(v.diff, result.currencyUnit)}
                                   {v.pct != null && ` (${v.pct.toFixed(1)}% more)`}.
                                 </span>
                               </div>
@@ -1509,7 +1522,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                     options={{
                                       ...barOpts((v) => `${v?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${result.aiCalculation.items[0]?.unit || ''}`),
                                       plugins: {
-                                        ...barOpts(fmtMn).plugins,
+                                        ...barOpts((v) => fmtMn(v, result.currencyUnit)).plugins,
                                         legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 9, boxHeight: 9, borderRadius: 3, padding: 8, usePointStyle: true, pointStyle: 'circle' } },
                                       },
                                     }}
@@ -1596,7 +1609,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                             const rowIsPercent = /%/.test(row.label || '')
                                             return {
                                               label: cleanMetricLabel(row.label),
-                                              cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v)),
+                                              cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v, result.currencyUnit)),
                                             }
                                           })}
                                         />
@@ -1802,7 +1815,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                   headers={['Particulars', ...yearHeaders.map(yr => `FY ${yr}`)]}
                                   rows={result.aiCalculation.detailRows.map(row => ({
                                     label: cleanMetricLabel(row.label),
-                                    cells: (row.values || []).map(v => v == null ? '—' : fmtMn(v)),
+                                    cells: (row.values || []).map(v => v == null ? '—' : fmtMn(v, result.currencyUnit)),
                                   }))}
                                 />
                               )
@@ -2039,15 +2052,15 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     const rptRows = cd.rptTable || []
 
                     const snapshotStats = [
-                      totalAssetsRow && { label: 'Total Assets',       value: fmtMn(latestArrValue(totalAssetsRow.values)) },
-                      totalLiabRow   && { label: 'Total Liabilities',  value: fmtMn(latestArrValue(totalLiabRow.values)) },
-                      reservesRow    && { label: 'Reserves & Surplus', value: fmtMn(latestArrValue(reservesRow.values)) },
-                      patLatest?.value != null           && { label: 'Net Profit',        value: fmtMn(patLatest.value) },
+                      totalAssetsRow && { label: 'Total Assets',       value: fmtMn(latestArrValue(totalAssetsRow.values), result.currencyUnit) },
+                      totalLiabRow   && { label: 'Total Liabilities',  value: fmtMn(latestArrValue(totalLiabRow.values), result.currencyUnit) },
+                      reservesRow    && { label: 'Reserves & Surplus', value: fmtMn(latestArrValue(reservesRow.values), result.currencyUnit) },
+                      patLatest?.value != null           && { label: 'Net Profit',        value: fmtMn(patLatest.value, result.currencyUnit) },
                       marginLatest?.grossMargin  != null && { label: 'Gross Margin',      value: `${marginLatest.grossMargin.toFixed(1)}%` },
                       marginLatest?.ebitdaMargin != null && { label: 'EBITDA Margin',     value: `${marginLatest.ebitdaMargin.toFixed(1)}%` },
-                      revenueOpsRow  && { label: 'Revenue from Operations', value: fmtMn(latestArrValue(revenueOpsRow.values)) },
-                      totalRevRow    && { label: 'Total Revenue',      value: fmtMn(latestArrValue(totalRevRow.values)) },
-                      ocfRow         && { label: 'Cash Flow from Ops', value: fmtMn(latestArrValue(ocfRow.values)) },
+                      revenueOpsRow  && { label: 'Revenue from Operations', value: fmtMn(latestArrValue(revenueOpsRow.values), result.currencyUnit) },
+                      totalRevRow    && { label: 'Total Revenue',      value: fmtMn(latestArrValue(totalRevRow.values), result.currencyUnit) },
+                      ocfRow         && { label: 'Cash Flow from Ops', value: fmtMn(latestArrValue(ocfRow.values), result.currencyUnit) },
                     ].filter(Boolean)
 
                     const ratioStats = [
@@ -2057,8 +2070,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     ].filter(Boolean)
 
                     const burnStats = [
-                      burnRow && { label: 'Annual Gross Burn Rate', value: fmtMn(burnRow.latest) },
-                      adsRow  && { label: 'Advertisement Cost', value: fmtMn(adsRow.latest) },
+                      burnRow && { label: 'Annual Gross Burn Rate', value: fmtMn(burnRow.latest, result.currencyUnit) },
+                      adsRow  && { label: 'Advertisement Cost', value: fmtMn(adsRow.latest, result.currencyUnit) },
                     ].filter(Boolean)
 
                     const highlights = (result.insights || []).slice(0, 4)
@@ -2124,7 +2137,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               {shareCapRow && (
                                 <div>
                                   <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Share Capital</p>
-                                  <p className="text-sm font-bold text-gray-900 mt-0.5">{fmtMn(latestArrValue(shareCapRow.values))}</p>
+                                  <p className="text-sm font-bold text-gray-900 mt-0.5">{fmtMn(latestArrValue(shareCapRow.values), result.currencyUnit)}</p>
                                 </div>
                               )}
                             </div>
@@ -2171,7 +2184,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                       <p className="text-xs font-semibold text-gray-800 truncate">{r.party}</p>
                                       {r.nature && <p className="text-[10px] text-gray-400 truncate">{r.nature}</p>}
                                     </div>
-                                    <p className="text-xs font-bold text-gray-900 flex-shrink-0">{fmtMn(latestPipeNum(r.amount))}</p>
+                                    <p className="text-xs font-bold text-gray-900 flex-shrink-0">{fmtMn(latestPipeNum(r.amount), result.currencyUnit)}</p>
                                   </div>
                                 ))}
                                 {rptRows.length > 3 && (
@@ -2293,7 +2306,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     const smSeries = filterYr(singleMetricConfig?.series || [])
                     const smYoyRow = singleMetricConfig && smSeries.length > 0
                       ? buildYoyRow(singleMetricConfig.title, smSeries.map(d => d.value), singleMetricConfig.fmt,
-                          singleMetricConfig.fmt === fmtMn ? smSeries.map(d => valueForYear(cd.revenueChart, d.year)) : null)
+                          singleMetricConfig.isCurrency ? smSeries.map(d => valueForYear(cd.revenueChart, d.year)) : null)
                       : null
 
                     const revData  = filterYr(cd.revenueChart  || []).filter(d => d.value != null)
@@ -2319,16 +2332,16 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     // under the same FY columns even when one metric has a gap another doesn't.
                     const revSeriesForTables = yrsForTables.map(yr => valueForYear(cd.revenueChart, yr))
                     const revPatRows = [
-                      revData.length > 0 && buildYoyRow('Revenue',           yrsForTables.map(yr => valueForYear(cd.revenueChart, yr)), fmtMn, revSeriesForTables),
-                      patData.length > 0 && buildYoyRow('Net Profit / PAT',  yrsForTables.map(yr => valueForYear(cd.profitChart,  yr)), fmtMn, revSeriesForTables),
+                      revData.length > 0 && buildYoyRow('Revenue',           yrsForTables.map(yr => valueForYear(cd.revenueChart, yr)), (v) => fmtMn(v, result.currencyUnit), revSeriesForTables),
+                      patData.length > 0 && buildYoyRow('Net Profit / PAT',  yrsForTables.map(yr => valueForYear(cd.profitChart,  yr)), (v) => fmtMn(v, result.currencyUnit), revSeriesForTables),
                     ].filter(Boolean)
                     const ebitdaRows = ebiData.length > 0
-                      ? [buildYoyRow('EBITDA', yrsForTables.map(yr => valueForYear(cd.ebitdaChart, yr)), fmtMn, revSeriesForTables)].filter(Boolean)
+                      ? [buildYoyRow('EBITDA', yrsForTables.map(yr => valueForYear(cd.ebitdaChart, yr)), (v) => fmtMn(v, result.currencyUnit), revSeriesForTables)].filter(Boolean)
                       : []
                     const cashFlowRows = cfData.length > 0 ? [
-                      cfData[0]?.operating !== undefined && buildYoyRow('Operating Cash Flow', yrsForTables.map(yr => valueForYear(cd.cashFlowChart, yr, 'operating')), fmtMn, revSeriesForTables),
-                      cfData[0]?.investing !== undefined && buildYoyRow('Investing Cash Flow', yrsForTables.map(yr => valueForYear(cd.cashFlowChart, yr, 'investing')), fmtMn, revSeriesForTables),
-                      cfData[0]?.financing !== undefined && buildYoyRow('Financing Cash Flow', yrsForTables.map(yr => valueForYear(cd.cashFlowChart, yr, 'financing')), fmtMn, revSeriesForTables),
+                      cfData[0]?.operating !== undefined && buildYoyRow('Operating Cash Flow', yrsForTables.map(yr => valueForYear(cd.cashFlowChart, yr, 'operating')), (v) => fmtMn(v, result.currencyUnit), revSeriesForTables),
+                      cfData[0]?.investing !== undefined && buildYoyRow('Investing Cash Flow', yrsForTables.map(yr => valueForYear(cd.cashFlowChart, yr, 'investing')), (v) => fmtMn(v, result.currencyUnit), revSeriesForTables),
+                      cfData[0]?.financing !== undefined && buildYoyRow('Financing Cash Flow', yrsForTables.map(yr => valueForYear(cd.cashFlowChart, yr, 'financing')), (v) => fmtMn(v, result.currencyUnit), revSeriesForTables),
                     ].filter(Boolean) : []
                     const expBk    = cd.expenseBreakdown
                     const astBk    = cd.assetBreakdown
@@ -2577,7 +2590,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                         labels,
                                         datasets: [{ data: vals, backgroundColor: DONUT_COLORS, borderWidth: 3, borderColor: '#fff', hoverOffset: 10 }]
                                       }} options={{
-                                        ...doughnutOpts,
+                                        ...doughnutOpts(result.currencyUnit),
                                         cutout: '55%',
                                         plugins: {
                                           legend: { position: 'bottom', labels: { font:{size:10,weight:'600'}, color:'#6b7280', boxWidth:9, boxHeight:9, usePointStyle:true, pointStyle:'circle', padding:8 } },
@@ -2701,7 +2714,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                             labels,
                                             datasets: [{ data: vals, backgroundColor: DONUT_COLORS, borderWidth: 3, borderColor: '#fff', hoverOffset: 10 }]
                                           }} options={{
-                                            ...doughnutOpts,
+                                            ...doughnutOpts(result.currencyUnit),
                                             cutout: '55%',
                                             plugins: {
                                               legend: { position: 'bottom', labels: { font:{size:10,weight:'600'}, color:'#6b7280', boxWidth:9, boxHeight:9, usePointStyle:true, pointStyle:'circle', padding:8 } },
@@ -2833,7 +2846,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                         labels: Object.keys(pie),
                                         datasets: [{ data: Object.values(pie), backgroundColor: DONUT_COLORS, borderWidth: 3, borderColor: '#fff', hoverOffset: 10 }]
                                       }} options={{
-                                        ...doughnutOpts,
+                                        ...doughnutOpts(result.currencyUnit),
                                         cutout: '55%',
                                         plugins: {
                                           legend: { position: 'bottom', labels: { font: { size: 10, weight: '600' }, color: '#6b7280', boxWidth: 9, boxHeight: 9, usePointStyle: true, pointStyle: 'circle', padding: 8 } },
@@ -2939,14 +2952,14 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                           {revData.length > 0 && (
                             <ChartCard title="Revenue" accent="#1a1f36">
                               <div style={{height:165}}>
-                                <Bar data={{ labels: revData.map(d => d.year), datasets: [{ data: revData.map(d => d.value), backgroundColor: '#1a1f36', hoverBackgroundColor: '#ff7010', borderRadius: 5 }] }} options={barOpts(fmtMn, pctOfRevFn(cd.revenueChart))} />
+                                <Bar data={{ labels: revData.map(d => d.year), datasets: [{ data: revData.map(d => d.value), backgroundColor: '#1a1f36', hoverBackgroundColor: '#ff7010', borderRadius: 5 }] }} options={barOpts((v) => fmtMn(v, result.currencyUnit), pctOfRevFn(cd.revenueChart))} />
                               </div>
                             </ChartCard>
                           )}
                           {patData.length > 0 && (
                             <ChartCard title="Net Profit / PAT" accent="#6366f1">
                               <div style={{height:165}}>
-                                <Bar data={{ labels: patData.map(d => d.year), datasets: [{ data: patData.map(d => d.value), backgroundColor: patData.map(d => (d.value ?? 0) >= 0 ? '#6366f1' : '#ef4444'), hoverBackgroundColor: '#ff7010', borderRadius: 5 }] }} options={barOpts(fmtMn, pctOfRevFn(cd.revenueChart))} />
+                                <Bar data={{ labels: patData.map(d => d.year), datasets: [{ data: patData.map(d => d.value), backgroundColor: patData.map(d => (d.value ?? 0) >= 0 ? '#6366f1' : '#ef4444'), hoverBackgroundColor: '#ff7010', borderRadius: 5 }] }} options={barOpts((v) => fmtMn(v, result.currencyUnit), pctOfRevFn(cd.revenueChart))} />
                               </div>
                             </ChartCard>
                           )}
@@ -2975,7 +2988,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                     <td className="py-3 px-4 text-gray-700 text-xs font-semibold">{cleanStatementLabel(row.label)}</td>
                                     {activeIdxs.map(j => (
                                       <td key={j} className="py-3 px-3 text-right text-xs text-gray-800 tabular-nums font-bold">
-                                        {fmtStatementNum(row.values?.[j], row.label)}
+                                        {fmtStatementNum(row.values?.[j], row.label, result.currencyUnit)}
                                       </td>
                                     ))}
                                   </tr>
@@ -2998,7 +3011,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                 <Bar data={{
                                   labels: smSeries.map(d => d.year),
                                   datasets: [{ data: smSeries.map(d => d.value), backgroundColor: singleMetricConfig.accent, hoverBackgroundColor: '#ff7010', borderRadius: 5 }]
-                                }} options={barOpts(singleMetricConfig.fmt, singleMetricConfig.fmt === fmtMn ? pctOfRevFn(cd.revenueChart) : null)} />
+                                }} options={barOpts(singleMetricConfig.fmt, singleMetricConfig.isCurrency ? pctOfRevFn(cd.revenueChart) : null)} />
                               </div>
                             </ChartCard>
                           </div>
@@ -3019,7 +3032,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                           {ebiData.length > 0 && (
                             <ChartCard title="EBITDA" accent="#10b981">
                               <div style={{height:165}}>
-                                <Bar data={{ labels: ebiData.map(d => d.year), datasets: [{ data: ebiData.map(d => d.value), backgroundColor: '#10b981', hoverBackgroundColor: '#ff7010', borderRadius: 5 }] }} options={barOpts(fmtMn, pctOfRevFn(cd.revenueChart))} />
+                                <Bar data={{ labels: ebiData.map(d => d.year), datasets: [{ data: ebiData.map(d => d.value), backgroundColor: '#10b981', hoverBackgroundColor: '#ff7010', borderRadius: 5 }] }} options={barOpts((v) => fmtMn(v, result.currencyUnit), pctOfRevFn(cd.revenueChart))} />
                               </div>
                             </ChartCard>
                           )}
@@ -3062,7 +3075,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                   cfData[0]?.operating !== undefined && { label:'Operating', data: cfData.map(d => d.operating ?? null), backgroundColor:'#6366f1', borderRadius:4 },
                                   cfData[0]?.investing !== undefined && { label:'Investing', data: cfData.map(d => d.investing ?? null), backgroundColor:'#f59e0b', borderRadius:4 },
                                   cfData[0]?.financing !== undefined && { label:'Financing', data: cfData.map(d => d.financing ?? null), backgroundColor:'#10b981', borderRadius:4 },
-                                ].filter(Boolean) }} options={{...barOpts(fmtMn, pctOfRevFn(cd.revenueChart)), plugins:{...barOpts(fmtMn, pctOfRevFn(cd.revenueChart)).plugins, legend: legendOpts}}} />
+                                ].filter(Boolean) }} options={{...barOpts((v) => fmtMn(v, result.currencyUnit), pctOfRevFn(cd.revenueChart)), plugins:{...barOpts((v) => fmtMn(v, result.currencyUnit), pctOfRevFn(cd.revenueChart)).plugins, legend: legendOpts}}} />
                               </div>
                             </ChartCard>
                           )}
@@ -3077,7 +3090,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               <Bar data={{ labels: rveData.map(d => d.year), datasets: [
                                 { label:'Revenue',  data: rveData.map(d => d.revenue  ?? null), backgroundColor:'#1a1f36', borderRadius:5 },
                                 { label:'Expenses', data: rveData.map(d => d.expenses ?? null), backgroundColor:'#ef4444', borderRadius:5 },
-                              ] }} options={{...barOpts(fmtMn, pctOfRevFn(cd.revenueChart)), plugins:{...barOpts(fmtMn, pctOfRevFn(cd.revenueChart)).plugins, legend: legendOpts}}} />
+                              ] }} options={{...barOpts((v) => fmtMn(v, result.currencyUnit), pctOfRevFn(cd.revenueChart)), plugins:{...barOpts((v) => fmtMn(v, result.currencyUnit), pctOfRevFn(cd.revenueChart)).plugins, legend: legendOpts}}} />
                             </div>
                           </ChartCard>
                         </div>
@@ -3334,7 +3347,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                       <tr key={i} className={`border-b border-gray-100 hover:bg-orange-50/30 transition-colors ${i%2===1?'bg-gray-50/50':''}`}>
                                         <td className="py-2.5 px-3 font-semibold text-gray-800 max-w-[180px] truncate">{r.label}</td>
                                         {cols.map(yr => (
-                                          <td key={yr} className="py-2.5 px-3 text-right tabular-nums text-gray-700">{fmtMn(r[yr])}</td>
+                                          <td key={yr} className="py-2.5 px-3 text-right tabular-nums text-gray-700">{fmtMn(r[yr], result.currencyUnit)}</td>
                                         ))}
                                       </tr>
                                     ))}
@@ -3369,12 +3382,12 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                       {/* ── Unified Doughnut / Distribution Section ── */}
                       {!singleMetricMode && showDoughnuts && (() => {
                         const donutCards = [
-                          hasRevByYear && { title: 'Revenue by Year', sub: 'All FY contribution', data: mkDoughnut(revByYearObj), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
-                          hasEarnings  && { title: 'Earnings Breakdown', sub: revData[revData.length-1]?.year ? `FY ${revData[revData.length-1].year}` : 'Latest Year', data: mkDoughnut(earningsObj), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
-                          hasPatByYear && { title: 'Net Profit by Year', sub: 'Profitable years only', data: mkDoughnut(patByYearObj), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
-                          expBk && { title: 'Expense Composition', sub: 'Cost breakdown', data: mkDoughnut(expBk), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
-                          astBk && { title: 'Asset Composition',   sub: 'Asset allocation', data: mkDoughnut(astBk), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
-                          capBk && { title: 'Capital Structure',   sub: 'Debt vs equity', data: mkDoughnut(capBk), fmt: (c) => `${c.label}: ${fmtMn(c.raw)}` },
+                          hasRevByYear && { title: 'Revenue by Year', sub: 'All FY contribution', data: mkDoughnut(revByYearObj), fmt: (c) => `${c.label}: ${fmtMn(c.raw, result.currencyUnit)}` },
+                          hasEarnings  && { title: 'Earnings Breakdown', sub: revData[revData.length-1]?.year ? `FY ${revData[revData.length-1].year}` : 'Latest Year', data: mkDoughnut(earningsObj), fmt: (c) => `${c.label}: ${fmtMn(c.raw, result.currencyUnit)}` },
+                          hasPatByYear && { title: 'Net Profit by Year', sub: 'Profitable years only', data: mkDoughnut(patByYearObj), fmt: (c) => `${c.label}: ${fmtMn(c.raw, result.currencyUnit)}` },
+                          expBk && { title: 'Expense Composition', sub: 'Cost breakdown', data: mkDoughnut(expBk), fmt: (c) => `${c.label}: ${fmtMn(c.raw, result.currencyUnit)}` },
+                          astBk && { title: 'Asset Composition',   sub: 'Asset allocation', data: mkDoughnut(astBk), fmt: (c) => `${c.label}: ${fmtMn(c.raw, result.currencyUnit)}` },
+                          capBk && { title: 'Capital Structure',   sub: 'Debt vs equity', data: mkDoughnut(capBk), fmt: (c) => `${c.label}: ${fmtMn(c.raw, result.currencyUnit)}` },
                         ].filter(Boolean)
                         if (!donutCards.length) return null
                         return (
@@ -3408,7 +3421,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                             <p className="text-[11px] text-gray-400 mt-0.5">{card.sub}</p>
                                           </div>
                                           <div className="text-right flex-shrink-0 ml-2">
-                                            <p className="text-xs font-bold" style={{color: accent}}>{fmtMn(totalVal)}</p>
+                                            <p className="text-xs font-bold" style={{color: accent}}>{fmtMn(totalVal, result.currencyUnit)}</p>
                                             <p className="text-[9px] text-gray-400">Total</p>
                                           </div>
                                         </div>
@@ -3443,7 +3456,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                               },
                                               scales: {
                                                 x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#6b7280' } },
-                                                y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: (v) => fmtMn(v) } },
+                                                y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: (v) => fmtMn(v, result.currencyUnit) } },
                                               }
                                             }}
                                           />
@@ -3503,7 +3516,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                       <div className="flex items-center gap-2 mb-4">
                         <div className="w-1 h-4 rounded-full bg-indigo-500" />
                         <p className="text-[10px] font-black uppercase tracking-widest text-gray-700">Financials at a Glance</p>
-                        <span className="ml-auto text-[10px] text-gray-400 font-medium">All figures in ₹ Millions</span>
+                        <span className="ml-auto text-[10px] text-gray-400 font-medium">All figures in ₹ {result.currencyUnit || 'Mn'}</span>
                       </div>
                       <table className="w-full text-sm border-collapse rounded-xl overflow-hidden">
                         <thead>
@@ -3565,55 +3578,55 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                         <div className="flex items-center gap-2">
                           <div className="w-1 h-4 rounded-full bg-emerald-500" />
                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-700">Financial</p>
-                          <span className="ml-auto text-[10px] text-gray-400 font-medium">Currency in ₹ Millions</span>
+                          <span className="ml-auto text-[10px] text-gray-400 font-medium">Currency in ₹ {result.currencyUnit || 'Mn'}</span>
                         </div>
                         {result.chartData.balanceSheetStatement?.length > 0 && (
                           <StatementBlock title="Balance Sheet" accent="#1a1f36" Icon={FaTable}
                             rows={result.chartData.balanceSheetStatement}
                             activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="bs"
-                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
                         )}
                         {result.chartData.profitLossStatement?.length > 0 && (
                           <StatementBlock title="Profit & Loss" accent="#6366f1" Icon={FaChartLine}
                             rows={result.chartData.profitLossStatement}
                             activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="pl"
-                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
                         )}
                         {result.chartData.cashFlowStatement?.length > 0 && (
                           <StatementBlock title="Cash Flow" accent="#06b6d4" Icon={FaMoneyBillWave}
                             rows={result.chartData.cashFlowStatement}
                             activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="cf"
-                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
                         )}
                         {result.chartData.marginAnalysisStatement?.length > 0 && (
                           <StatementBlock title="Margin Analysis" accent="#10b981" Icon={FaChartPie}
                             rows={result.chartData.marginAnalysisStatement}
                             activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="margin"
-                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
                         )}
                         {result.chartData.burnMetricsStatement?.length > 0 && (
                           <StatementBlock title="Burn Metrics" accent="#ef4444" Icon={FaExclamationTriangle}
                             rows={result.chartData.burnMetricsStatement}
                             activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="burn"
-                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
                         )}
                         {result.chartData.employeeExpensesStatement?.length > 0 && (
                           <StatementBlock title="Employee Expenses" accent="#8b5cf6" Icon={FaUsers}
                             rows={result.chartData.employeeExpensesStatement}
                             activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="emp"
-                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
                         )}
                         {result.chartData.otherExpensesStatement?.length > 0 && (
                           <StatementBlock title="Other Expenses" accent="#f59e0b" Icon={FaChartPie}
                             rows={result.chartData.otherExpensesStatement}
                             activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="oexp"
-                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
                         )}
                         {result.chartData.adsMetricsStatement?.length > 0 && (
                           <StatementBlock title="Ads / Advertisement Metrics" accent="#ff7010" Icon={FaChartBar}
                             rows={result.chartData.adsMetricsStatement}
                             activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="ads"
-                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} />
+                            openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
                         )}
                       </div>
                     )
