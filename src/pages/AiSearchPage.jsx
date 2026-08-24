@@ -222,6 +222,49 @@ const findChartRow = (rows, predicate) => (rows || []).find(r => predicate(r.lab
 
 const latestArrValue = (arr) => (Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null)
 
+// ── "A guide of example questions — organized by topic, so a new user immediately knows
+//    what kinds of things they can ask" (Narendra Sir, 2026-08-24 spec point) — shown on the
+//    empty-state screen below, before any search has been typed. Company-specific examples use
+//    Astrotalk Services Private Limited (a real, always-present company in this DB) so they
+//    genuinely work if someone runs them as-is; company-agnostic ones (rankings, comparisons
+//    that name their own companies, glossary asks) need no substitution at all. Clicking a chip
+//    populates the composer (handleEditQuery) rather than auto-searching, so a user can swap in
+//    their own company name first.
+const EXAMPLE_QUESTION_TOPICS = [
+  {
+    topic: 'Financials',
+    questions: [
+      'Astrotalk Services Private Limited revenue trend',
+      'How much money did Astrotalk make in 2023-24',
+      'Astrotalk EBITDA detail',
+    ],
+  },
+  {
+    topic: 'Ratios & Health',
+    questions: [
+      'Astrotalk current ratio',
+      'Is Astrotalk debt free',
+      'Astrotalk debt to equity',
+    ],
+  },
+  {
+    topic: 'Rankings & Comparisons',
+    questions: [
+      'Top 5 companies by revenue',
+      'Which companies are most profitable',
+      'Compare Astrotalk and Jidoka revenue',
+    ],
+  },
+  {
+    topic: 'Cap Table & Ownership',
+    questions: [
+      'Who are Astrotalk\'s investors',
+      'Astrotalk founder shareholding',
+      'Astrotalk related party transactions',
+    ],
+  },
+]
+
 // ── Single-metric focus mode (EBIT / any specific named line item) ──
 // EBIT is detected straight from the query text, not the backend's intent
 // classifier — it lumps EBIT into the same "ebitda" bucket, which was showing
@@ -3871,6 +3914,14 @@ export default function AiSearchPage() {
   // means whichever is current wins.
   const scrollAnchorRef   = useRef(null)
   const threadScrollRef   = useRef(null) // the thread's own overflow-y-auto pane — scrolled directly (not via scrollIntoView) so the outer document/window never moves, only this pane
+  // Tracks which history item's load is the MOST RECENT one requested — a plain ref (not
+  // React state) so it updates synchronously, unlike activeHistoryId which only reflects
+  // the latest value after a re-render. Guards loadHistoryResult() below against a race:
+  // clicking item A then quickly clicking item B before A's fetch resolves used to let
+  // whichever response arrived LAST win, regardless of which one the user actually clicked
+  // last — a slow/flaky connection could show item A's content while the sidebar still
+  // highlighted B as active.
+  const latestHistoryRequestRef = useRef(null)
 
   // ── Load history ────────────────────────────────────────────────────────────
 
@@ -4132,6 +4183,7 @@ export default function AiSearchPage() {
   //    carries over), same as reopening a past chat in ChatGPT/Claude. ──────────
 
   const loadHistoryResult = async (item) => {
+    latestHistoryRequestRef.current = item.id
     setTurns([])
     setActiveHistoryId(item.id)
     setQuery(item.query)
@@ -4140,6 +4192,10 @@ export default function AiSearchPage() {
     setStep(0)
     try {
       const data = await getAiHistoryDetail(item.id)
+      // A newer history click landed while this one was still in flight — that later
+      // request already owns the screen, so applying THIS stale response now would
+      // silently replace it with the wrong conversation's content.
+      if (latestHistoryRequestRef.current !== item.id) return
       if (data && data.success !== false && Array.isArray(data.turns) && data.turns.length > 0) {
         setTurns(data.turns.map(t => ({ ...classifyTurn(t.query, t.result), historyId: item.id })))
         setConversationId(data.conversationId || item.conversationId || crypto.randomUUID())
@@ -4147,9 +4203,10 @@ export default function AiSearchPage() {
         setTurns([makeErrorTurn(item.query, 'Could not load this history item.')])
       }
     } catch {
+      if (latestHistoryRequestRef.current !== item.id) return
       setTurns([makeErrorTurn(item.query, 'Failed to load history.')])
     } finally {
-      setPendingQuery(null)
+      if (latestHistoryRequestRef.current === item.id) setPendingQuery(null)
     }
   }
 
@@ -4499,6 +4556,30 @@ export default function AiSearchPage() {
                     the moment a conversation actually starts. */}
                 <div className="max-w-xl mx-auto">
                   {composerInput}
+                </div>
+
+                {/* Example-question guide, organized by topic — see EXAMPLE_QUESTION_TOPICS'
+                    own comment for why. Clicking populates the composer instead of
+                    auto-searching (handleEditQuery), same interaction GlossaryTurn's own
+                    example chips use for company-independent asks. */}
+                <div className="max-w-2xl mx-auto mt-8 text-left">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {EXAMPLE_QUESTION_TOPICS.map(({ topic, questions }) => (
+                      <div key={topic}>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">{topic}</p>
+                        <div className="space-y-1.5">
+                          {questions.map((q) => (
+                            <button
+                              key={q}
+                              onClick={() => handleEditQuery(q)}
+                              className="w-full text-left px-3 py-2 rounded-lg border border-gray-100 hover:border-orange-200 hover:bg-orange-50/60 text-xs text-gray-600 hover:text-[#ff7010] transition-colors truncate">
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
