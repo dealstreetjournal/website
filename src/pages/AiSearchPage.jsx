@@ -1037,7 +1037,9 @@ const RankingTurn = ({ result, onFollowUp }) => (
                               <td className="py-3 px-4 text-xs font-bold text-gray-900">{c.companyName}</td>
                               <td className="py-3 px-4 text-xs text-gray-500">{c.industry || '—'}</td>
                               <td className="py-3 px-4 text-right text-xs font-bold text-gray-800 tabular-nums">
-                                {/[%]/.test(c.matchedLabel || '') || /margin|growth|roe|roce|roa|rate/i.test(result.metric)
+                                {/flag/i.test(result.metric)
+                                  ? (c.value === 1 ? 'Yes' : c.value === 0 ? 'No' : '—')
+                                  : /[%]/.test(c.matchedLabel || '') || /margin|growth|roe|roce|roa|rate/i.test(result.metric)
                                   ? `${c.value.toFixed(2)}%`
                                   : fmtMn(c.value, result.currencyUnit)}
                                 <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{c.matchedLabel}</span>
