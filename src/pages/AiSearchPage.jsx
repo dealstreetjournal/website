@@ -176,6 +176,15 @@ const isFinancialStatementSearch = (query, lastSearchedTypes) => {
 // own company + question before actually searching.
 const isBareYearAnswer = (q) => /^(fy\s*)?\d{4}(\s*-\s*\d{2,4})?$/i.test(q.trim()) || /^all(\s+years?)?$/i.test(q.trim())
 
+// A reply to the "which years should I compare" range prompt can name several years or a
+// range ("2022-23 to 2024-25", "2022-23, 2023-24") — isBareYearAnswer only recognizes one.
+const isYearRangeAnswer = (q) => {
+  const trimmed = q.trim()
+  if (isBareYearAnswer(trimmed)) return true
+  const tokens = trimmed.match(/\b(?:fy\s*)?\d{4}(?:\s*-\s*\d{2,4})?\b/gi) || []
+  return tokens.length >= 2
+}
+
 // A stitched-together query lands in front of TWO different backend year-detectors that
 // don't agree on syntax: plain statement/data lookups accept a bare trailing year fine, but
 // the custom-calculation engine (AiCalcEngine, for ratio/chain-style asks like "X divided by
@@ -738,6 +747,39 @@ const YearPromptTurn = ({ result, instant = false }) => (
               </div>
 )
 
+// Companies being compared don't all have the same financial years on record — asks
+// which years to use instead of silently blending mismatched years into one table.
+const YearRangePromptTurn = ({ result, instant = false }) => (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+                    <FaRobot className="text-[#ff7010] text-xs" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 leading-relaxed mb-2">
+                      <TypewriterText instant={instant} text={
+                        `${result.companyName || 'These companies'} don't have the same years on record. ` +
+                        `Which years should I compare?`
+                      } />
+                    </p>
+                    <div className="space-y-1 mb-2">
+                      {(result.companyYearRanges || []).map((cy, i) => (
+                        <p key={i} className="text-xs text-gray-500">
+                          <span className="font-semibold text-gray-700">{cy.companyName}:</span>{' '}
+                          {(cy.availableYears || []).join(', ') || '—'}
+                        </p>
+                      ))}
+                    </div>
+                    {result.commonYears?.length > 0 && (
+                      <p className="text-xs text-gray-400">
+                        Common years: {result.commonYears.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+)
+
 // Pure term-definition answer ("explain EBITDA", "what is current ratio") — no company data at
 // all, so it deliberately skips the whole AssistantAnswerTurn dashboard (hero header, charts,
 // statements) and just shows the term + its plain-English definition. Also doubles as the
@@ -1173,52 +1215,94 @@ const ComparisonTurn = ({ result }) => (
                       const label = cleanMetricLabel(withFocus?.focusedMetricLabel
                         || result.companies.find(c => c.keyMetrics?.[0]?.label)?.keyMetrics[0].label
                         || 'Value')
-                      rows = [{
-                        label,
-                        cells: result.companies.map(c => {
-                          const v = latestArrValue((c.chartData?.singleMetricChart || []).map(p => p.value))
-                          return v == null ? null : { value: v }
-                        }),
-                      }].filter(row => row.cells.some(cell => cell?.value != null))
+                      // "revenue all"/"revenue all years" sends every year in singleMetricChart,
+                      // not just the latest — collapsing straight to latestArrValue dropped the
+                      // rest of the years the query actually asked for. One row per year once
+                      // more than one came back; otherwise keep the single latest-value row.
+                      const isMultiYear = result.companies.some(c => (c.chartData?.singleMetricChart || []).length > 1)
+                      if (isMultiYear) {
+                        tableTitle = `Head-to-Head Comparison — ${label} by Year`
+                        const years = [...new Set(result.companies.flatMap(c => (c.chartData?.singleMetricChart || []).map(p => p.year)))].sort()
+                        rows = years
+                          .map(yr => ({
+                            label: `FY ${yr}`,
+                            cells: result.companies.map(c => {
+                              const pt = (c.chartData?.singleMetricChart || []).find(p => p.year === yr)
+                              return pt?.value == null ? null : { value: pt.value }
+                            }),
+                          }))
+                          .filter(row => row.cells.some(cell => cell?.value != null))
+                      } else {
+                        rows = [{
+                          label,
+                          cells: result.companies.map(c => {
+                            const v = latestArrValue((c.chartData?.singleMetricChart || []).map(p => p.value))
+                            return v == null ? null : { value: v }
+                          }),
+                        }].filter(row => row.cells.some(cell => cell?.value != null))
+                      }
                     } else {
                       const metricDefs = [
                         { label: 'Revenue',             chart: 'revenueChart' },
                         { label: 'Net Profit / PAT',    chart: 'profitChart' },
                         { label: 'EBITDA',               chart: 'ebitdaChart' },
                       ]
-                      rows = metricDefs
-                        .map(md => ({
-                          label: md.label,
-                          cells: result.companies.map(c => {
-                            const v = latestArrValue(c.chartData?.[md.chart])
-                            return v == null ? null : { value: v }
-                          }),
-                        }))
-                        .filter(row => row.cells.some(cell => cell?.value != null))
+                      // A bare "revenue" (or PAT/EBITDA) ask matches the whole intent bucket,
+                      // not one specific row, so it lands here rather than the singleMetricChart
+                      // branch above — but it can still carry several years once the user has
+                      // picked a year range. One row per metric per year in that case, instead
+                      // of always collapsing to the latest year regardless of what was asked.
+                      const isMultiYear = metricDefs.some(md =>
+                        result.companies.some(c => (c.chartData?.[md.chart] || []).length > 1))
+                      if (isMultiYear) {
+                        tableTitle = 'Head-to-Head Comparison — by Year'
+                        rows = metricDefs.flatMap(md => {
+                          const years = [...new Set(result.companies.flatMap(c => (c.chartData?.[md.chart] || []).map(p => p.year)))].sort()
+                          return years.map(yr => ({
+                            label: `${md.label} — FY ${yr}`,
+                            cells: result.companies.map(c => {
+                              const pt = (c.chartData?.[md.chart] || []).find(p => p.year === yr)
+                              return pt?.value == null ? null : { value: pt.value }
+                            }),
+                          }))
+                        }).filter(row => row.cells.some(cell => cell?.value != null))
+                      } else {
+                        rows = metricDefs
+                          .map(md => ({
+                            label: md.label,
+                            cells: result.companies.map(c => {
+                              // revenueChart/profitChart/ebitdaChart hold {year, value} objects,
+                              // not plain numbers — map to .value first (fixes "₹NaN Mn").
+                              const v = latestArrValue((c.chartData?.[md.chart] || []).map(p => p.value))
+                              return v == null ? null : { value: v }
+                            }),
+                          }))
+                          .filter(row => row.cells.some(cell => cell?.value != null))
+                      }
                     }
 
                     if (rows.length === 0) return null
 
-                    // Computed comparison sentences — "who has more, by how much". Highest vs
-                    // lowest among ALL companies in the row (not just a fixed pair), so this
-                    // now also covers 3+-way comparisons (Narendra Sir, 2026-08-05: "jahan bhi
-                    // compare hota hai wahan % me data do") — previously gated to exactly 2
-                    // companies since the old two-value logic below only ever looked at a
-                    // fixed [a, b] pair.
-                    const verdicts = rows
-                      .map(row => {
-                        let hi = null, hiIdx = -1, lo = null, loIdx = -1
-                        row.cells.forEach((cell, ci) => {
-                          if (cell?.value == null) return
-                          if (hi == null || cell.value > hi) { hi = cell.value; hiIdx = ci }
-                          if (lo == null || cell.value < lo) { lo = cell.value; loIdx = ci }
-                        })
-                        if (hi == null || lo == null || hiIdx === loIdx) return null
-                        const diff = hi - lo
-                        const pct  = lo !== 0 ? (diff / Math.abs(lo)) * 100 : null
-                        return { label: row.label, higher: colNames[hiIdx], lower: colNames[loIdx], diff, pct }
-                      })
-                      .filter(Boolean)
+                    // Computed comparison sentences — "who has more, by how much". For 2
+                    // companies this is the one obvious pair. For 3+, collapsing to just the
+                    // overall highest vs lowest skipped every company in between — sort each
+                    // row's values highest to lowest and pair off neighbours (1st vs 2nd, 2nd
+                    // vs 3rd, ...) instead, so every company appears in at least one sentence.
+                    const verdicts = rows.flatMap(row => {
+                      const ranked = row.cells
+                        .map((cell, ci) => (cell?.value != null ? { value: cell.value, idx: ci } : null))
+                        .filter(Boolean)
+                        .sort((a, b) => b.value - a.value)
+                      const pairs = []
+                      for (let i = 0; i < ranked.length - 1; i++) {
+                        const hiE = ranked[i], loE = ranked[i + 1]
+                        if (hiE.value === loE.value) continue
+                        const diff = hiE.value - loE.value
+                        const pct  = loE.value !== 0 ? (diff / Math.abs(loE.value)) * 100 : null
+                        pairs.push({ label: row.label, higher: colNames[hiE.idx], lower: colNames[loE.idx], diff, pct })
+                      }
+                      return pairs
+                    })
 
                     const chartColors = ['#ff7010', '#1a1f36', '#6366f1', '#10b981', '#f59e0b']
 
@@ -1346,17 +1430,60 @@ const ComparisonTurn = ({ result }) => (
                         {!c.success && (
                           <p className="text-xs text-gray-400 italic">{c.message || 'No data available.'}</p>
                         )}
-                        {/* Temporarily disabled (Narendra Sir, 2026-08-21: "please only for
-                            data do"), uncomment to restore.
-                        {c.insights?.length > 0 ? c.insights.slice(0, 6).map((ins, i) => (
-                          <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                            <span className="w-4 h-4 rounded-md bg-[#ff7010] text-white text-[9px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
-                            <p className="text-xs text-gray-700 leading-relaxed">{ins}</p>
+                        {/* keyMetrics only ever carries the latest year's figure, even when
+                            several years were picked (e.g. after answering the "which years"
+                            range prompt) — chartData's own year-tagged series is what actually
+                            has every requested year, so it takes priority whenever it's there. */}
+                        {(() => {
+                          if (!c.success || c.aiCalculation) return null
+                          const chartKey = ['singleMetricChart', 'revenueChart', 'profitChart', 'ebitdaChart']
+                            .find(k => (c.chartData?.[k] || []).length > 1)
+                          if (!chartKey) return null
+                          const isPercent = /%/.test(c.focusedMetricLabel || c.keyMetrics?.[0]?.label || '')
+                          return (
+                            <SimpleTable
+                              headers={['Year', 'Value']}
+                              rows={c.chartData[chartKey].map(p => ({
+                                label: `FY ${p.year}`,
+                                cells: [p.value == null ? '—' : isPercent ? `${(p.value * 100).toFixed(1)}%` : fmtMn(p.value, result.currencyUnit)],
+                              }))}
+                            />
+                          )
+                        })()}
+                        {/* Single latest-year snapshot — shown only when the multi-year
+                            breakdown above isn't available, so the two don't duplicate. */}
+                        {c.success && !c.aiCalculation
+                          && !['singleMetricChart', 'revenueChart', 'profitChart', 'ebitdaChart'].some(k => (c.chartData?.[k] || []).length > 1)
+                          && c.keyMetrics?.length > 0 && (
+                          <div className="space-y-1.5">
+                            {c.keyMetrics.slice(0, 6).map((m, i) => (
+                              <div key={i} className="flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                                <p className="text-[11px] text-gray-500 truncate">{m.label}</p>
+                                <p className="text-xs font-bold text-gray-800 whitespace-nowrap">{m.value}</p>
+                              </div>
+                            ))}
                           </div>
-                        )) : c.success && (
-                          <p className="text-xs text-gray-400 italic">No specific insight found for this query.</p>
                         )}
-                        */}
+                        {/* "revenue detail"/"EBIT detail" — same formula-chain breakdown
+                            (numerator/denominator rows) the single-company view shows via
+                            singleMetricGroupStatement, scoped to this company's own figures. */}
+                        {c.success && !c.aiCalculation && c.chartData?.singleMetricGroupStatement?.length > 0 && (
+                          <SimpleTable
+                            headers={['Particulars', ...(c.financialYears || []).map(yr => `FY ${yr}`)]}
+                            rows={c.chartData.singleMetricGroupStatement.map(row => {
+                              const rowIsPercent = /%/.test(row.label || '')
+                              return {
+                                label: cleanMetricLabel(row.label),
+                                cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v, result.currencyUnit)),
+                              }
+                            })}
+                          />
+                        )}
+                        {c.success && !c.aiCalculation
+                          && !['singleMetricChart', 'revenueChart', 'profitChart', 'ebitdaChart'].some(k => (c.chartData?.[k] || []).length > 1)
+                          && !(c.keyMetrics?.length > 0) && !(c.chartData?.singleMetricGroupStatement?.length > 0) && (
+                          <p className="text-xs text-gray-400 italic">No specific data found for this query.</p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -3711,6 +3838,7 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
     {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} />}
     {turn.kind === 'glossary'   && <GlossaryTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
     {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} instant={instant} />}
+    {turn.kind === 'yearRangePrompt' && <YearRangePromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
     {turn.kind === 'comparison' && <ComparisonTurn result={turn.result} />}
     {turn.kind === 'metric'     && <FocusedMetricTurn result={turn.result} />}
@@ -3985,6 +4113,7 @@ export default function AiSearchPage() {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     if (data.glossary || data.glossaryHelp) return { id, userQuery, kind: 'glossary', result: data }
     if (data.needsYearSelection) return { id, userQuery, kind: 'yearPrompt', result: data }
+    if (data.needsYearRangeSelection) return { id, userQuery, kind: 'yearRangePrompt', result: data }
     if (data.rankingMode)        return { id, userQuery, kind: 'ranking',    result: data }
     if (data.comparisonMode)     return { id, userQuery, kind: 'comparison', result: data }
     if (data.focusedMetric && !data.aiCalculation) return { id, userQuery, kind: 'metric', result: data }
@@ -4051,6 +4180,8 @@ export default function AiSearchPage() {
     const lastTurn = turns[turns.length - 1]
     let apiQ = typedQ
     if (lastTurn?.kind === 'yearPrompt' && isBareYearAnswer(typedQ)) {
+      apiQ = `${lastTurn.result.companyName || ''} ${lastTurn.result.query || ''} ${withYearPreposition(typedQ)}`.trim()
+    } else if (lastTurn?.kind === 'yearRangePrompt' && isYearRangeAnswer(typedQ)) {
       apiQ = `${lastTurn.result.companyName || ''} ${lastTurn.result.query || ''} ${withYearPreposition(typedQ)}`.trim()
     } else if (isBareYearAnswer(typedQ) || isGenericContinuation(typedQ)) {
       // A bare "detail"/"more"/"expand" — or a bare year/"all" typed any time
