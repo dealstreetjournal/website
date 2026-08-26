@@ -211,22 +211,50 @@ const Footer = () => {
               </div>
 
               <div className="flex items-center gap-5 text-gray-600">
-                <FaXTwitter
-                  size={20}
-                  className="hover:text-black transition-colors cursor-pointer"
-                />
-                <FaLinkedin
-                  size={20}
-                  className="hover:text-blue-700 transition-colors cursor-pointer"
-                />
-                <FaInstagram
-                  size={20}
-                  className="hover:text-pink-500 transition-colors cursor-pointer"
-                />
-                <FaFacebook
-                  size={20}
-                  className="hover:text-blue-600 transition-colors cursor-pointer"
-                />
+                <a
+                  href="https://x.com/DealStreetJ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="X (Twitter)"
+                >
+                  <FaXTwitter
+                    size={20}
+                    className="hover:text-black transition-colors cursor-pointer"
+                  />
+                </a>
+                <a
+                  href="https://www.linkedin.com/company/deal-street-journal-2025/posts/?feedView=all"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="LinkedIn"
+                >
+                  <FaLinkedin
+                    size={20}
+                    className="hover:text-blue-700 transition-colors cursor-pointer"
+                  />
+                </a>
+                <a
+                  href="https://www.instagram.com/dealstreetjournal/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                >
+                  <FaInstagram
+                    size={20}
+                    className="hover:text-pink-500 transition-colors cursor-pointer"
+                  />
+                </a>
+                <a
+                  href="https://www.facebook.com/profile.php?id=61590832656701"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                >
+                  <FaFacebook
+                    size={20}
+                    className="hover:text-blue-600 transition-colors cursor-pointer"
+                  />
+                </a>
               </div>
             </div>
           </div>
