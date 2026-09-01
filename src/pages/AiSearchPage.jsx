@@ -982,7 +982,17 @@ const FocusedMetricTurn = ({ result }) => {
                   computing `trend` (Narendra Sir, 2026-08-04: "jo dikhta hai wahi bikta hai" —
                   make it look like something was actually built, not just plumbing). */}
               <div className="flex items-baseline gap-2 flex-wrap">
-                <p className={`text-2xl font-black ${valueColor(metric.value)}`}>{metric.value}</p>
+                <p className={`text-2xl font-black ${valueColor(metric.value)}`}>
+                  {metric.value}
+                  {/* "uske side me ek bracket me % me bata denge" -- Gross Margin/EBITDA/
+                      EBIT/PBT/PAT's own margin %, right next to the currency headline
+                      (e.g. "₹6511.27 Mn (100.0%)"), not buried several notes down.
+                      Backend-only field (percentLabel), only present when this specific
+                      metric has a known %-of-Revenue counterpart. */}
+                  {metric.percentLabel && (
+                    <span className="text-base font-bold text-gray-400"> ({metric.percentLabel})</span>
+                  )}
+                </p>
                 <TrendBadge trend={metric.trend} />
               </div>
             </>
