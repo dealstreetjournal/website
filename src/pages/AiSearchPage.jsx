@@ -1021,9 +1021,18 @@ const FocusedMetricTurn = ({ result }) => {
               })}
             />
           )}
-          {/* Temporarily disabled (Narendra Sir, 2026-08-21: "data ke niche jo tum comment
-              dete ho usko abhi ke liye comment kar do please only for data do") — uncomment to
-              restore.
+          {/* The Python engine's own calculation trail (financial_formulas.py) for a metric it
+              computed from base rows rather than read off one pre-computed Excel cell — the
+              actual numbers plugged in, not just row names, e.g. "EBITDA = Revenue (₹6511.27 Mn)
+              − Cost of Sales (₹0.00 Mn) − Total Expenses (₹5310.97 Mn) = ₹1200.31 Mn". Backend-
+              only field the frontend never had a renderer for until now, so it silently never
+              showed anywhere despite computedFrom being present in every response. */}
+          {result.computedFrom && (
+            <p className="mt-3 text-[11px] text-gray-400 leading-relaxed border-t border-gray-100 pt-2">
+              <span className="font-bold text-gray-500">How this was calculated: </span>
+              {result.computedFrom}
+            </p>
+          )}
           {result.insights?.length > 0 && (
             <div className="mt-3 space-y-1">
               {result.insights.map((ins, i) => (
@@ -1031,7 +1040,6 @@ const FocusedMetricTurn = ({ result }) => {
               ))}
             </div>
           )}
-          */}
         </div>
       </div>
     </div>
@@ -2323,8 +2331,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             </div>
                           )}
 
-                          {/* keyword highlights — temporarily disabled (Narendra Sir,
-                              2026-08-21: "please only for data do"), uncomment to restore.
                           {highlights.length > 0 && (
                             <div>
                               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Key Highlights</p>
@@ -2339,7 +2345,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               </ul>
                             </div>
                           )}
-                          */}
                         </div>
                       </div>
                     )
@@ -3766,10 +3771,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                   <Reveal index={7}>
                   {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.insights?.length > 0 && (
                     <div className="px-6 py-6 border-b border-gray-100">
-                      {/* Header + insight cards temporarily disabled (Narendra Sir, 2026-08-21:
-                          "data ke niche jo tum comment dete ho usko abhi ke liye comment kar do
-                          please only for data do") — Quick Actions below stay live. Uncomment to
-                          restore.
                       <div className="flex items-center gap-2.5 mb-4">
                         <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
                           <FaStar className="text-[#ff7010] text-xs" />
@@ -3795,7 +3796,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                           )
                         })}
                       </div>
-                      */}
 
                       {/* ── Quick actions ── */}
                       <div className="flex flex-wrap gap-2 mt-4">
@@ -3925,11 +3925,6 @@ export default function AiSearchPage() {
   const [historyLoading,    setHistoryLoading]    = useState(false)
   const [activeHistoryId,   setActiveHistoryId]   = useState(null)
 
-  // Groups every search in this browser thread under ONE history entry server-side
-  // (ChatGPT/Claude-style — ID stays the same across follow-ups, only resets on "New
-  // chat" or when a different past conversation is loaded from the sidebar) instead of
-  // each search saving as its own separate row.
-  const [conversationId, setConversationId] = useState(() => crypto.randomUUID())
 
   // The saved/dragged resultWidth (up to RESULT_WIDTH_MAX=1600) can end up wider
   // than what's actually visible on THIS screen once the sidebar eats into the
@@ -4218,7 +4213,7 @@ export default function AiSearchPage() {
     // the catch block, past any success:false check placed after the await.
     const trySearch = async (q) => {
       try {
-        const data = await aiFreeSearch(q, conversationId)
+        const data = await aiFreeSearch(q, user)
         return { ok: data.success !== false, data, message: data.message }
       } catch (e) {
         return { ok: false, data: null, message: e?.response?.data?.message || 'Search failed. Please try again.' }
@@ -4269,8 +4264,9 @@ export default function AiSearchPage() {
 
   // ── Load history result — restores the WHOLE saved conversation (every turn, in
   //    order), replacing whatever's currently in the thread. Continuing to chat
-  //    afterward appends to this SAME conversation server-side (conversationId
-  //    carries over), same as reopening a past chat in ChatGPT/Claude. ──────────
+  //    afterward now starts a fresh, unlinked search (AI Search calls DSJ-AI directly,
+  //    which has no conversation-threading of its own — see aiSearchApi.js), unlike the
+  //    old Java-proxied behavior where it appended to this same server-side thread. ──
 
   const loadHistoryResult = async (item) => {
     latestHistoryRequestRef.current = item.id
@@ -4288,7 +4284,6 @@ export default function AiSearchPage() {
       if (latestHistoryRequestRef.current !== item.id) return
       if (data && data.success !== false && Array.isArray(data.turns) && data.turns.length > 0) {
         setTurns(data.turns.map(t => ({ ...classifyTurn(t.query, t.result), historyId: item.id })))
-        setConversationId(data.conversationId || item.conversationId || crypto.randomUUID())
       } else {
         setTurns([makeErrorTurn(item.query, 'Could not load this history item.')])
       }
@@ -4305,7 +4300,6 @@ export default function AiSearchPage() {
   const handleNewChat = () => {
     setTurns([])
     setActiveHistoryId(null)
-    setConversationId(crypto.randomUUID())
     setQuery('')
     inputRef.current?.focus()
   }
@@ -4317,7 +4311,7 @@ export default function AiSearchPage() {
     try {
       await deleteAiHistoryItem(id)
       setHistory(prev => prev.filter(h => h.id !== id))
-      if (activeHistoryId === id) { setTurns([]); setActiveHistoryId(null); setConversationId(crypto.randomUUID()) }
+      if (activeHistoryId === id) { setTurns([]); setActiveHistoryId(null) }
     } catch { /* ignore */ }
   }
 
@@ -4325,7 +4319,7 @@ export default function AiSearchPage() {
     if (!window.confirm('Delete all search history?')) return
     try {
       await clearAiHistory()
-      setHistory([]); setTurns([]); setActiveHistoryId(null); setConversationId(crypto.randomUUID())
+      setHistory([]); setTurns([]); setActiveHistoryId(null)
     } catch { /* ignore */ }
   }
 
