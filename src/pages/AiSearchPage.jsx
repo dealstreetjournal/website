@@ -960,13 +960,15 @@ const FocusedMetricTurn = ({ result }) => {
           <FaChartBar className="text-[#ff7010] text-xs" />
         </div>
         <div className="flex-1 min-w-0">
-          {/* "wo kaise thoda sa samjha deta hai uske baad jo humara real ans hai wo dega" --
-              explanation FIRST, at the top, then the real answer below it -- same order a
-              plain chat answer already gives ("what is gross margin in Astrotalk" -> a quick
-              definition, then the number, then supporting notes). Backend-only field
-              (educationalNote) the frontend never had a renderer for at all until now, unlike
-              computedFrom/insights below it. */}
-          {result.educationalNote && (
+          {/* "upper wala wo description hata do sab se agar koi question kare tab dena warna
+              nahi" -- educationalNote is a broad category-wide note (e.g. asking for "gross
+              margin" got a "Key Margin Metrics" block covering EBITDA/PBT/PAT margins, OCI,
+              advertising-to-sales, none of which were asked about) -- found live, this is the
+              SAME "give exactly what was asked" complaint already fixed for the insights list
+              itself. Only shown when the query is actually a definitional question ("what is
+              gross margin in Astrotalk", "explain EBITDA") -- a plain value ask ("Astrotalk
+              gross margin 2023-24") gets just the number and its notes, no unrequested essay. */}
+          {result.educationalNote && /\b(what\s*'?s|what\s+is|what\s+are|explain\w*|defin\w*|descri\w*|meaning\s+of)\b/i.test(result.query || '') && (
             <p className="mb-3 text-xs text-gray-500 leading-relaxed bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5">
               {result.educationalNote}
             </p>
