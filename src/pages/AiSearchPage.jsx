@@ -976,6 +976,16 @@ const FocusedMetricTurn = ({ result }) => {
           ) : (
             <p className="text-sm text-gray-500">No data on record for this.</p>
           )}
+          {/* A short "what is this metric" explanation, right after the headline number --
+              same explain-then-notes structure a plain chat answer already gives ("what is
+              gross margin in Astrotalk" -> a quick definition, then the real number, then
+              supporting notes). Backend-only field (educationalNote) the frontend never had
+              a renderer for at all until now, unlike computedFrom/insights just below it. */}
+          {result.educationalNote && (
+            <p className="mt-3 text-xs text-gray-500 leading-relaxed bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5">
+              {result.educationalNote}
+            </p>
+          )}
           {/* A graph only makes sense once there's a trend to show — asking for ONE year
               ("total current assets 2024-25") stays plain data, just the value above; naming
               two or more years ("2023-24, 2024-25") is what turns this into a chart (Narendra
@@ -1034,10 +1044,16 @@ const FocusedMetricTurn = ({ result }) => {
             </p>
           )}
           {result.insights?.length > 0 && (
-            <div className="mt-3 space-y-1">
-              {result.insights.map((ins, i) => (
-                <p key={i} className="text-xs text-gray-500 leading-relaxed">{ins}</p>
-              ))}
+            <div className="mt-3 border-t border-gray-100 pt-2.5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Notes</p>
+              <div className="space-y-1.5">
+                {result.insights.map((ins, i) => (
+                  <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
+                    <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+                    <span>{ins}</span>
+                  </p>
+                ))}
+              </div>
             </div>
           )}
         </div>
