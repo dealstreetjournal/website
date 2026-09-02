@@ -1521,6 +1521,33 @@ const ComparisonTurn = ({ result }) => (
                           && !(c.keyMetrics?.length > 0) && !(c.chartData?.singleMetricGroupStatement?.length > 0) && (
                           <p className="text-xs text-gray-400 italic">No specific data found for this query.</p>
                         )}
+                        {/* Same "How this was calculated"/Notes treatment the single-company
+                            view already gives (FocusedMetricTurn) -- each company's own sub-
+                            answer here already carries its own computedFrom/insights from the
+                            backend (compareCompanies() calls search() once per company), but
+                            this per-company card never had a renderer for either field, so a
+                            comparison silently dropped the exact same calculation trail and
+                            DSJ Insights narrative a single-company search of the same metric
+                            already shows. */}
+                        {c.computedFrom && (
+                          <p className="text-[11px] text-gray-400 leading-relaxed border-t border-gray-100 pt-2">
+                            <span className="font-bold text-gray-500">How this was calculated: </span>
+                            {c.computedFrom}
+                          </p>
+                        )}
+                        {c.insights?.length > 0 && (
+                          <div className="border-t border-gray-100 pt-2">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Notes</p>
+                            <div className="space-y-1">
+                              {c.insights.map((ins, i) => (
+                                <p key={i} className="flex items-start gap-1.5 text-[11px] text-gray-600 leading-relaxed">
+                                  <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+                                  <span>{ins}</span>
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -2028,6 +2055,33 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               </>
                             )}
                           </>
+                        )}
+                        {/* Same "How this was calculated"/Notes treatment FocusedMetricTurn
+                            gives a plain metric lookup, applied here too regardless of which
+                            aiCalculation mode is showing above (plain ratio, compareMode,
+                            perYear) — found live: a calc-chain/ratio answer (e.g. "advertising
+                            to sales ratio") already carries its own DSJ Insights narrative on
+                            the backend, but this card never had a renderer for either field at
+                            all, so it silently never showed here even though the exact same
+                            content already displays for a plain single-metric lookup. */}
+                        {result.computedFrom && (
+                          <p className="mt-3 text-[11px] text-gray-400 leading-relaxed border-t border-gray-100 pt-2">
+                            <span className="font-bold text-gray-500">How this was calculated: </span>
+                            {result.computedFrom}
+                          </p>
+                        )}
+                        {result.insights?.length > 0 && (
+                          <div className="mt-3 border-t border-gray-100 pt-2.5">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Notes</p>
+                            <div className="space-y-1.5">
+                              {result.insights.map((ins, i) => (
+                                <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
+                                  <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+                                  <span>{ins}</span>
+                                </p>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
