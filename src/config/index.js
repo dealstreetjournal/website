@@ -9,13 +9,11 @@ const config = {
     (isProd ? 'https://api.dealstreetjournal.com' : 'http://localhost:8080'),
   // AI Search now calls the Python engine (DSJ-AI) directly from the browser instead of
   // going through websitebackend as a proxy -- product decision (2026-08-31): no reason to
-  // route through Java for a call Java only ever forwarded unchanged. VITE_DSJ_AI_URL must
-  // point at wherever DSJ-AI's own Docker deploy actually ends up (see its
-  // .github/workflows/deploy.yml) once that's live; this prod fallback is a placeholder
-  // until that domain is decided.
+  // route through Java for a call Java only ever forwarded unchanged. VITE_DSJ_AI_URL
+  // overrides this at build time; the prod fallback below is DSJ-AI's live domain.
   DSJ_AI_URL:
     import.meta.env.VITE_DSJ_AI_URL ||
-    (isProd ? 'https://ai.dealstreetjournal.com' : 'http://localhost:8090'),
+    (isProd ? 'https://financialai.dealstreetjournal.com' : 'http://localhost:8090'),
   COLLECT_URL:
     import.meta.env.VITE_COLLECT_URL ||
     (isProd
