@@ -1325,21 +1325,29 @@ const ComparisonTurn = ({ result }) => (
                     // overall highest vs lowest skipped every company in between — sort each
                     // row's values highest to lowest and pair off neighbours (1st vs 2nd, 2nd
                     // vs 3rd, ...) instead, so every company appears in at least one sentence.
-                    const verdicts = rows.flatMap(row => {
+                    // pctByIdx keeps this same pair-off, keyed by column index, so the table
+                    // cells below can show "(-X%)" right next to the lower figure too — found
+                    // live: the % difference already existed as a sentence UNDER the table, but
+                    // not as the bracket right next to the number itself (Narendra Sir: "is ke
+                    // sath backet me % bhi chahiye").
+                    const rowComparisons = rows.map(row => {
                       const ranked = row.cells
                         .map((cell, ci) => (cell?.value != null ? { value: cell.value, idx: ci } : null))
                         .filter(Boolean)
                         .sort((a, b) => b.value - a.value)
                       const pairs = []
+                      const pctByIdx = {}
                       for (let i = 0; i < ranked.length - 1; i++) {
                         const hiE = ranked[i], loE = ranked[i + 1]
                         if (hiE.value === loE.value) continue
                         const diff = hiE.value - loE.value
                         const pct  = loE.value !== 0 ? (diff / Math.abs(loE.value)) * 100 : null
                         pairs.push({ label: row.label, higher: colNames[hiE.idx], lower: colNames[loE.idx], diff, pct })
+                        if (pct != null) pctByIdx[loE.idx] = pct
                       }
-                      return pairs
+                      return { pairs, pctByIdx }
                     })
+                    const verdicts = rowComparisons.flatMap(r => r.pairs)
 
                     const chartColors = ['#ff7010', '#1a1f36', '#6366f1', '#10b981', '#f59e0b']
 
@@ -1382,17 +1390,23 @@ const ComparisonTurn = ({ result }) => (
                             </tr>
                           </thead>
                           <tbody>
-                            {rows.map((row, i) => (
+                            {rows.map((row, i) => {
+                              const { pctByIdx } = rowComparisons[i]
+                              return (
                               <tr key={i} className={`border-b border-gray-100 ${i % 2 === 1 ? 'bg-gray-50/50' : ''}`}>
                                 <td className="py-3 px-4 text-gray-700 text-xs font-semibold whitespace-nowrap">{row.label}</td>
                                 {row.cells.map((cell, j) => (
                                   <td key={j} className="py-3 px-3 text-right text-xs text-gray-800 tabular-nums font-bold whitespace-nowrap">
                                     {cell?.value != null ? fmtMn(cell.value, result.currencyUnit) : '—'}
+                                    {pctByIdx[j] != null && (
+                                      <span className="ml-1 text-[10px] font-normal text-gray-400">(-{pctByIdx[j].toFixed(1)}%)</span>
+                                    )}
                                     {cell?.year != null && <span className="block text-[9px] font-normal text-gray-400 mt-0.5">FY {cell.year}</span>}
                                   </td>
                                 ))}
                               </tr>
-                            ))}
+                              )
+                            })}
                           </tbody>
                         </table>
 
