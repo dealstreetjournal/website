@@ -36,14 +36,14 @@ import { logout as logoutApi } from '../api/authApi'
 // cards, charts, comparison tables, YoY tables) renders in this one consistent unit instead
 // of switching between Lakh/Crore (or raw thousands) depending on size.
 // 2 decimal places — matches the backend's OWN canonical formatter (fmtMn() in
-// AiSearchService.java, %.2f) exactly. Found live (Narendra Sir, 2026-08-21: "kahi data de
-// rahe 25.66mn or kahi de rahe ho 26 mn ye to glt hai naa"): this frontend copy used only 1
+// AiSearchService.java, %.2f) exactly. Found live: the same figure was showing as 25.66mn in
+// one place and 26mn in another — a real inconsistency. This frontend copy used only 1
 // decimal place, so the SAME figure showed as "₹5014.77 Mn" in a backend-pre-formatted
 // keyMetrics value but "₹5,014.8 Mn" wherever this function formatted the raw chart/table
 // value right next to it on the same card — same number, visibly different precision.
 // Multiplier FROM Millions (fmtMn's own existing "raw/1000 = Mn" baseline) TO each unit the
 // backend's currencyUnit field can send — e.g. 1 Mn = 10 Lakh, 1 Mn = 0.1 Cr — mirrors
-// AiSearchService's UnitPref exactly (Narendra Sir, 2026-08-22: "wo bhi kar do" — extending
+// AiSearchService's UnitPref exactly — extending
 // the "in crore"/"in lakh"/etc. query-requested-unit feature to the chart/table numbers too,
 // not just the headline/insight text the backend itself formats).
 const MN_TO_UNIT_MULTIPLIER = { Mn: 1, Thousand: 1000, Hundred: 10000, Lakh: 10, Cr: 0.1, Bn: 0.001 }
@@ -102,8 +102,8 @@ const fmtStatementNum = (v, label, unit = 'Mn') => {
     return v < 0 ? `(${formatted})` : formatted
   }
   // 2 decimal places — matches fmtMn() above and the backend's own canonical formatter
-  // exactly (Narendra Sir, 2026-08-21: "kahi data de rahe 25.66mn or kahi de rahe ho 26 mn ye
-  // to glt hai naa"). This Balance Sheet/P&L/Cash Flow statement table was its own separate
+  // exactly. Found live: the same figure was showing as 25.66mn in one place and 26mn in
+  // another — a real inconsistency. This Balance Sheet/P&L/Cash Flow statement table was its own separate
   // 1-decimal formatter, so the exact same row's value could round differently here than in
   // the keyMetrics tile or singleMetricChart table showing the same figure elsewhere on the
   // page. unit defaults to 'Mn' (see fmtMn's own comment) — StatementBlock passes its
@@ -134,14 +134,13 @@ const isFinancialStatementSearch = (query, lastSearchedTypes) => {
   const q = (query || '').toLowerCase().trim()
   if (!q) return false
   if (/financial statements?/.test(q)) return true
-  // "financials" alone — a common shorthand for "financial statements" (Narendra Sir,
-  // 2026-08-06: "financials = financial statement, ye bhi abhi tak nahi hua"). The backend's
+  // "financials" alone — a common shorthand for "financial statements", still not handled here. The backend's
   // own isFinancialStatementQuery already treats bare "financial" as enough and returns the
   // same 3-statement data either way — this frontend copy just hadn't caught up, so
   // "financials" was showing the Company Overview dashboard around the statements instead of
   // just the statements themselves.
-  // Bare "financial" (no "s") now matches too (Narendra Sir, 2026-08-20: "financials = financial"
-  // — explicitly asked for exact parity with "financials", overriding the earlier deliberate
+  // Bare "financial" (no "s") now matches too — explicit parity with "financials" was
+  // requested, overriding the earlier deliberate
   // exclusion here). Backend payload was already byte-for-byte identical either way; only this
   // frontend copy still drew a line between them, so "Astrotalk financial 2023-24" fell through
   // to the broader Company Overview treatment while "financials" got the narrow statements-only
@@ -151,7 +150,7 @@ const isFinancialStatementSearch = (query, lastSearchedTypes) => {
   if (/\bfinancials?\b/.test(q)) return true
   // Naming one specific statement by name — "balance sheet", "profit and loss"/"p&l",
   // "cash flow statement" — also counts, same narrow treatment as "financial statement(s)"
-  // itself. Found live (Narendra Sir, 2026-08-01): asking for just the balance sheet was
+  // itself. Found live: asking for just the balance sheet was
   // rendering the full Company Overview/Key Highlights dashboard around it instead of just
   // the statement table, because only the literal phrase "financial statement(s)" was
   // recognized here — a plain "balance sheet" (or its resubmitted "balance sheet in
@@ -415,7 +414,7 @@ const buildExtraGlanceRows = (result) => {
 // than a static block of text just popping in fully-formed. Re-types from scratch whenever
 // `text` itself changes (a new search result / a new question), not on every re-render.
 // `instant` skips the character-by-character animation entirely and shows the full text
-// right away — used when a turn is being RESTORED from history (Narendra Sir, 2026-08-06:
+// right away — used when a turn is being RESTORED from history:
 // re-opening a saved conversation replayed the same "typing" effect that plays for a live,
 // just-arrived answer, making already-known saved text look like it's arriving fresh again).
 const TypewriterText = ({ text, speed = 14, instant = false }) => {
@@ -672,8 +671,7 @@ const timeAgo = (iso) => {
 
 // `onEdit` (when given) loads this exact text back into the bottom composer for editing —
 // a typo, or just wanting to ask it differently, shouldn't require retyping the whole thing
-// from scratch (Narendra Sir, 2026-08-06: "upar jo search karte hai usko edit karne ka option
-// do, fir se submit kar sakein"). Deliberately does NOT resubmit on its own — it hands the
+// from scratch — a past search should be editable and resubmittable. Deliberately does NOT resubmit on its own — it hands the
 // text back to the composer so the user can change it first, same as clicking an autocomplete
 // suggestion does (pickSuggestion), just seeded from a past question instead of a company name.
 const UserBubble = ({ text, onEdit }) => (
@@ -855,7 +853,7 @@ const cleanMetricLabel = (label) =>
   (label || '').replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s*\(\d{4}-\d{2,4}\)\s*$/, '')
 
 // Removes every "(...)" group, NESTED ones included, by tracking paren depth rather than a
-// single regex pass — found live (Narendra Sir, 2026-08-05): the naive `\([^)]*\)` regex used
+// single regex pass — found live: the naive `\([^)]*\)` regex used
 // for a calculated-answer's title stops at the FIRST ")" it sees, so a label containing a
 // nested pair (e.g. AiCalcEngine's own "Net Burn (Annual) (recalculated — source Excel's own
 // "Net burn rate (Monthly)" value differed)") only ever strips up to that inner ")", leaving a
@@ -876,8 +874,7 @@ const stripAllParens = (s) => {
 // (FocusedMetricTurn's trend table, its "detail" breakdown, aiCalculation's perYear/detail/
 // compare tables) — previously each of those hand-rolled its own <table>, some with a proper
 // dark header bar and some with none at all, so the SAME kind of data looked different from
-// one card to the next (Narendra Sir, 2026-08-04: "table jaisa achha se aaye, copy bhi kar
-// ske" — one consistent, presentable table, with its own copy button so the numbers can be
+// one card to the next — one consistent, presentable table, with its own copy button so the numbers can be
 // pasted straight into Excel/Sheets). Copies as tab-separated text — that's what a spreadsheet
 // paste expects — not a visually-formatted copy.
 const SimpleTable = ({ headers, rows }) => {
@@ -917,8 +914,8 @@ const SimpleTable = ({ headers, rows }) => {
 // "EBITDA") — the backend's own `focusedMetric` flag means it matched exactly ONE row, not a
 // broad topic. Deliberately minimal and identical in shape every time: just the metric name and
 // its value (+ a compact per-year breakdown when more than one year of data came back) — no
-// company hero header, no CIN/industry badges, no trend chart. Narendra Sir, 2026-08-01: "sab
-// ans ek barabar formate me rakho, ek barabar format simple me" — every one of these answers,
+// company hero header, no CIN/industry badges, no trend chart. Every one of these answers should
+// render in one consistent, simple format — every one of these answers,
 // across every statement/tab, was rendering through the full AssistantAnswerTurn dashboard
 // (company name card + a bar chart) regardless of how narrow the actual question was; this gives
 // focused questions their own consistently plain answer shape instead.
@@ -946,7 +943,7 @@ const FocusedMetricTurn = ({ result }) => {
   // a -21.2% margin instead of "-21.2%").
   const isPercent = /%/.test(metric?.label || '')
   // chartData.singleMetricChart sends the RAW ratio (0.0532 for 5.32%), never pre-scaled —
-  // found live (Narendra Sir, 2026-08-05): "EBITDA margin all years" showed the top value
+  // found live: "EBITDA margin all years" showed the top value
   // correctly as "18.4%" (keyMetrics' own value is pre-formatted server-side) but the per-year
   // trend table underneath showed "0.1%"/"0.2%" — this multiplier was missing, so a query
   // where the user never typed "%" at all (a percent row was simply what they asked for, e.g.
@@ -960,8 +957,8 @@ const FocusedMetricTurn = ({ result }) => {
           <FaChartBar className="text-[#ff7010] text-xs" />
         </div>
         <div className="flex-1 min-w-0">
-          {/* "upper wala wo description hata do sab se agar koi question kare tab dena warna
-              nahi" -- educationalNote is a broad category-wide note (e.g. asking for "gross
+          {/* The description on top should be removed everywhere and only shown if an actual
+              question is asked -- educationalNote is a broad category-wide note (e.g. asking for "gross
               margin" got a "Key Margin Metrics" block covering EBITDA/PBT/PAT margins, OCI,
               advertising-to-sales, none of which were asked about) -- found live, this is the
               SAME "give exactly what was asked" complaint already fixed for the insights list
@@ -979,12 +976,12 @@ const FocusedMetricTurn = ({ result }) => {
               {/* Colour + trend arrow — the plain black-on-white number read as "just text",
                   not a finished financial product; red/green + a YoY arrow is the convention
                   every finance app uses, and costs nothing extra since the backend was already
-                  computing `trend` (Narendra Sir, 2026-08-04: "jo dikhta hai wahi bikta hai" —
-                  make it look like something was actually built, not just plumbing). */}
+                  computing `trend` — presentation matters, so it should
+                  look like something was actually built, not just plumbing. */}
               <div className="flex items-baseline gap-2 flex-wrap">
                 <p className={`text-2xl font-black ${valueColor(metric.value)}`}>
                   {metric.value}
-                  {/* "uske side me ek bracket me % me bata denge" -- Gross Margin/EBITDA/
+                  {/* Shown in a bracket right next to the value -- Gross Margin/EBITDA/
                       EBIT/PBT/PAT's own margin %, right next to the currency headline
                       (e.g. "₹6511.27 Mn (100.0%)"), not buried several notes down.
                       Backend-only field (percentLabel), only present when this specific
@@ -1001,8 +998,8 @@ const FocusedMetricTurn = ({ result }) => {
           )}
           {/* A graph only makes sense once there's a trend to show — asking for ONE year
               ("total current assets 2024-25") stays plain data, just the value above; naming
-              two or more years ("2023-24, 2024-25") is what turns this into a chart (Narendra
-              Sir, 2026-08-01: "single year me graph nahi, jab 2-3 years poochhu tab graph"). */}
+              two or more years ("2023-24, 2024-25") is what turns this into a chart — no graph
+              for a single year, only once multiple years are asked for. */}
           {series.length > 1 && (
             <>
               <div className="mt-3" style={{ height: 160 }}>
@@ -1016,9 +1013,9 @@ const FocusedMetricTurn = ({ result }) => {
               </div>
               {/* Plain year|value table alongside the trend chart — every OTHER multi-year
                   card on this page (aiCalculation's perYear, compareMode's perYearCompare)
-                  already pairs its graph with a table; this one only had the graph (Narendra
-                  Sir, 2026-08-04: "detail pe table ban ke aa raha hai, all pe only for graph aa
-                  raha hai, dono mein aana chahiye"). Separate from — and in addition to — the
+                  already pairs its graph with a table; this one only had the graph. The "detail"
+                  ask was showing a table while the "all" ask showed only a graph — both should
+                  show both. Separate from — and in addition to — the
                   formula-breakdown table below, which only appears for "detail"/"details". */}
               <SimpleTable
                 headers={['Year', 'Value']}
@@ -1028,7 +1025,7 @@ const FocusedMetricTurn = ({ result }) => {
           )}
           {/* "EBIT detail"/"gross margin detail"/... — the backend's own formula-chain
               breakdown (numerator/denominator rows the matched figure is built from) — found
-              live (Narendra Sir, 2026-08-04): "EBIT detail" showed the trend graph but dropped
+              live: "EBIT detail" showed the trend graph but dropped
               this table entirely; this component never rendered singleMetricGroupStatement at
               all, even though the backend was already sending it for every "detail"/"details"
               ask. */}
@@ -1203,8 +1200,8 @@ const ComparisonTurn = ({ result }) => (
                     let tableTitle = 'Head-to-Head Comparison'
                     let rows = []
 
-                    // "Jidoka compare Anmasa gross margin EBITDA EBIT PAT" — Narendra Sir,
-                    // 2026-08-05 "Key Words" spec: several metrics named side by side, no
+                    // "Jidoka compare Anmasa gross margin EBITDA EBIT PAT" — per the "Key Words"
+                    // spec: several metrics named side by side, no
                     // "compare"/"and" between them. Backend attaches these as each company's
                     // own "multiMetrics" (see AiSearchService.compareCompanies) — checked
                     // BEFORE statementDef below since naming specific metrics is a more
@@ -1244,7 +1241,7 @@ const ComparisonTurn = ({ result }) => (
                     } else if (result.companies.some(c => c.chartData?.singleMetricChart?.length > 0)) {
                       // One specific named metric that isn't Revenue/PAT/EBITDA and doesn't
                       // populate a full statement — e.g. "CompanyA vs CompanyB gross margin"
-                      // (Narendra Sir, 2026-08-06: same table+graph 3-way comparisons already
+                      // (same table+graph 3-way comparisons already
                       // get should also show for 2-way) — each company's own focused-metric
                       // series (search()'s singleMetricChart, same field FocusedMetricTurn
                       // plots for a single-company ask) becomes the one comparison row.
@@ -1328,8 +1325,7 @@ const ComparisonTurn = ({ result }) => (
                     // pctByIdx keeps this same pair-off, keyed by column index, so the table
                     // cells below can show "(-X%)" right next to the lower figure too — found
                     // live: the % difference already existed as a sentence UNDER the table, but
-                    // not as the bracket right next to the number itself (Narendra Sir: "is ke
-                    // sath backet me % bhi chahiye").
+                    // not as the bracket right next to the number itself — it was needed there too.
                     const rowComparisons = rows.map(row => {
                       const ranked = row.cells
                         .map((cell, ci) => (cell?.value != null ? { value: cell.value, idx: ci } : null))
@@ -1357,8 +1353,8 @@ const ComparisonTurn = ({ result }) => (
                           <div className="w-1 h-4 rounded-full bg-indigo-500" />
                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-700">{tableTitle}</p>
                         </div>
-                        {/* Bar chart alongside the table — Narendra Sir, 2026-08-05: "graph bhi
-                            lao jahan bhi compare hota hai". One group of bars per row, one bar
+                        {/* Bar chart alongside the table — a graph is wanted everywhere a
+                            comparison happens. One group of bars per row, one bar
                             per company, so it works the same for 2 companies or 3+. */}
                         <div className="mb-5" style={{ height: 220, minWidth: rows.length * 90 }}>
                           <Bar
@@ -1667,8 +1663,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                   // avatar, title, big value, small caption underneath) — a calculated ratio
                   // and a raw looked-up figure are both just "the answer" to the user, so they
                   // read identically now instead of one having a colored header bar and an
-                  // indigo number while the other stayed plain (Narendra Sir, 2026-08-01: "dono
-                  // ek jaisa nahi hai, ek jaisa karo — upar wale jaisa simple").
+                  // indigo number while the other stayed plain — they should match, kept simple
+                  // like the one above.
                   <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5 mb-5">
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
@@ -1705,14 +1701,13 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                         {result.aiCalculation.compareMode ? (
                           <>
                             {/* "X compare Y"/"X vs Y" — two figures shown side by side, NOT
-                                divided into one ratio (Narendra Sir, 2026-08-01: "compare ko
-                                divide kar raha hai, divide nahi karna chahiye" — "compare" now
+                                divided into one ratio — a compare was wrongly being divided;
+                                "compare" now
                                 has its own dedicated shape on the backend instead of being
                                 treated as a division operator). */}
                             {result.aiCalculation.itemsPerYear?.length > 0 ? (
-                              // "A compare B compare C all years" — Narendra Sir, 2026-08-05:
-                              // "all kiya to all years ke dena chahiye tha... table dena
-                              // chahiye tha" — same graph+table shape the two-operand
+                              // "A compare B compare C all years" — an "all years" ask should
+                              // return every year with a table, same graph+table shape the two-operand
                               // perYearCompare case below already has, extended to N items.
                               <>
                                 <div className="mb-4" style={{ height: 200 }}>
@@ -1747,14 +1742,13 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               </>
                             ) : result.aiCalculation.items?.length >= 3 ? (
                               // "A compare B compare C" — three or more figures at once
-                              // (Narendra Sir, 2026-08-05 "Key Words" spec, items 21/22).
+                              // (per the "Key Words" spec, items 21/22).
                               // Same tile shape as the two-way case below, just N tiles in a
                               // responsive grid instead of a fixed 2-column one — plus a bar
                               // chart and %-difference lines against the first item, added
-                              // (Narendra Sir, 2026-08-05: "graph bhi lao, % me data do jahan
-                              // bhi compare hota hai") to match what every other compare shape
-                              // on this page now shows. Tiles shown BEFORE the chart (Narendra
-                              // Sir, 2026-08-05: "pahle...ye dega uske baad graph aayega") — the
+                              // so a graph and % data show up wherever a comparison happens,
+                              // to match what every other compare shape
+                              // on this page now shows. Tiles shown BEFORE the chart — the
                               // numbers are the direct answer to what was asked, the chart is
                               // supporting visual, same order FocusedMetricTurn's own value+
                               // chart already uses.
@@ -1802,8 +1796,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                 </div>
                                 {/* "gross margin vs EBITDA vs EBIT detail" — each compared
                                     item's own formula breakdown, same as a single "EBITDA
-                                    detail" ask already shows (Narendra Sir, 2026-08-05:
-                                    "detail dalu to detail dena chahiye tha"). One small table
+                                    detail" ask already shows — a "detail" ask should return
+                                    the detail. One small table
                                     per item, titled with that item's own row label. */}
                                 {result.aiCalculation.itemDetails?.length > 0 && (
                                   <div className="mt-4 space-y-4">
@@ -1828,8 +1822,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             ) : result.aiCalculation.perYearCompare?.length > 0 ? (
                               <>
                                 {/* Graph AND table together for "all years"/"year wise" compare
-                                    (Narendra Sir, 2026-08-01: "table nahi aaya, table bhi dikhao
-                                    all karne pe") — same "graph only once there's a trend, table
+                                    — the table was missing on an "all" ask and needed to show too
+                                    — same "graph only once there's a trend, table
                                     always" rule as every other multi-year card on this page. */}
                                 {result.aiCalculation.perYearCompare.length > 1 && (
                                   <div className="mb-3" style={{ height: 180 }}>
@@ -1869,7 +1863,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             ) : (
                               <>
                                 {/* Bar chart + %-difference line for a plain single-year "X vs
-                                    Y" — found live (Narendra Sir, 2026-08-05): only the
+                                    Y" — found live: only the
                                     multi-year perYearCompare branch above had a chart; the far
                                     more common single-year case showed just two bare numbers
                                     with no visual and no sense of "by how much". */}
@@ -1932,9 +1926,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             <p className="text-sm font-bold text-gray-800 mb-3">{result.aiCalculation.label}</p>
                             {/* Graph alongside the table for a multi-year calculation — a single
                                 year stays plain data with no chart (see FocusedMetricTurn's same
-                                rule); "all years"/"year wise" is what earns the trend chart
-                                (Narendra Sir, 2026-08-01: "all karne pe graph ke sath table bhi
-                                do"). */}
+                                rule); "all years"/"year wise" is what earns the trend chart,
+                                with a table alongside it. */}
                             {result.aiCalculation.perYear.length > 1 && (
                               <div className="mb-3" style={{ height: 160 }}>
                                 <Bar
@@ -1982,8 +1975,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                 the embedded operand VALUES and the trailing "= result" — "Total
                                 Current Assets (109.12 Mn) ÷ Total Non-current Assets (35.54 Mn)
                                 = 3.07" becomes "Total Current Assets ÷ Total Non-current Assets"
-                                (Narendra Sir, 2026-08-01: this title was missing here while the
-                                other card format has it — both should match). */}
+                                — this title was missing here while the
+                                other card format has it — both should match. */}
                             {result.aiCalculation.formula && (
                               <p className="text-sm font-bold text-gray-800 mb-1">
                                 {stripAllParens(result.aiCalculation.formula.replace(/\s*=\s*[\d,.-]+.*$/, ''))}
@@ -2000,12 +1993,11 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             )}
                             {/* "current ratio detail"/"debt to equity build up"/etc. — the
                                 numerator/denominator breakdown, same table shape and rule as
-                                FocusedMetricTurn's own singleMetricGroupStatement (Narendra Sir,
-                                2026-08-04: "current ratio detail" showed no breakdown at all
-                                while "EBIT detail" did — now both do). */}
+                                FocusedMetricTurn's own singleMetricGroupStatement — "current
+                                ratio detail" showed no breakdown at all
+                                while "EBIT detail" did — now both do. */}
                             {result.aiCalculation.detailRows?.length > 0 && (() => {
-                              // "current ratio detail" (no year named) — found live (Narendra
-                              // Sir, 2026-08-04): headers always used the FULL financialYears
+                              // "current ratio detail" (no year named) — found live: headers always used the FULL financialYears
                               // list (5 columns), but computeRatioDetail on the backend defaults
                               // to just the LATEST year (1 value) when no year was asked for —
                               // the single value landed under the FIRST year column with the
@@ -2035,9 +2027,9 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                 the dedicated year-wise RPT section further down this component is
                                 skipped whenever aiCalculation is set, so without this the itemized
                                 party/relationship/nature list was silently dropped even though the
-                                data was right there in the response (Narendra Sir, 2026-08-04:
+                                data was right there in the response —
                                 "related party transactions" should show the actual transactions,
-                                not just one total). "amount" arrives pipe-joined across every FY
+                                not just one total. "amount" arrives pipe-joined across every FY
                                 in the source sheet, same convention as detailRows/ratiosTable. */}
                             {result.chartData?.rptTable?.length > 0 && (
                               <SimpleTable
@@ -2113,8 +2105,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                   {/* ── Plain text header — just the company name, small and simple, since
                        the user's own question above already gives the full context. CIN/
                        industry badges, the "Multi-Year"/FY pill and the auto-generated summary
-                       line were dropped (Narendra Sir, 2026-08-01: "ye bhi hatao, only company
-                       name simple sa do") — this isn't a company-profile page, it's one line of
+                       line were dropped — just a simple company name is wanted here — this isn't a company-profile page, it's one line of
                        an answer. ── */}
                   <Reveal index={1}>
                   <div className="px-6 pt-4 pb-2 flex items-center justify-between gap-3">
@@ -2247,9 +2238,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                        or Margin Analysis statement + charts, capTable/rpt get their own
                        shareholder/RPT tables) — every one confirmed live to still render real
                        content without this snapshot. Deliberately NOT a general "any narrow
-                       topic" rule keyed on summary/analysis being null (tried that — Narendra
-                       Sir, 2026-08-04: "bahut se keyword pe training kar rakha hu wo band ho
-                       rha hai" — several other narrow-intent keywords relied on THIS generic
+                       topic" rule keyed on summary/analysis being null (tried that — it broke
+                       coverage for many already-trained keywords: several other narrow-intent keywords relied on THIS generic
                        snapshot as their only real content and went blank when it was hidden
                        unconditionally; reverted to this explicit, narrow safelist so anything
                        not on it keeps behaving exactly as before). Checked on result.intent
@@ -2547,8 +2537,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     const grwData  = filterYr(cd.growthChart   || [])
                     // cashFlowChart is a 3-line Operating/Investing/Financing SUMMARY of the
                     // same data the full cashFlowStatement below already shows in complete
-                    // detail — found live (Narendra Sir: "cashflow statement old wala aa raha
-                    // hai"): asking for the cash flow statement showed this condensed summary
+                    // detail — found live: an outdated version of the cash flow statement was
+                    // showing up. Asking for the cash flow statement showed this condensed summary
                     // card AND the full itemized statement together, the summary reading as a
                     // stale/older view sitting above the real one. Same "richer view wins"
                     // precedent as the Overhead Costs *Chart vs *Statement fix — only suppressed
@@ -2590,7 +2580,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     // Each *Chart key is the OLDER, simpler render (no Total row, no Y-o-Y, no
                     // % of Revenue) of the exact same box the newer "Financial" section below
                     // renders from the matching *Statement key (Total row included, richer
-                    // formatting) — found live (Narendra Sir): "other expenses"/"advertisement
+                    // formatting) — found live: "other expenses"/"advertisement
                     // cost" showed the SAME data TWICE on the page, once in each format, because
                     // both sections' own gates fire together for an expense-topic query. Only
                     // falls back to the older Chart rows when the richer Statement isn't present
@@ -3256,9 +3246,9 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                         {/* Both charts side by side when there's a pair; a lone chart (e.g. a bare
                             "margin" search, which never populates ebitdaChart) spans the full row
                             instead of sitting in a 2-col grid with an empty column beside it —
-                            found live (Narendra Sir, 2026-08-04): "margin analysis all" showed
+                            found live: "margin analysis all" showed
                             Margin Profiles squeezed into the left half with the right half blank,
-                            "graph half me aa rha hai". */}
+                            the graph only filling half the row. */}
                         <div className={`grid ${ebiData.length > 0 && margData.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/30`}>
                           {ebiData.length > 0 && (
                             <ChartCard title="EBITDA" accent="#10b981">
@@ -3530,9 +3520,9 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                               </div>
                                             )}
 
-                                            {/* significance — full text, not truncated (Narendra
-                                                Sir, 2026-08-05: "signification of ratio... sahi se
-                                                read kyu nahi kar rahe ho" — line-clamp-2 was
+                                            {/* significance — full text, not truncated: the
+                                                ratio's significance wasn't being read properly —
+                                                line-clamp-2 was
                                                 cutting every explanation off after 2 lines with
                                                 "…", even though the real (often 2-4 sentence)
                                                 text was already there in full underneath it). */}
@@ -4211,7 +4201,7 @@ export default function AiSearchPage() {
     if (data.focusedMetric && !data.aiCalculation) return { id, userQuery, kind: 'metric', result: data }
     // A narrow, single-topic ask that ISN'T the specificItemMode path above but still isn't
     // the full company overview either — "gross sales all years" (Revenue intent), "EBITDA
-    // 2023-24" (bare, no "detail"), etc. — found live (Narendra Sir, 2026-08-04): these fell
+    // 2023-24" (bare, no "detail"), etc. — found live: these fell
     // through to the old, heavier multi-section dashboard (company header card, "Financials at
     // a Glance", "Key Highlights", sometimes two charts at once) instead of the same simple
     // card every other narrow query on this page now gets. `summary`/`analysis` are BOTH only
@@ -4220,7 +4210,7 @@ export default function AiSearchPage() {
     // them, but needs its own full statement tables, not a single-value card) is excluded by
     // name. `keyMetrics` capped at 2 — a bucket with 3+ related figures (financial statement's
     // own narrowed set, cap table/RPT's 0) reads as "still a small dashboard", not one figure.
-    // `!data.aiCalculation` added after finding live (Narendra Sir, 2026-08-04): "Total Revenue
+    // `!data.aiCalculation` added after finding live: "Total Revenue
     // vs Total Expenses" also matched "Total Revenue" on its own via specificItemMode (so
     // focusedMetric=true, keyMetrics=[the Total Revenue row]) — this condition doesn't check
     // aiCalculation the way the one above it does, so it grabbed the query first and rendered
@@ -4232,7 +4222,7 @@ export default function AiSearchPage() {
     // The Overhead-Costs tab's own whole-box tables (Other/Employee Expenses, Burn Metrics, Ads
     // Metrics) land in these chartData keys — 'metric' turns route to FocusedMetricTurn, which
     // only ever renders singleMetricChart/singleMetricGroupStatement and has no idea these keys
-    // exist. Found live (Narendra Sir): "other expenses detail" has focusedMetric:false and just
+    // exist. Found live: "other expenses detail" has focusedMetric:false and just
     // ONE keyMetrics tile (the aggregate total), so it satisfied every condition below and got
     // classified 'metric' — silently dropping the 12-row itemized breakdown (Total row included)
     // the backend had already correctly computed in otherExpensesStatement, which only the
@@ -4330,7 +4320,7 @@ export default function AiSearchPage() {
     // about a company's EBITDA) doesn't fail this way at all — the backend has its own
     // "define this term" glossary fallback for exactly that shape of query, which
     // returns success:true, so the retry-on-failure branch below never even sees it.
-    // Found live (Narendra Sir): typing "EBIT" as a follow-up right after "Astrotalk
+    // Found live: typing "EBIT" as a follow-up right after "Astrotalk
     // ... EBITDA 2023-24" showed a textbook definition of EBIT instead of Astrotalk's
     // own EBIT figure — technically a valid answer to "what is EBIT" in isolation, but
     // not what continuing a conversation about a specific company means. Whenever the
@@ -4450,9 +4440,9 @@ export default function AiSearchPage() {
     container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' })
 
     // The "keep nudging down to follow the stagger-reveal" phase that used to run here for
-    // ~1.8s after landing (mimicking ChatGPT's auto-follow-while-streaming) is REMOVED
-    // (Narendra Sir, 2026-08-21: "financial statement all likha... wo upper se dikhna chahiye
-    // wo niche aane laga tha... jaha se start hua hai wahi dikhna chahiye tha") — for a TALL
+    // ~1.8s after landing (mimicking ChatGPT's auto-follow-while-streaming) is REMOVED —
+    // a query like "financial statement all" should stay pinned where it started, at the top,
+    // not keep drifting down — for a TALL
     // response (e.g. "financial statement all", which stacks Balance Sheet + P&L + Cash Flow
     // in full), it kept pushing scrollTop toward the bottom for the whole 1.8s, dragging the
     // view well past the just-asked question instead of leaving it pinned near the top. The
