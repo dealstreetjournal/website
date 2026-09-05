@@ -946,7 +946,10 @@ const SimpleTable = ({ headers, rows }) => {
 // focused questions their own consistently plain answer shape instead.
 const FocusedMetricTurn = ({ result, instant = false }) => {
   const { startAt, advance } = useTypeSequence(instant)
-  const insightsBaseStage = result.computedFrom ? 1 : 0
+  // Stage 0 = metric label, stage 1 = the headline value — everything after (trend badge,
+  // chart/table, computedFrom, Notes) waits for the value to finish typing before appearing,
+  // so the whole card reveals top to bottom with nothing shown ahead of its own turn.
+  const insightsBaseStage = 2 + (result.computedFrom ? 1 : 0)
   const metrics = result.keyMetrics || []
   // The backend's own record of which row it matched wins — found live: for some intents
   // keyMetrics still carries several related rows (a same-topic bucket), not just the one this
@@ -999,26 +1002,31 @@ const FocusedMetricTurn = ({ result, instant = false }) => {
           )}
           {metric ? (
             <>
-              <p className="text-sm font-bold text-gray-800 mb-1">{cleanMetricLabel(metric.label)}</p>
+              <p className="text-sm font-bold text-gray-800 mb-1">
+                <TypewriterText instant={instant} text={cleanMetricLabel(metric.label)} start={startAt(0)} onDone={advance(0)} />
+              </p>
               {/* Colour + trend arrow — the plain black-on-white number read as "just text",
                   not a finished financial product; red/green + a YoY arrow is the convention
                   every finance app uses, and costs nothing extra since the backend was already
                   computing `trend` — presentation matters, so it should
                   look like something was actually built, not just plumbing. */}
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <p className={`text-2xl font-black ${valueColor(metric.value)}`}>
-                  {metric.value}
-                  {/* Shown in a bracket right next to the value -- Gross Margin/EBITDA/
-                      EBIT/PBT/PAT's own margin %, right next to the currency headline
-                      (e.g. "₹6511.27 Mn (100.0%)"), not buried several notes down.
-                      Backend-only field (percentLabel), only present when this specific
-                      metric has a known %-of-Revenue counterpart. */}
-                  {metric.percentLabel && (
-                    <span className="text-base font-bold text-gray-400"> ({metric.percentLabel})</span>
-                  )}
-                </p>
-                <TrendBadge trend={metric.trend} />
-              </div>
+              {startAt(1) && (
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <p className={`text-2xl font-black ${valueColor(metric.value)}`}>
+                    <TypewriterText instant={instant} text={String(metric.value ?? '')} start={startAt(1)} onDone={advance(1)} />
+                    {/* Shown in a bracket right next to the value -- Gross Margin/EBITDA/
+                        EBIT/PBT/PAT's own margin %, right next to the currency headline
+                        (e.g. "₹6511.27 Mn (100.0%)"), not buried several notes down.
+                        Backend-only field (percentLabel), only present when this specific
+                        metric has a known %-of-Revenue counterpart. Held back until the value
+                        itself is done typing, same as the trend badge next to it. */}
+                    {metric.percentLabel && startAt(2) && (
+                      <span className="text-base font-bold text-gray-400"> ({metric.percentLabel})</span>
+                    )}
+                  </p>
+                  {startAt(2) && <TrendBadge trend={metric.trend} />}
+                </div>
+              )}
             </>
           ) : (
             <p className="text-sm text-gray-500">No data on record for this.</p>
@@ -1026,8 +1034,9 @@ const FocusedMetricTurn = ({ result, instant = false }) => {
           {/* A graph only makes sense once there's a trend to show — asking for ONE year
               ("total current assets 2024-25") stays plain data, just the value above; naming
               two or more years ("2023-24, 2024-25") is what turns this into a chart — no graph
-              for a single year, only once multiple years are asked for. */}
-          {series.length > 1 && (
+              for a single year, only once multiple years are asked for. Held back (like
+              computedFrom/Notes below) until the headline value has finished typing. */}
+          {startAt(2) && series.length > 1 && (
             <>
               <div className="mt-3" style={{ height: 160 }}>
                 <Bar
@@ -1056,7 +1065,7 @@ const FocusedMetricTurn = ({ result, instant = false }) => {
               this table entirely; this component never rendered singleMetricGroupStatement at
               all, even though the backend was already sending it for every "detail"/"details"
               ask. */}
-          {result.chartData?.singleMetricGroupStatement?.length > 0 && (
+          {startAt(2) && result.chartData?.singleMetricGroupStatement?.length > 0 && (
             <SimpleTable
               headers={['Particulars', ...(result.financialYears || []).map(yr => `FY ${yr}`)]}
               rows={result.chartData.singleMetricGroupStatement.map(row => {
@@ -1074,10 +1083,10 @@ const FocusedMetricTurn = ({ result, instant = false }) => {
               − Cost of Sales (₹0.00 Mn) − Total Expenses (₹5310.97 Mn) = ₹1200.31 Mn". Backend-
               only field the frontend never had a renderer for until now, so it silently never
               showed anywhere despite computedFrom being present in every response. */}
-          {result.computedFrom && (
+          {result.computedFrom && startAt(2) && (
             <p className="mt-3 text-[11px] text-gray-400 leading-relaxed border-t border-gray-100 pt-2">
               <span className="font-bold text-gray-500">How this was calculated: </span>
-              <TypewriterText instant={instant} text={result.computedFrom} start={startAt(0)} onDone={advance(0)} />
+              <TypewriterText instant={instant} text={result.computedFrom} start={startAt(2)} onDone={advance(2)} />
             </p>
           )}
           {result.insights?.length > 0 && startAt(insightsBaseStage) && (
