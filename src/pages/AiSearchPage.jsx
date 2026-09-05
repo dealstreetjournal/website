@@ -1080,16 +1080,20 @@ const FocusedMetricTurn = ({ result, instant = false }) => {
               <TypewriterText instant={instant} text={result.computedFrom} start={startAt(0)} onDone={advance(0)} />
             </p>
           )}
-          {result.insights?.length > 0 && (
+          {result.insights?.length > 0 && startAt(insightsBaseStage) && (
             <div className="mt-3 border-t border-gray-100 pt-2.5">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Notes</p>
               <div className="space-y-1.5">
-                {result.insights.map((ins, i) => (
-                  <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
-                    <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
-                    <span><TypewriterText instant={instant} text={ins} start={startAt(insightsBaseStage + i)} onDone={advance(insightsBaseStage + i)} /></span>
-                  </p>
-                ))}
+                {result.insights.map((ins, i) => {
+                  const stageNum = insightsBaseStage + i
+                  if (!startAt(stageNum)) return null
+                  return (
+                    <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
+                      <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+                      <span><TypewriterText instant={instant} text={ins} start={startAt(stageNum)} onDone={advance(stageNum)} /></span>
+                    </p>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -1280,16 +1284,20 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
             <TypewriterText instant={instant} text={c.computedFrom} start={startAt(0)} onDone={advance(0)} />
           </p>
         )}
-        {c.insights?.length > 0 && (
+        {c.insights?.length > 0 && startAt(insightsBaseStage) && (
           <div className="border-t border-gray-100 pt-2">
             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Notes</p>
             <div className="space-y-1">
-              {c.insights.map((ins, i) => (
-                <p key={i} className="flex items-start gap-1.5 text-[11px] text-gray-600 leading-relaxed">
-                  <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
-                  <span><TypewriterText instant={instant} text={ins} start={startAt(insightsBaseStage + i)} onDone={advance(insightsBaseStage + i)} /></span>
-                </p>
-              ))}
+              {c.insights.map((ins, i) => {
+                const stageNum = insightsBaseStage + i
+                if (!startAt(stageNum)) return null
+                return (
+                  <p key={i} className="flex items-start gap-1.5 text-[11px] text-gray-600 leading-relaxed">
+                    <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+                    <span><TypewriterText instant={instant} text={ins} start={startAt(stageNum)} onDone={advance(stageNum)} /></span>
+                  </p>
+                )
+              })}
             </div>
           </div>
         )}
@@ -2118,12 +2126,13 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             <TypewriterText instant={instant} text={result.computedFrom} start={startAt(0)} onDone={advance(0)} />
                           </p>
                         )}
-                        {result.insights?.length > 0 && (
+                        {result.insights?.length > 0 && startAt(result.computedFrom ? 1 : 0) && (
                           <div className="mt-3 border-t border-gray-100 pt-2.5">
                             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Notes</p>
                             <div className="space-y-1.5">
                               {result.insights.map((ins, i) => {
                                 const stageNum = (result.computedFrom ? 1 : 0) + i
+                                if (!startAt(stageNum)) return null
                                 return (
                                 <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
                                   <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
@@ -3901,7 +3910,8 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
 
                   {/* ── Key Highlights ── */}
                   <Reveal index={7}>
-                  {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.insights?.length > 0 && (
+                  {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.insights?.length > 0
+                    && startAt(result.summary ? 1 : 0) && (
                     <div className="px-6 py-6 border-b border-gray-100">
                       <div className="flex items-center gap-2.5 mb-4">
                         <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
@@ -3921,6 +3931,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                           // insights only start typing once it finishes, so the whole card reads
                           // top to bottom instead of every block animating at once.
                           const stageNum = (result.summary ? 1 : 0) + i
+                          if (!startAt(stageNum)) return null
                           return (
                             <div key={i} className={`flex items-start gap-3 p-3.5 rounded-xl border ${bgs[i%5]} ${borders[i%5]} group hover:shadow-sm transition-shadow`}>
                               <span className="w-6 h-6 rounded-lg text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm" style={{backgroundColor: colors[i%5]}}>
