@@ -3878,7 +3878,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               <span className="w-6 h-6 rounded-lg text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm" style={{backgroundColor: colors[i%5]}}>
                                 {i + 1}
                               </span>
-                              <p className="text-sm text-gray-700 leading-relaxed">{ins}</p>
+                              <p className="text-sm text-gray-700 leading-relaxed"><TypewriterText instant={instant} text={ins} /></p>
                             </div>
                           )
                         })}
