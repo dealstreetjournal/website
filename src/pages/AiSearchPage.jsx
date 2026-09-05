@@ -3442,10 +3442,18 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                         const fyYears = result.financialYears || []
                         const rptCols = activeIdxs.length > 0 ? activeIdxs.map(i => fyYears[i]).filter(Boolean) : fyYears
                         const rptColIdxs = activeIdxs.length > 0 ? activeIdxs : fyYears.map((_, i) => i)
+                        // Parsed to a number (not left as the raw split string) so it can go
+                        // through fmtMn() same as every other rupee figure on this page —
+                        // found live: this table was the one place on the whole page still
+                        // showing a bare thousands-scale number ("47492.84") with no ₹ prefix
+                        // or Mn/Cr/Lakh unit suffix.
                         const splitAmount = (raw) => {
                           if (!raw) return []
                           const all = String(raw).split('|').map(v => v.trim())
-                          return rptColIdxs.map(i => all[i] ?? '—')
+                          return rptColIdxs.map(i => {
+                            const n = Number(all[i])
+                            return all[i] != null && all[i] !== '' && !Number.isNaN(n) ? n : null
+                          })
                         }
 
                         return (
@@ -3481,7 +3489,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                       <td className="py-2.5 px-3 text-gray-500 max-w-[120px] truncate">{r.relationship||'—'}</td>
                                       <td className="py-2.5 px-3 text-gray-600 max-w-[150px] truncate">{r.nature||r.type||'—'}</td>
                                       {splitAmount(r.amount).map((v, vi) => (
-                                        <td key={vi} className="py-2.5 px-3 text-right font-bold text-gray-800 tabular-nums whitespace-nowrap">{v}</td>
+                                        <td key={vi} className="py-2.5 px-3 text-right font-bold text-gray-800 tabular-nums whitespace-nowrap">{v != null ? fmtMn(v, result.currencyUnit) : '—'}</td>
                                       ))}
                                     </tr>
                                   ))}
@@ -3514,7 +3522,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                         <td className="py-2 px-3 text-gray-500 max-w-[120px] truncate">{r.relationship||'—'}</td>
                                         <td className="py-2 px-3 text-gray-600 max-w-[150px] truncate">{r.nature||r.type||'—'}</td>
                                         {splitAmount(r.amount).map((v, vi) => (
-                                          <td key={vi} className="py-2 px-3 text-right font-bold text-gray-800 tabular-nums whitespace-nowrap">{v}</td>
+                                          <td key={vi} className="py-2 px-3 text-right font-bold text-gray-800 tabular-nums whitespace-nowrap">{v != null ? fmtMn(v, result.currencyUnit) : '—'}</td>
                                         ))}
                                       </tr>
                                     ))}
