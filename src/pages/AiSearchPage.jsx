@@ -4201,6 +4201,7 @@ export default function AiSearchPage() {
   // means whichever is current wins.
   const scrollAnchorRef   = useRef(null)
   const threadScrollRef   = useRef(null) // the thread's own overflow-y-auto pane — scrolled directly (not via scrollIntoView) so the outer document/window never moves, only this pane
+  const threadContentRef  = useRef(null) // the pane's actual growing content wrapper — observed for size changes so the view can follow a card typing itself out (see the ResizeObserver effect below)
   // Tracks which history item's load is the MOST RECENT one requested — a plain ref (not
   // React state) so it updates synchronously, unlike activeHistoryId which only reflects
   // the latest value after a re-render. Guards loadHistoryResult() below against a race:
@@ -4559,15 +4560,48 @@ export default function AiSearchPage() {
     container.scrollTo({ top: container.scrollTop + delta, behavior: 'smooth' })
 
     // The "keep nudging down to follow the stagger-reveal" phase that used to run here for
-    // ~1.8s after landing (mimicking ChatGPT's auto-follow-while-streaming) is REMOVED —
-    // a query like "financial statement all" should stay pinned where it started, at the top,
-    // not keep drifting down — for a TALL
-    // response (e.g. "financial statement all", which stacks Balance Sheet + P&L + Cash Flow
-    // in full), it kept pushing scrollTop toward the bottom for the whole 1.8s, dragging the
-    // view well past the just-asked question instead of leaving it pinned near the top. The
-    // single scrollTo above (pinning the new question near the top) is the whole intended
-    // behaviour now — nothing continues to move the view after that.
+    // a BLIND, fixed ~1.8s after landing is REMOVED — for a TALL response (e.g. "financial
+    // statement all", which stacks Balance Sheet + P&L + Cash Flow in full and renders near-
+    // instantly, not typed out), it kept pushing scrollTop toward the bottom for the whole
+    // fixed duration regardless of whether the content was still actually growing, dragging
+    // the view well past the just-asked question instead of leaving it pinned near the top.
+    // Real, content-growth-driven following (typed text actually getting taller) is handled
+    // separately below, by the ResizeObserver effect — that one only ever moves the view in
+    // response to an actual size change, so it naturally stops the instant typing does.
   }, [turns.length, pendingQuery])
+
+  // Follows the pane's own growing content downward WHILE a card is still typing itself
+  // out — ChatGPT's familiar "the view creeps down as the answer streams in" — but only
+  // for as long as the viewer hasn't scrolled away to read something further up: scrolling
+  // up pauses the follow (checked fresh on every growth tick via `wasNearBottom`, not just
+  // once) until they scroll back down themselves, same as every other chat UI with this
+  // behavior. Driven by ResizeObserver on the actual content wrapper (fires exactly when a
+  // typed block/row grows the layout), not a timer — this is what the pin-to-top effect
+  // above deliberately does NOT do for a tall, already-fully-rendered response, since that
+  // one only fires once per new turn and never during typing.
+  useEffect(() => {
+    const container = threadScrollRef.current
+    const content = threadContentRef.current
+    if (!container || !content) return
+
+    const NEAR_BOTTOM_PX = 64
+    let wasNearBottom = true
+    const trackPosition = () => {
+      wasNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < NEAR_BOTTOM_PX
+    }
+
+    const observer = new ResizeObserver(() => {
+      if (wasNearBottom) {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+      }
+    })
+    container.addEventListener('scroll', trackPosition, { passive: true })
+    observer.observe(content)
+    return () => {
+      observer.disconnect()
+      container.removeEventListener('scroll', trackPosition)
+    }
+  }, [])
 
   const grouped = groupHistory(history)
 
@@ -4817,7 +4851,7 @@ export default function AiSearchPage() {
              so the composer below stays pinned to the pane's bottom edge
              regardless of how much (or little) content is in the thread. ── */}
         <div ref={threadScrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-6 flex flex-col">
-          <div className={`mx-auto space-y-5 w-full flex-1 flex flex-col ${turns.length === 0 ? 'justify-center' : ''} ${isResizing ? '' : 'transition-[max-width] duration-200'}`}
+          <div ref={threadContentRef} className={`mx-auto space-y-5 w-full flex-1 flex flex-col ${turns.length === 0 ? 'justify-center' : ''} ${isResizing ? '' : 'transition-[max-width] duration-200'}`}
             style={{ maxWidth: resultWidth }}>
 
             {/* Empty state — Claude-style suggestion cards covering everything the old
