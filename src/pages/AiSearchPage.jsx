@@ -206,6 +206,21 @@ const withYearPreposition = (q) => /^all(\s+years?)?$/i.test(q.trim()) ? q : `in
 const isGenericContinuation = (q) =>
   /^(detail|details|more|more\s+detail|more\s+details|full\s+detail|full\s+details|show\s+(me\s+)?(the\s+)?detail|show\s+(me\s+)?more|tell\s+me\s+more|expand|elaborate)s?$/i.test(q.trim())
 
+// "Compare with the previous year"/"vs last year"/"year over year" typed as a follow-up,
+// naming neither a company nor a metric of its own — the backend has no notion of
+// "conversation state" at all (see aiSearchApi.js: every request is a single stateless
+// {query} string), so left as typed this fails company resolution outright the same way
+// any other bare follow-up would. Rewritten below to the carried-forward company + topic,
+// PLUS "all years" (not just the single year the previous turn asked about) -- the
+// existing multi-year chart/table view already shows the requested year right next to
+// its own previous year, and every multi-year answer already carries an automatic
+// year-over-year insight line, so "all years" is what actually satisfies "compare with
+// the previous year" using paths that already work, rather than a real "just these two
+// years" comparison feature this project doesn't have.
+const isPreviousYearComparisonAnswer = (q) =>
+  /\b(vs\.?|versus|compare[ds]?\s*(with|to)?)\s*(the\s*)?(previous|last|prior)\s*year\b/i.test(q.trim())
+  || /\byear[\s-]?over[\s-]?year\b/i.test(q.trim()) || /\byoy\b/i.test(q.trim())
+
 // Strips an already-baked-in "FY 2023-24"/"in 2023-24" (or bare "2023-24") from a
 // carried-forward topic string before stitching on a NEW bare-year (or "all") answer —
 // otherwise re-attaching a previous turn's own query verbatim would combine an old
@@ -4393,6 +4408,11 @@ export default function AiSearchPage() {
       apiQ = `${lastTurn.result.companyName || ''} ${lastTurn.result.query || ''} ${withYearPreposition(typedQ)}`.trim()
     } else if (lastTurn?.kind === 'yearRangePrompt' && isYearRangeAnswer(typedQ)) {
       apiQ = `${lastTurn.result.companyName || ''} ${lastTurn.result.query || ''} ${withYearPreposition(typedQ)}`.trim()
+    } else if (isPreviousYearComparisonAnswer(typedQ)) {
+      const lastContext = [...turns].reverse().find(t => t.result?.companyName)
+      if (lastContext) {
+        apiQ = `${lastContext.result.companyName || ''} ${stripYearFromQuery(lastContext.result.query)} all years`.trim()
+      }
     } else if (isBareYearAnswer(typedQ) || isGenericContinuation(typedQ)) {
       // A bare "detail"/"more"/"expand" — or a bare year/"all" typed any time
       // later, not just right after a "which year?" prompt — has no topic of its
