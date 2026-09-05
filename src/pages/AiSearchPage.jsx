@@ -770,6 +770,55 @@ const YearPromptTurn = ({ result, instant = false }) => (
               </div>
 )
 
+// A requested year that isn't one of this company's own recorded years (a typo like
+// "2024-24", or simply a real year the company has no data for) — flags the mismatch,
+// then offers the closest real year on record as a one-click follow-up instead of
+// silently falling back to showing every year, or answering with nothing at all.
+const YearCorrectionTurn = ({ result, onFollowUp, instant = false }) => {
+  const { startAt, advance } = useTypeSequence(instant)
+  const line1 = `Data for ${result.requestedYear || 'that year'} is not available`
+    + (result.companyName ? ` for ${result.companyName}` : '') + '.'
+  const line2 = result.yearIsMalformed
+    ? `"${result.requestedYear}" isn't a valid financial year — the financial year you're asking for is incorrect.`
+    : `The financial year you're asking for isn't one this company has data for.`
+  const line3 = result.suggestedYear
+    ? `We have data for the financial year ${result.suggestedYear}. Do you want to see that data?`
+    : null
+  return (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+                    <FaRobot className="text-[#ff7010] text-xs" />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      <TypewriterText instant={instant} text={line1} start={startAt(0)} onDone={advance(0)} />
+                    </p>
+                    {startAt(1) && (
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        <TypewriterText instant={instant} text={line2} start={startAt(1)} onDone={advance(1)} />
+                      </p>
+                    )}
+                    {line3 && startAt(2) && (
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        <TypewriterText instant={instant} text={line3} start={startAt(2)} onDone={advance(2)} />
+                      </p>
+                    )}
+                    {line3 && startAt(3) && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <button
+                          onClick={() => onFollowUp?.(result.correctedQuery || `${result.query || ''} ${result.suggestedYear}`.trim())}
+                          className="px-3 py-1.5 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-[#ff7010] text-xs font-semibold transition-colors">
+                          Yes, show FY {result.suggestedYear}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+  )
+}
+
 // Companies being compared don't all have the same financial years on record — asks
 // which years to use instead of silently blending mismatched years into one table.
 const YearRangePromptTurn = ({ result, instant = false }) => (
@@ -3992,6 +4041,7 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
     <UserBubble text={turn.userQuery} onEdit={onEditQuery} />
     {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} />}
     {turn.kind === 'glossary'   && <GlossaryTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
+    {turn.kind === 'yearCorrection' && <YearCorrectionTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
     {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'yearRangePrompt' && <YearRangePromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
@@ -4262,6 +4312,7 @@ export default function AiSearchPage() {
   const classifyTurn = (userQuery, data) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     if (data.glossary || data.glossaryHelp) return { id, userQuery, kind: 'glossary', result: data }
+    if (data.needsYearCorrection) return { id, userQuery, kind: 'yearCorrection', result: data }
     if (data.needsYearSelection) return { id, userQuery, kind: 'yearPrompt', result: data }
     if (data.needsYearRangeSelection) return { id, userQuery, kind: 'yearRangePrompt', result: data }
     if (data.rankingMode)        return { id, userQuery, kind: 'ranking',    result: data }
