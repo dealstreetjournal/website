@@ -919,7 +919,7 @@ const SimpleTable = ({ headers, rows }) => {
 // across every statement/tab, was rendering through the full AssistantAnswerTurn dashboard
 // (company name card + a bar chart) regardless of how narrow the actual question was; this gives
 // focused questions their own consistently plain answer shape instead.
-const FocusedMetricTurn = ({ result }) => {
+const FocusedMetricTurn = ({ result, instant = false }) => {
   const metrics = result.keyMetrics || []
   // The backend's own record of which row it matched wins — found live: for some intents
   // keyMetrics still carries several related rows (a same-topic bucket), not just the one this
@@ -1050,7 +1050,7 @@ const FocusedMetricTurn = ({ result }) => {
           {result.computedFrom && (
             <p className="mt-3 text-[11px] text-gray-400 leading-relaxed border-t border-gray-100 pt-2">
               <span className="font-bold text-gray-500">How this was calculated: </span>
-              {result.computedFrom}
+              <TypewriterText instant={instant} text={result.computedFrom} />
             </p>
           )}
           {result.insights?.length > 0 && (
@@ -1060,7 +1060,7 @@ const FocusedMetricTurn = ({ result }) => {
                 {result.insights.map((ins, i) => (
                   <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
                     <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
-                    <span>{ins}</span>
+                    <span><TypewriterText instant={instant} text={ins} /></span>
                   </p>
                 ))}
               </div>
@@ -1130,7 +1130,7 @@ const RankingTurn = ({ result, onFollowUp }) => (
               </div>
 )
 
-const ComparisonTurn = ({ result }) => (
+const ComparisonTurn = ({ result, instant = false }) => (
               <div>
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
                   {/* ── Plain text header — no dark card, matches ChatGPT's own minimal
@@ -1542,7 +1542,7 @@ const ComparisonTurn = ({ result }) => (
                         {c.computedFrom && (
                           <p className="text-[11px] text-gray-400 leading-relaxed border-t border-gray-100 pt-2">
                             <span className="font-bold text-gray-500">How this was calculated: </span>
-                            {c.computedFrom}
+                            <TypewriterText instant={instant} text={c.computedFrom} />
                           </p>
                         )}
                         {c.insights?.length > 0 && (
@@ -1552,7 +1552,7 @@ const ComparisonTurn = ({ result }) => (
                               {c.insights.map((ins, i) => (
                                 <p key={i} className="flex items-start gap-1.5 text-[11px] text-gray-600 leading-relaxed">
                                   <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
-                                  <span>{ins}</span>
+                                  <span><TypewriterText instant={instant} text={ins} /></span>
                                 </p>
                               ))}
                             </div>
@@ -2073,7 +2073,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                         {result.computedFrom && (
                           <p className="mt-3 text-[11px] text-gray-400 leading-relaxed border-t border-gray-100 pt-2">
                             <span className="font-bold text-gray-500">How this was calculated: </span>
-                            {result.computedFrom}
+                            <TypewriterText instant={instant} text={result.computedFrom} />
                           </p>
                         )}
                         {result.insights?.length > 0 && (
@@ -2083,7 +2083,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               {result.insights.map((ins, i) => (
                                 <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
                                   <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
-                                  <span>{ins}</span>
+                                  <span><TypewriterText instant={instant} text={ins} /></span>
                                 </p>
                               ))}
                             </div>
@@ -3927,8 +3927,8 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
     {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'yearRangePrompt' && <YearRangePromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
-    {turn.kind === 'comparison' && <ComparisonTurn result={turn.result} />}
-    {turn.kind === 'metric'     && <FocusedMetricTurn result={turn.result} />}
+    {turn.kind === 'comparison' && <ComparisonTurn result={turn.result} instant={instant} />}
+    {turn.kind === 'metric'     && <FocusedMetricTurn result={turn.result} instant={instant} />}
     {turn.kind === 'answer'     && <AssistantAnswerTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
   </div>
   )
