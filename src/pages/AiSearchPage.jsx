@@ -772,12 +772,21 @@ const ThinkingBubble = ({ step }) => (
               </div>
 )
 
-const ErrorTurn = ({ message }) => (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-sm text-red-600 flex items-start gap-3">
-                <FaBuilding className="text-red-300 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold mb-0.5">Not found</p>
-                  <p>{message}</p>
+// Same assistant-card shell (avatar circle + TypewriterText) every other turn kind uses —
+// this used to be a plain static red box that skipped the typing effect entirely, the one
+// card on the page that didn't match how every other response renders.
+const ErrorTurn = ({ message, instant = false }) => (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-red-500/15 border border-red-500/25 flex items-center justify-center flex-shrink-0">
+                    <FaBuilding className="text-red-500 text-xs" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 mb-0.5">Not found</p>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      <TypewriterText instant={instant} text={message} />
+                    </p>
+                  </div>
                 </div>
               </div>
 )
@@ -4048,14 +4057,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                           <FaDownload className="text-[10px]" />
                           Download PDF of this
                         </button>
-                        {result.financialYears?.length > 1 && (
-                          <button
-                            onClick={() => onFollowUp(`${result.companyName || result.detectedCompany || ''} compare all years ${result.query || ''}`.trim())}
-                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 text-xs font-bold transition-colors">
-                            <FaSearch className="text-[10px]" />
-                            Compare {result.financialYears.map(y => `FY ${y}`).join(' vs ')}
-                          </button>
-                        )}
+                        {/* "Compare FY .. vs FY .." quick-action chip removed per explicit request. */}
                       </div>
                     </div>
                   )}
@@ -4077,7 +4079,7 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
   return (
   <div className="space-y-3" ref={scrollAnchorRef}>
     <UserBubble text={turn.userQuery} onEdit={onEditQuery} />
-    {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} />}
+    {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} instant={instant} />}
     {turn.kind === 'glossary'   && <GlossaryTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
     {turn.kind === 'yearCorrection' && <YearCorrectionTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
     {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} instant={instant} />}
