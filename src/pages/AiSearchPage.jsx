@@ -2449,12 +2449,16 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                       adsRow  && { label: 'Advertisement Cost', value: fmtMn(adsRow.latest, result.currencyUnit) },
                     ].filter(Boolean)
 
-                    const highlights = (result.insights || []).slice(0, 4)
-
                     const hasCompanyInfo = meta.ceo || meta.incorporationDate || meta.boardOfDirectors?.length ||
                       meta.investors?.length || result.industry || result.cin
+                    // Key Highlights deliberately excluded from this snapshot -- the dedicated
+                    // Key Highlights section further down (result.insights, unconditional on
+                    // intent) already covers it for every query, so including it here too only
+                    // ever produced a second, truncated (this box has no height for the full
+                    // text) copy of the exact same bullets stacked right above the real one.
+                    // Found live via "burn rate 2023-24": both showed, one cut off mid-word.
                     const hasAnyOverview = hasCompanyInfo || snapshotStats.length || ratioStats.length ||
-                      burnStats.length || rptRows.length > 0 || highlights.length
+                      burnStats.length || rptRows.length > 0
                     if (!hasAnyOverview) return null
 
                     return (
@@ -2566,21 +2570,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                   <p className="text-[10px] text-gray-400">+{rptRows.length - 3} more — search "related party transactions" for the full list</p>
                                 )}
                               </div>
-                            </div>
-                          )}
-
-                          {highlights.length > 0 && (
-                            <div>
-                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Key Highlights</p>
-                              <ul className="space-y-1">
-                                {highlights.map((h, i) => (
-                                  <li key={i} className="flex items-start gap-2 text-xs text-gray-700 leading-relaxed"
-                                    style={{ animation: 'aiRevealIn 0.4s ease-out both', animationDelay: `${i * 0.15}s` }}>
-                                    <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
-                                    <TypewriterText instant={instant} text={h} />
-                                  </li>
-                                ))}
-                              </ul>
                             </div>
                           )}
                         </div>
