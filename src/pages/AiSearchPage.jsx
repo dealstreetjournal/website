@@ -3945,17 +3945,33 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                        second, unasked-for format. */}
                   <Reveal index={6}>
                   {!result.aiCalculation &&
-                    (isFinancialStatementSearch(result.query, lastSearchedTypes) ||
-                     ['revenue', 'profit', 'balance', 'cashflow', 'expense', 'margin'].includes(result.intent)) &&
                     result.financialYears?.length > 0 &&
-                    (result.chartData?.balanceSheetStatement?.length > 0 ||
-                     result.chartData?.profitLossStatement?.length > 0 ||
-                     result.chartData?.cashFlowStatement?.length > 0 ||
-                     result.chartData?.burnMetricsStatement?.length > 0 ||
-                     result.chartData?.employeeExpensesStatement?.length > 0 ||
-                     result.chartData?.otherExpensesStatement?.length > 0 ||
-                     result.chartData?.adsMetricsStatement?.length > 0 ||
-                     result.chartData?.marginAnalysisStatement?.length > 0) && (() => {
+                    (
+                      // The "big 3" statements stay opt-in (explicit "financial statement(s)"
+                      // wording, or a report-type selection) -- the Company Overview snapshot
+                      // above already covers summary numbers for a plain search, so the full
+                      // raw statement table only shows when actually asked for.
+                      ((isFinancialStatementSearch(result.query, lastSearchedTypes) ||
+                        ['revenue', 'profit', 'balance', 'cashflow', 'expense', 'margin'].includes(result.intent)) &&
+                       (result.chartData?.balanceSheetStatement?.length > 0 ||
+                        result.chartData?.profitLossStatement?.length > 0 ||
+                        result.chartData?.cashFlowStatement?.length > 0 ||
+                        result.chartData?.marginAnalysisStatement?.length > 0))
+                      ||
+                      // Burn/Employee/Other-Expenses/Ads statements render whenever the backend
+                      // actually sent them, regardless of result.intent -- that Java-only field
+                      // is never set by the Python engine now serving these queries (same dead
+                      // field already worked around for the Company Overview snapshot above), so
+                      // this whole table silently never rendered for "net cash runway"/"burn rate
+                      // monthly"/"other expenses" style queries even though the backend's own
+                      // response already carries the full breakdown. Found live: "net cash runway
+                      // 2023-24" showed only its own Key Highlights text with no supporting table
+                      // at all, despite chartData.burnMetricsStatement having 25+ real rows.
+                      (result.chartData?.burnMetricsStatement?.length > 0 ||
+                       result.chartData?.employeeExpensesStatement?.length > 0 ||
+                       result.chartData?.otherExpensesStatement?.length > 0 ||
+                       result.chartData?.adsMetricsStatement?.length > 0)
+                    ) && (() => {
                     const allYears   = result.financialYears
                     const activeIdxs = selectedYears.length > 0
                       ? [...selectedYears].sort((a, b) => a - b)
