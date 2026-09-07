@@ -3990,7 +3990,12 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
                         )}
                         {result.chartData.burnMetricsStatement?.length > 0 && (
-                          <StatementBlock title="Burn Metrics" accent="#ef4444" Icon={FaExclamationTriangle}
+                          // Alarm red + warning-triangle icon removed -- the only one of these 8
+                          // statement blocks styled like an error/warning state instead of a
+                          // plain data category the same calm way Balance Sheet/P&L/Cash Flow/
+                          // Margin/Employee/Other Expenses/Ads all already are. Burn Metrics is
+                          // an ordinary section, not a flagged problem.
+                          <StatementBlock title="Burn Metrics" accent="#f43f5e" Icon={FaChartLine}
                             rows={result.chartData.burnMetricsStatement}
                             activeIdxs={activeIdxs} visibleYrs={visibleYrs} statementKey="burn"
                             openGroups={openStatementGroups} onToggle={toggleStatementGroup} currencyUnit={result.currencyUnit} />
