@@ -2251,20 +2251,25 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                      gates throughout this block); a calculation IS the direct answer to
                      what was asked, so there's nothing left to show underneath it. ── */}
                 {!result.aiCalculation && (
-                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 overflow-hidden mb-5">
 
-                  {/* ── Plain text header — just the company name, small and simple, since
-                       the user's own question above already gives the full context. CIN/
-                       industry badges, the "Multi-Year"/FY pill and the auto-generated summary
-                       line were dropped — just a simple company name is wanted here — this isn't a company-profile page, it's one line of
-                       an answer. ── */}
+                  {/* ── Header — same avatar-circle shell every other response card (FocusedMetricTurn,
+                       YearPromptTurn, ErrorTurn, ...) uses, so this dashboard reads as one more assistant
+                       reply, not a stray data widget with no sender. Previously just a plain gray company-
+                       name line with no avatar — the one card on the page still missing it. Company name +
+                       "Copy all" kept exactly as before, just inside the same shell. ── */}
                   <Reveal index={1}>
-                  <div className="px-6 pt-4 pb-2 flex items-center justify-between gap-3">
-                    <p className="text-gray-400 text-xs font-semibold truncate">{result.companyName}</p>
-                    <button onClick={handleCopyAll} title="Copy the whole answer"
-                      className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex-shrink-0">
-                      {copiedAll ? (<><FaCheck className="text-emerald-500" /> Copied</>) : (<><FaCopy /> Copy all</>)}
-                    </button>
+                  <div className="px-6 pt-5 pb-2 flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+                      <FaRobot className="text-[#ff7010] text-xs" />
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                      <p className="text-sm font-bold text-gray-800 truncate">{result.companyName}</p>
+                      <button onClick={handleCopyAll} title="Copy the whole answer"
+                        className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex-shrink-0">
+                        {copiedAll ? (<><FaCheck className="text-emerald-500" /> Copied</>) : (<><FaCopy /> Copy all</>)}
+                      </button>
+                    </div>
                   </div>
 
                   {/* ── Active report type badges ── */}
