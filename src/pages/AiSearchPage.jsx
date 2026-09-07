@@ -424,6 +424,15 @@ const buildExtraGlanceRows = (result) => {
   ].filter(Boolean)
 }
 
+// Module-level (not React state) — every live TypewriterText instance on the page claims
+// and releases one "typing in progress" slot here as it starts/finishes, regardless of
+// which turn/component it's nested in. AiSearchPage subscribes to this to know when it's
+// safe to accept the NEXT query — see that subscription below for why.
+let _activeTyperCount = 0
+const _typingListeners = new Set()
+const _beginTypingActivity = () => { _activeTyperCount++; _typingListeners.forEach(fn => fn(_activeTyperCount)) }
+const _endTypingActivity = () => { _activeTyperCount = Math.max(0, _activeTyperCount - 1); _typingListeners.forEach(fn => fn(_activeTyperCount)) }
+
 // Reveals AI-written text a character at a time — used for the summary paragraph and the
 // year-selection question, so those read as the AI actively composing its answer rather
 // than a static block of text just popping in fully-formed. Re-types from scratch whenever
@@ -438,26 +447,33 @@ const buildExtraGlanceRows = (result) => {
 const TypewriterText = ({ text, speed = 20, instant = false, start = true, onDone }) => {
   const [shown, setShown] = useState(instant ? (text || '') : '')
   const firedRef = useRef(false)
+  const activeRef = useRef(false) // whether THIS instance currently holds a claimed typing slot
   useEffect(() => {
+    const claim = () => { if (!activeRef.current) { activeRef.current = true; _beginTypingActivity() } }
+    const release = () => { if (activeRef.current) { activeRef.current = false; _endTypingActivity() } }
+
     if (instant) {
       setShown(text || '')
+      release()
       if (!firedRef.current) { firedRef.current = true; onDone && onDone() }
       return
     }
-    if (!start) { setShown(''); return }
+    if (!start) { setShown(''); release(); return }
     firedRef.current = false
     setShown('')
-    if (!text) { firedRef.current = true; onDone && onDone(); return }
+    if (!text) { release(); firedRef.current = true; onDone && onDone(); return }
+    claim()
     let i = 0
     const id = setInterval(() => {
       i++
       setShown(text.slice(0, i))
       if (i >= text.length) {
         clearInterval(id)
+        release()
         if (!firedRef.current) { firedRef.current = true; onDone && onDone() }
       }
     }, speed)
-    return () => clearInterval(id)
+    return () => { clearInterval(id); release() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, speed, instant, start])
   return shown
@@ -4116,6 +4132,20 @@ export default function AiSearchPage() {
   const isSearching = pendingQuery !== null
   const [turns,        setTurns]        = useState([])
   const [step,         setStep]         = useState(0)
+  // True while ANY card on the page is still typing itself out (see TypewriterText's own
+  // module-level claim/release above) — the network request behind doSearch() finishes
+  // (isSearching goes false) well before the answer is done ANIMATING onto the screen, so
+  // isSearching alone isn't enough to know when it's actually safe to accept the next
+  // query: submitting one while the previous answer is still typing used to interrupt/
+  // race with it (a new turn's pin-to-top scroll and TypewriterText claims firing while
+  // the old one's intervals were still running) instead of being held back the way
+  // ChatGPT/Claude hold the composer until the current response actually finishes.
+  const [isTyping, setIsTyping] = useState(false)
+  useEffect(() => {
+    const listener = (count) => setIsTyping(count > 0)
+    _typingListeners.add(listener)
+    return () => _typingListeners.delete(listener)
+  }, [])
 
   // Result column width — wide by default so tables/charts use the available
   // screen space instead of sitting in a narrow centered column; drag the
@@ -4396,6 +4426,12 @@ export default function AiSearchPage() {
   const doSearch = async (q) => {
     const typedQ = (q || query).trim()
     if (!typedQ) return
+    // A query submitted (Enter key, the Search button, or a follow-up chip click) while
+    // the previous turn is still in flight OR still typing itself out is held back
+    // entirely, not just visually discouraged by a disabled button — Enter can still
+    // fire a keydown handler regardless of a button's disabled attribute, so the actual
+    // guard has to live here, not only in the button's `disabled`.
+    if (isSearching || isTyping) return
     setShowSuggestions(false)
     setSuggestions([])
     // Clear the composer the instant a search is submitted (ChatGPT/Claude-style)
@@ -4758,9 +4794,9 @@ export default function AiSearchPage() {
           <FaTimes className="text-sm" />
         </button>
       )}
-      <button onClick={() => doSearch()} disabled={isSearching || !query.trim()}
+      <button onClick={() => doSearch()} disabled={isSearching || isTyping || !query.trim()}
         className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff7010] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#e06000] transition-colors disabled:opacity-40 disabled:cursor-not-allowed" style={{zIndex:2}}>
-        {isSearching ? '...' : 'Search'}
+        {isSearching || isTyping ? '...' : 'Search'}
       </button>
 
       {/* Dropdown suggestions — direction flips depending on which spot this is
