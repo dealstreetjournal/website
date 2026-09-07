@@ -331,11 +331,6 @@ const latestPipeNum = (str) => {
   return Number.isFinite(n) ? n : null
 }
 
-const findRatio = (ratiosTable, name) => {
-  const row = (ratiosTable || []).find(r => (r.name || '').trim().toLowerCase() === name.toLowerCase())
-  return row ? latestPipeNum(row.value) : null
-}
-
 // Full FY-by-FY series (not just latest) for a named ratio, as a percentage —
 // used to give "Financials at a Glance" the same YoY treatment as every other
 // row instead of only the Overview's latest-year snapshot.
@@ -2422,10 +2417,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     const marginLatest = latestArrValue(cd.marginChart)
                     const patLatest    = latestArrValue(cd.profitChart)
 
-                    const roe  = findRatio(cd.ratiosTable, 'ROE')
-                    const roic = findRatio(cd.ratiosTable, 'ROIC')
-                    const roce = findRatio(cd.ratiosTable, 'ROCE')
-
                     const burnRow = findChartRow(cd.burnMetricsChart, l => /gross burn rate/i.test(l) && /total|annual/i.test(l))
                     const adsRow  = findChartRow(cd.adsMetricsChart,  l => /advertisement.*expense/i.test(l))
 
@@ -2443,12 +2434,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                       ocfRow         && { label: 'Cash Flow from Ops', value: fmtMn(latestArrValue(ocfRow.values), result.currencyUnit) },
                     ].filter(Boolean)
 
-                    const ratioStats = [
-                      roe  != null && { label: 'ROE',  value: `${(roe  * 100).toFixed(1)}%` },
-                      roic != null && { label: 'ROIC', value: `${(roic * 100).toFixed(1)}%` },
-                      roce != null && { label: 'ROCE', value: `${(roce * 100).toFixed(1)}%` },
-                    ].filter(Boolean)
-
                     const burnStats = [
                       burnRow && { label: 'Annual Gross Burn Rate', value: fmtMn(burnRow.latest, result.currencyUnit) },
                       adsRow  && { label: 'Advertisement Cost', value: fmtMn(adsRow.latest, result.currencyUnit) },
@@ -2462,7 +2447,13 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     // ever produced a second, truncated (this box has no height for the full
                     // text) copy of the exact same bullets stacked right above the real one.
                     // Found live via "burn rate 2023-24": both showed, one cut off mid-word.
-                    const hasAnyOverview = hasCompanyInfo || snapshotStats.length || ratioStats.length ||
+                    // ROE/ROIC/ROCE (ratioStats) removed the same way, for the same reason --
+                    // the full Ratio Analysis widget further down already shows every ratio
+                    // (with its own formula + significance), so this box was showing ROE
+                    // TWICE on the same page in two different units (32.0% here vs the plain
+                    // 0.32 the ratio widget itself shows) -- the same number, visibly
+                    // inconsistent, not just redundant. Found live via a "ROE 2023-24" query.
+                    const hasAnyOverview = hasCompanyInfo || snapshotStats.length ||
                       burnStats.length || rptRows.length > 0
                     if (!hasAnyOverview) return null
 
@@ -2533,16 +2524,6 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Financial Snapshot</p>
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {snapshotStats.map((s, i) => <OverviewStat key={i} {...s} delay={i * 0.05} />)}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* key ratios */}
-                          {ratioStats.length > 0 && (
-                            <div>
-                              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Key Ratios</p>
-                              <div className="grid grid-cols-3 gap-2">
-                                {ratioStats.map((s, i) => <OverviewStat key={i} {...s} delay={i * 0.05} />)}
                               </div>
                             </div>
                           )}
