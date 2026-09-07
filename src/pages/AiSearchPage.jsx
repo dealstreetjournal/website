@@ -211,12 +211,11 @@ const isGenericContinuation = (q) =>
 // "conversation state" at all (see aiSearchApi.js: every request is a single stateless
 // {query} string), so left as typed this fails company resolution outright the same way
 // any other bare follow-up would. Rewritten below to the carried-forward company + topic,
-// PLUS "all years" (not just the single year the previous turn asked about) -- the
-// existing multi-year chart/table view already shows the requested year right next to
-// its own previous year, and every multi-year answer already carries an automatic
-// year-over-year insight line, so "all years" is what actually satisfies "compare with
-// the previous year" using paths that already work, rather than a real "just these two
-// years" comparison feature this project doesn't have.
+// PLUS "latest year" (not "all years" — see that stitch's own comment for why) -- every
+// multi-year answer already carries an automatic year-over-year insight line comparing
+// the latest year to its own immediate previous one, so this is what actually satisfies
+// "compare with the previous year" using paths that already work, rather than a real
+// "just these two years" comparison feature this project doesn't have.
 const isPreviousYearComparisonAnswer = (q) =>
   /\b(vs\.?|versus|compare[ds]?\s*(with|to)?)\s*(the\s*)?(previous|last|prior)\s*year\b/i.test(q.trim())
   || /\byear[\s-]?over[\s-]?year\b/i.test(q.trim()) || /\byoy\b/i.test(q.trim())
@@ -4455,7 +4454,15 @@ export default function AiSearchPage() {
     } else if (isPreviousYearComparisonAnswer(typedQ)) {
       const lastContext = [...turns].reverse().find(t => t.result?.companyName)
       if (lastContext) {
-        apiQ = `${lastContext.result.companyName || ''} ${stripYearFromQuery(lastContext.result.query)} all years`.trim()
+        // "latest year" (not "all years") — skips the backend's own "which year?" gate
+        // the same way, but does NOT also trip its "all years"/detail wording check, so
+        // the answer stays scoped to just the latest year next to its own immediate
+        // previous year (the automatic year-over-year line every multi-year answer
+        // already carries) instead of pulling in the whole multi-year trajectory since
+        // inception — found live: "Revenue year-on-year" showing a "grown 6174% overall
+        // since 2022-23" line when only the latest-vs-previous-year comparison was asked
+        // for.
+        apiQ = `${lastContext.result.companyName || ''} ${stripYearFromQuery(lastContext.result.query)} latest year`.trim()
       }
     } else if (isBareYearAnswer(typedQ) || isGenericContinuation(typedQ)) {
       // A bare "detail"/"more"/"expand" — or a bare year/"all" typed any time
