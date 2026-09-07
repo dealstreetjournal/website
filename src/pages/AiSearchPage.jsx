@@ -3673,6 +3673,20 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                               </div>
                                             )}
 
+                                            {/* formula — backend already sends this (e.g. "Profit
+                                                after tax / Equity and Reserves" for ROE) but it was
+                                                never rendered anywhere on this card, only
+                                                significance below it was. Collapsed whitespace/line
+                                                breaks (the raw Excel-sourced string carries a stray
+                                                "\n") into single spaces — this is a one-line caption,
+                                                not the source cell's own formatting. */}
+                                            {r.formula && (
+                                              <p className="text-[9px] font-mono text-gray-400 leading-relaxed mt-0.5">
+                                                <span className="font-bold text-gray-500 not-italic font-sans">Formula: </span>
+                                                {r.formula.replace(/\s+/g, ' ').trim()}
+                                              </p>
+                                            )}
+
                                             {/* significance — full text, not truncated: the
                                                 ratio's significance wasn't being read properly —
                                                 line-clamp-2 was
