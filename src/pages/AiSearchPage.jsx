@@ -4225,6 +4225,14 @@ export default function AiSearchPage() {
   const scrollAnchorRef   = useRef(null)
   const threadScrollRef   = useRef(null) // the thread's own overflow-y-auto pane — scrolled directly (not via scrollIntoView) so the outer document/window never moves, only this pane
   const threadContentRef  = useRef(null) // the pane's actual growing content wrapper — observed for size changes so the view can follow a card typing itself out (see the ResizeObserver effect below)
+  // One id per browser conversation (this thread's `turns` array), sent with every
+  // aiFreeSearch() call so DSJ-AI's own history_engine.py can group every turn into a
+  // single saved history row instead of one row per search — same threading
+  // websitebackend used to do server-side before AI Search started calling DSJ-AI
+  // directly. Same lazy-init-once-then-mutate convention as every other plain (non-React-
+  // state) ref in this component — a new id doesn't need to trigger a re-render, only
+  // handleNewChat() below needs to ever change it.
+  const conversationIdRef = useRef(`${Date.now()}-${Math.random().toString(36).slice(2)}`)
   // Tracks which history item's load is the MOST RECENT one requested — a plain ref (not
   // React state) so it updates synchronously, unlike activeHistoryId which only reflects
   // the latest value after a re-render. Guards loadHistoryResult() below against a race:
@@ -4240,11 +4248,11 @@ export default function AiSearchPage() {
     if (!isAuth) return
     setHistoryLoading(true)
     try {
-      const data = await getAiHistory()
+      const data = await getAiHistory(user)
       setHistory(Array.isArray(data) ? data : [])
     } catch { /* silently ignore */ }
     finally { setHistoryLoading(false) }
-  }, [isAuth])
+  }, [isAuth, user])
 
   useEffect(() => { loadHistory() }, [loadHistory])
 
@@ -4448,7 +4456,7 @@ export default function AiSearchPage() {
     // the catch block, past any success:false check placed after the await.
     const trySearch = async (q) => {
       try {
-        const data = await aiFreeSearch(q, user)
+        const data = await aiFreeSearch(q, user, conversationIdRef.current)
         return { ok: data.success !== false, data, message: data.message }
       } catch (e) {
         return { ok: false, data: null, message: e?.response?.data?.message || 'Search failed. Please try again.' }
@@ -4499,12 +4507,18 @@ export default function AiSearchPage() {
 
   // ── Load history result — restores the WHOLE saved conversation (every turn, in
   //    order), replacing whatever's currently in the thread. Continuing to chat
-  //    afterward now starts a fresh, unlinked search (AI Search calls DSJ-AI directly,
-  //    which has no conversation-threading of its own — see aiSearchApi.js), unlike the
-  //    old Java-proxied behavior where it appended to this same server-side thread. ──
+  //    afterward starts its OWN fresh, separately-saved conversation (conversationIdRef
+  //    reset below) rather than appending to the one just loaded — same DSJ-AI-side
+  //    threading (see history_engine.py) a live, never-before-saved thread already gets,
+  //    just not chained onto history that's already been closed out. ──
 
   const loadHistoryResult = async (item) => {
     latestHistoryRequestRef.current = item.id
+    // A follow-up typed after viewing an old conversation starts its OWN fresh history
+    // row, same "unlinked" behavior as before this file could thread conversations again
+    // at all — reusing the id of whichever conversation was active before opening history
+    // would otherwise silently mix two unrelated conversations into one saved row.
+    conversationIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     setTurns([])
     setActiveHistoryId(item.id)
     setQuery(item.query)
@@ -4512,7 +4526,7 @@ export default function AiSearchPage() {
     setPendingQuery(item.query)
     setStep(0)
     try {
-      const data = await getAiHistoryDetail(item.id)
+      const data = await getAiHistoryDetail(item.id, user)
       // A newer history click landed while this one was still in flight — that later
       // request already owns the screen, so applying THIS stale response now would
       // silently replace it with the wrong conversation's content.
@@ -4533,6 +4547,7 @@ export default function AiSearchPage() {
   // ── New chat — clears the thread back to the empty state ──────────────────
 
   const handleNewChat = () => {
+    conversationIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     setTurns([])
     setActiveHistoryId(null)
     setQuery('')
@@ -4544,7 +4559,7 @@ export default function AiSearchPage() {
   const deleteItem = async (e, id) => {
     e.stopPropagation()
     try {
-      await deleteAiHistoryItem(id)
+      await deleteAiHistoryItem(id, user)
       setHistory(prev => prev.filter(h => h.id !== id))
       if (activeHistoryId === id) { setTurns([]); setActiveHistoryId(null) }
     } catch { /* ignore */ }
@@ -4553,7 +4568,7 @@ export default function AiSearchPage() {
   const handleClearAll = async () => {
     if (!window.confirm('Delete all search history?')) return
     try {
-      await clearAiHistory()
+      await clearAiHistory(user)
       setHistory([]); setTurns([]); setActiveHistoryId(null)
     } catch { /* ignore */ }
   }

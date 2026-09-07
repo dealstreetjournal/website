@@ -18,32 +18,39 @@ export const aiSearchCompany = async (companyId, query) => {
 // with no benefit while DSJ-AI is what's actively being iterated on. `plainAxios`, not the
 // shared `axios` instance: DSJ-AI is a separate origin with no session/cookie of its own,
 // so `withCredentials` would only risk a CORS rejection for nothing gained.
-// NOTE: bypassing Java also means AiSearchController's own history auto-save
-// (historyService.save) never runs for these searches -- a known, accepted gap for now.
-export const aiFreeSearch = async (query, userEmail) => {
+// `conversationId` (from AiSearchPage.jsx's own per-thread state) lets DSJ-AI's own
+// history_engine.py group every turn of one browser conversation into a single saved row,
+// same threading websitebackend's AiSearchController used to do before this call moved off
+// of it — see that module's own docstring for why history-saving lives here now too.
+export const aiFreeSearch = async (query, userEmail, conversationId) => {
   const res = await plainAxios.post(`${config.DSJ_AI_URL}/free-search`, {
-    query, user_email: userEmail || null,
+    query, user_email: userEmail || null, conversation_id: conversationId || null,
   })
   return res.data
 }
 
-export const getAiHistory = async () => {
-  const res = await axios.get('/api/ai/history')
+// History now lives in DSJ-AI (see history_engine.py) alongside the search that populates
+// it, not websitebackend — that Java table/service still exist and still hold everything
+// saved before this moved, but nothing on the frontend calls them anymore. DSJ-AI has no
+// session of its own, so the user's email is sent explicitly rather than inferred
+// server-side from a cookie the way the old Java endpoints did.
+export const getAiHistory = async (userEmail) => {
+  const res = await plainAxios.get(`${config.DSJ_AI_URL}/history`, { params: { user_email: userEmail } })
   return res.data
 }
 
-export const getAiHistoryDetail = async (id) => {
-  const res = await axios.get(`/api/ai/history/${id}`)
+export const getAiHistoryDetail = async (id, userEmail) => {
+  const res = await plainAxios.get(`${config.DSJ_AI_URL}/history/${id}`, { params: { user_email: userEmail } })
   return res.data
 }
 
-export const deleteAiHistoryItem = async (id) => {
-  const res = await axios.delete(`/api/ai/history/${id}`)
+export const deleteAiHistoryItem = async (id, userEmail) => {
+  const res = await plainAxios.delete(`${config.DSJ_AI_URL}/history/${id}`, { params: { user_email: userEmail } })
   return res.data
 }
 
-export const clearAiHistory = async () => {
-  const res = await axios.delete('/api/ai/history')
+export const clearAiHistory = async (userEmail) => {
+  const res = await plainAxios.delete(`${config.DSJ_AI_URL}/history`, { params: { user_email: userEmail } })
   return res.data
 }
 
