@@ -3611,19 +3611,21 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                   </span>
                                 )}
                               </div>
+                              {/* Plain year|value table, same convention every other multi-year
+                                  card on this page uses (FocusedMetricTurn's own per-year table,
+                                  aiCalculation's perYear, compareMode's perYearCompare) -- was a
+                                  row of small pills here instead, the only multi-year figure on
+                                  the page not shown as a table. SimpleTable's own built-in
+                                  CopyButton comes along with it, same as every other table here. */}
                               {vals.length > 1 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {vals.map((v, vi) => {
+                                <SimpleTable
+                                  headers={['Year', r.name || 'Value']}
+                                  rows={vals.map((v, vi) => {
                                     const realIdx = activeIdxs[vi] ?? vi
-                                    const yr = fyYears[realIdx] ? String(fyYears[realIdx]).replace('FY','') : `Y${vi+1}`
-                                    const isLast = vi === vals.length - 1
-                                    return (
-                                      <span key={vi} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isLast ? 'text-emerald-700 bg-emerald-50 border border-emerald-100 font-black' : 'text-gray-400 bg-gray-50'}`}>
-                                        {yr}: {v}
-                                      </span>
-                                    )
+                                    const yr = fyYears[realIdx] || `Y${vi + 1}`
+                                    return { label: `FY ${yr}`, cells: [v] }
                                   })}
-                                </div>
+                                />
                               )}
                               {r.formula && (
                                 <p className="text-[10px] font-mono text-gray-400 leading-relaxed mt-2">
@@ -4080,6 +4082,13 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                   {/* ── Notes — same plain style as the single-metric card's own Notes
                       block (small uppercase label, dot-bullet text, no numbered/colored
                       boxes, no "Key Highlights"/"N insights identified" framing). ── */}
+                  {/* "ROE all"/"ROE detail" — a single named ratio narrowed down to its own
+                      plain card (see the ratiosRows.length === 1 branch above) — has nothing
+                      report-sized to actually download, so the "Download PDF of this" quick
+                      action just below is skipped for it. Recomputed directly from `result`
+                      (rather than reusing the ratiosRows/showRatios above) since those live
+                      inside that block's own IIFE scope, not this one. */}
+                  {(() => { const isSingleRatioAnswer = result.intent === 'investorMetrics' && result.chartData?.ratiosTable?.length === 1; return (
                   <Reveal index={7}>
                   {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.insights?.length > 0
                     && startAt(result.summary ? 1 : 0) && (
@@ -4101,20 +4110,24 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                         })}
                       </div>
 
-                      {/* ── Quick actions ── */}
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        <button
-                          onClick={handleMultiDownload}
-                          disabled={!selectedTypes.length}
-                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-[#ff7010] text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                          <FaDownload className="text-[10px]" />
-                          Download PDF of this
-                        </button>
-                        {/* "Compare FY .. vs FY .." quick-action chip removed per explicit request. */}
-                      </div>
+                      {/* ── Quick actions — not for a single narrowed ratio ("ROE all"/
+                          "ROE detail"), which has nothing report-sized to download. ── */}
+                      {!isSingleRatioAnswer && (
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          <button
+                            onClick={handleMultiDownload}
+                            disabled={!selectedTypes.length}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-[#ff7010] text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                            <FaDownload className="text-[10px]" />
+                            Download PDF of this
+                          </button>
+                          {/* "Compare FY .. vs FY .." quick-action chip removed per explicit request. */}
+                        </div>
+                      )}
                     </div>
                   )}
                   </Reveal>
+                  )})()}
 
 
                 </div>
