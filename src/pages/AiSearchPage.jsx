@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  FaSearch, FaTimes, FaRobot, FaChartBar, FaLightbulb, FaStar,
+  FaSearch, FaTimes, FaRobot, FaChartBar, FaLightbulb,
   FaArrowUp, FaArrowDown, FaMinus, FaFilePdf, FaBuilding,
   FaHistory, FaBars, FaTrash, FaChartPie, FaUsers, FaHandshake,
   FaMoneyBillWave, FaChartLine, FaDownload, FaTable,
@@ -4023,37 +4023,26 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                   })()}
                   </Reveal>
 
-                  {/* ── Key Highlights ── */}
+                  {/* ── Notes — same plain style as the single-metric card's own Notes
+                      block (small uppercase label, dot-bullet text, no numbered/colored
+                      boxes, no "Key Highlights"/"N insights identified" framing). ── */}
                   <Reveal index={7}>
                   {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.insights?.length > 0
                     && startAt(result.summary ? 1 : 0) && (
                     <div className="px-6 py-6 border-b border-gray-100">
-                      <div className="flex items-center gap-2.5 mb-4">
-                        <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center flex-shrink-0">
-                          <FaStar className="text-[#ff7010] text-xs" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-widest text-gray-800">Key Highlights</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{result.insights.length} insights identified</p>
-                        </div>
-                      </div>
-                      <div className="space-y-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Notes</p>
+                      <div className="space-y-1.5">
                         {result.insights.map((ins, i) => {
-                          const colors = ['#1a1f36','#6366f1','#10b981','#ff7010','#f59e0b']
-                          const bgs    = ['bg-slate-50','bg-indigo-50','bg-emerald-50','bg-orange-50','bg-amber-50']
-                          const borders= ['border-slate-200','border-indigo-100','border-emerald-100','border-orange-100','border-amber-100']
                           // Stage 0 belongs to the summary paragraph above (when it's shown) —
                           // insights only start typing once it finishes, so the whole card reads
                           // top to bottom instead of every block animating at once.
                           const stageNum = (result.summary ? 1 : 0) + i
                           if (!startAt(stageNum)) return null
                           return (
-                            <div key={i} className={`flex items-start gap-3 p-3.5 rounded-xl border ${bgs[i%5]} ${borders[i%5]} group hover:shadow-sm transition-shadow`}>
-                              <span className="w-6 h-6 rounded-lg text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm" style={{backgroundColor: colors[i%5]}}>
-                                {i + 1}
-                              </span>
-                              <p className="text-sm text-gray-700 leading-relaxed"><TypewriterText instant={instant} text={ins} start={startAt(stageNum)} onDone={advance(stageNum)} /></p>
-                            </div>
+                            <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
+                              <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+                              <span><TypewriterText instant={instant} text={ins} start={startAt(stageNum)} onDone={advance(stageNum)} /></span>
+                            </p>
                           )
                         })}
                       </div>
