@@ -804,6 +804,34 @@ const YearPromptTurn = ({ result, instant = false }) => (
               </div>
 )
 
+// Backend-side "ask, don't guess" for a genuine company-name tie (e.g. sister
+// companies "Anmasa Consumer"/"Anmasa Foods" both typed as just "Anmasa") --
+// same shell as YearPromptTurn, but clickable chips (one per candidate) since
+// picking a company benefits more from a tap than retyping its full name.
+const CompanyDisambiguationTurn = ({ result, onFollowUp, instant = false }) => (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+                    <FaRobot className="text-[#ff7010] text-xs" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      <TypewriterText instant={instant} text="A few companies match that name — which one did you mean?" />
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {(result.candidateCompanies || []).map((c) => (
+                        <button key={c.id}
+                          onClick={() => onFollowUp?.(`${c.companyName} ${result.query || ''}`.trim())}
+                          className="px-3.5 py-2 rounded-lg border border-gray-200 bg-white hover:bg-orange-50 hover:border-orange-200 text-xs font-bold text-gray-700 transition-colors">
+                          {c.companyName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+)
+
 // A requested year that isn't one of this company's own recorded years (a typo like
 // "2024-24", or simply a real year the company has no data for) — flags the mismatch,
 // then offers the closest real year on record as a one-click follow-up instead of
@@ -4149,6 +4177,7 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
     <UserBubble text={turn.userQuery} onEdit={onEditQuery} />
     {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} instant={instant} />}
     {turn.kind === 'glossary'   && <GlossaryTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
+    {turn.kind === 'companyDisambiguation' && <CompanyDisambiguationTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
     {turn.kind === 'yearCorrection' && <YearCorrectionTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
     {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'yearRangePrompt' && <YearRangePromptTurn result={turn.result} instant={instant} />}
@@ -4458,6 +4487,7 @@ export default function AiSearchPage() {
   const classifyTurn = (userQuery, data) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     if (data.glossary || data.glossaryHelp) return { id, userQuery, kind: 'glossary', result: data }
+    if (data.needsCompanyDisambiguation) return { id, userQuery, kind: 'companyDisambiguation', result: data }
     if (data.needsYearCorrection) return { id, userQuery, kind: 'yearCorrection', result: data }
     if (data.needsYearSelection) return { id, userQuery, kind: 'yearPrompt', result: data }
     if (data.needsYearRangeSelection) return { id, userQuery, kind: 'yearRangePrompt', result: data }
