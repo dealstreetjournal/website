@@ -3581,6 +3581,60 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
 
                         const categories = Object.keys(grouped)
 
+                        // A single named ratio ("ROE all"/"ROE detail", narrowed to just one
+                        // row) doesn't need the full multi-category dashboard -- the colored
+                        // category bar, the "1 ratios across 1 category" header, and a 2-column
+                        // grid that leaves a lone card stranded at half-width. Same "one metric
+                        // gets a plain card" treatment the single-year keyMetrics path already
+                        // has, extended to the all-years/no-year case. significance is dropped
+                        // here (not duplicated) since the Notes section right below already
+                        // leads with this same ratio's own significance text.
+                        if (ratiosRows.length === 1) {
+                          const r = ratiosRows[0]
+                          const vals = parseVals(r.value)
+                          const latest = vals[vals.length - 1]
+                          const prev   = vals.length >= 2 ? vals[vals.length - 2] : null
+                          const latestNum = parseFloat(latest)
+                          const prevNum   = prev != null ? parseFloat(prev) : null
+                          const hasTrend  = prevNum != null && !isNaN(latestNum) && !isNaN(prevNum)
+                          const trendUp   = hasTrend && latestNum > prevNum
+                          const trendDown = hasTrend && latestNum < prevNum
+                          return (
+                            <div className="px-6 py-5 border-t border-gray-100" style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">{r.name || 'Ratio'}</p>
+                              <div className="flex items-end gap-2">
+                                <p className="text-2xl font-black text-gray-900 leading-none tabular-nums">{latest || '—'}</p>
+                                {hasTrend && (
+                                  <span className={`mb-0.5 text-xs font-black flex items-center gap-1 ${trendUp ? 'text-emerald-500' : trendDown ? 'text-rose-500' : 'text-gray-400'}`}>
+                                    {trendUp ? <FaArrowUp className="text-[10px]" /> : trendDown ? <FaArrowDown className="text-[10px]" /> : <FaMinus className="text-[10px]" />}
+                                    {prevNum !== 0 ? `${Math.abs(((latestNum - prevNum) / Math.abs(prevNum)) * 100).toFixed(1)}%` : ''}
+                                  </span>
+                                )}
+                              </div>
+                              {vals.length > 1 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {vals.map((v, vi) => {
+                                    const realIdx = activeIdxs[vi] ?? vi
+                                    const yr = fyYears[realIdx] ? String(fyYears[realIdx]).replace('FY','') : `Y${vi+1}`
+                                    const isLast = vi === vals.length - 1
+                                    return (
+                                      <span key={vi} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isLast ? 'text-emerald-700 bg-emerald-50 border border-emerald-100 font-black' : 'text-gray-400 bg-gray-50'}`}>
+                                        {yr}: {v}
+                                      </span>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              {r.formula && (
+                                <p className="text-[10px] font-mono text-gray-400 leading-relaxed mt-2">
+                                  <span className="font-bold text-gray-500 not-italic font-sans">Formula: </span>
+                                  {r.formula.replace(/\s+/g, ' ').trim()}
+                                </p>
+                              )}
+                            </div>
+                          )
+                        }
+
                         return (
                           <div className="border-t border-gray-100" style={{ animation: 'aiRevealIn 0.4s ease-out both' }}>
                             {/* section header */}
