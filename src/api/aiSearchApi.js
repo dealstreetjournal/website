@@ -22,10 +22,14 @@ export const aiSearchCompany = async (companyId, query) => {
 // history_engine.py group every turn of one browser conversation into a single saved row,
 // same threading websitebackend's AiSearchController used to do before this call moved off
 // of it — see that module's own docstring for why history-saving lives here now too.
-export const aiFreeSearch = async (query, userEmail, conversationId) => {
+// `signal` (an AbortController's, from AiSearchPage's own Stop button) lets the caller
+// cancel an in-flight search the same way ChatGPT/Claude's stop button does — axios
+// rejects the promise with a cancel error the caller checks for instead of treating it
+// as a real failure.
+export const aiFreeSearch = async (query, userEmail, conversationId, signal) => {
   const res = await plainAxios.post(`${config.DSJ_AI_URL}/free-search`, {
     query, user_email: userEmail || null, conversation_id: conversationId || null,
-  })
+  }, { signal })
   return res.data
 }
 

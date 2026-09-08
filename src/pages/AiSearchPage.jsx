@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  FaSearch, FaTimes, FaRobot, FaChartBar, FaLightbulb,
+  FaSearch, FaTimes, FaRobot, FaChartBar, FaLightbulb, FaStop,
   FaArrowUp, FaArrowDown, FaMinus, FaFilePdf, FaBuilding,
   FaHistory, FaBars, FaTrash, FaChartPie, FaUsers, FaHandshake,
   FaMoneyBillWave, FaChartLine, FaDownload, FaTable,
@@ -4128,7 +4128,9 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
 const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
   // Turns restored from sidebar history (loadHistoryResult stamps every one of them with
   // the source item's id) show their saved text immediately — no replayed "typing" effect.
-  const instant = !!turn.historyId
+  // forceInstant is the same skip-the-animation switch, flipped by the Stop button
+  // (stopGeneration) on whichever turn was actively typing when it was pressed.
+  const instant = !!turn.historyId || !!turn.forceInstant
   return (
   <div className="space-y-3" ref={scrollAnchorRef}>
     <UserBubble text={turn.userQuery} onEdit={onEditQuery} />
@@ -4325,6 +4327,21 @@ export default function AiSearchPage() {
   // last — a slow/flaky connection could show item A's content while the sidebar still
   // highlighted B as active.
   const latestHistoryRequestRef = useRef(null)
+  // The in-flight search's own AbortController, so the Stop button (shown in the
+  // composer in place of Search while a query is running) can cancel it — see
+  // stopGeneration() below.
+  const searchAbortRef = useRef(null)
+
+  // Stop button — mirrors ChatGPT/Claude's own mid-answer stop: cancels the network
+  // request if one is still in flight, and force-completes the currently-typing turn's
+  // animation (via its own forceInstant flag, read by Turn's `instant` below) if the
+  // network already resolved and only the reveal animation is still running.
+  const stopGeneration = () => {
+    searchAbortRef.current?.abort()
+    if (isTyping) {
+      setTurns(prev => prev.map((t, i) => i === prev.length - 1 ? { ...t, forceInstant: true } : t))
+    }
+  }
 
   // ── Load history ────────────────────────────────────────────────────────────
 
@@ -4488,6 +4505,11 @@ export default function AiSearchPage() {
     if (isSearching || isTyping) return
     setShowSuggestions(false)
     setSuggestions([])
+    // One AbortController per search — stopGeneration() (the composer's Stop button,
+    // shown in place of Search while this is in flight) aborts it, same "let me stop
+    // this" escape hatch ChatGPT/Claude's own stop button gives mid-answer.
+    const controller = new AbortController()
+    searchAbortRef.current = controller
     // Clear the composer the instant a search is submitted (ChatGPT/Claude-style)
     // instead of leaving the just-searched text sitting in the box — the box goes
     // back to showing its placeholder ("Type company name or ask a question...")
@@ -4554,14 +4576,18 @@ export default function AiSearchPage() {
     // the catch block, past any success:false check placed after the await.
     const trySearch = async (q) => {
       try {
-        const data = await aiFreeSearch(q, user, conversationIdRef.current)
+        const data = await aiFreeSearch(q, user, conversationIdRef.current, controller.signal)
         return { ok: data.success !== false, data, message: data.message }
       } catch (e) {
+        // Cancelled by stopGeneration() below, not a real failure — don't show an error
+        // turn or retry, just let the caller stand down quietly.
+        if (e.code === 'ERR_CANCELED' || e.name === 'CanceledError') return { ok: false, aborted: true }
         return { ok: false, data: null, message: e?.response?.data?.message || 'Search failed. Please try again.' }
       }
     }
 
     let result = await trySearch(apiQ)
+    if (result.aborted) { setPendingQuery(null); return }
     // A "not found" on a query that didn't itself name a company almost always
     // means the user is continuing to ask about whatever company this thread
     // was already about — e.g. typing just "financial statement 2022-23" right
@@ -4589,6 +4615,7 @@ export default function AiSearchPage() {
       const lastCompanyName = [...turns].reverse().find(t => t.result?.companyName)?.result?.companyName
       if (lastCompanyName && !apiQ.toLowerCase().includes(lastCompanyName.toLowerCase())) {
         const retry = await trySearch(`${lastCompanyName} ${apiQ}`.trim())
+        if (retry.aborted) { setPendingQuery(null); return }
         if (retry.ok) result = retry
       }
     }
@@ -4856,10 +4883,21 @@ export default function AiSearchPage() {
           <FaTimes className="text-sm" />
         </button>
       )}
-      <button onClick={() => doSearch()} disabled={isSearching || isTyping || !query.trim()}
-        className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff7010] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#e06000] transition-colors disabled:opacity-40 disabled:cursor-not-allowed" style={{zIndex:2}}>
-        {isSearching || isTyping ? '...' : 'Search'}
-      </button>
+      {/* Stop — same spot the Search button sits in, swapped in for it while an answer
+          is being fetched or is still typing itself out (ChatGPT/Claude's own mid-answer
+          stop button). Always clickable in that state, unlike Search's disabled-while-busy
+          treatment — stopping is the one action that has to work WHILE busy. */}
+      {(isSearching || isTyping) ? (
+        <button onClick={stopGeneration} title="Stop generating"
+          className="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-800 text-white w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-900 transition-colors" style={{zIndex:2}}>
+          <FaStop className="text-xs" />
+        </button>
+      ) : (
+        <button onClick={() => doSearch()} disabled={!query.trim()}
+          className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff7010] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#e06000] transition-colors disabled:opacity-40 disabled:cursor-not-allowed" style={{zIndex:2}}>
+          Search
+        </button>
+      )}
 
       {/* Dropdown suggestions — direction flips depending on which spot this is
           rendered in (opens downward when centered on the empty screen, upward
