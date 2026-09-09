@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useInView } from 'react-intersection-observer'
+import Reveal from './Reveal'
+import TiltCard from './TiltCard'
 import {
   FaMapMarkerAlt,
   FaClock,
@@ -133,7 +135,7 @@ export default function JobsFilter() {
 
         {/* Filter Bar */}
         <div className="bg-white rounded-2xl shadow-md p-4 md:p-5 flex flex-col md:flex-row gap-4 items-stretch md:items-center mb-12">
-          <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 focus-within:border-[#ff7010] transition-colors">
+          <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 focus-within:border-[#ff7010] focus-within:ring-2 focus-within:ring-orange-100 hover:border-orange-200 transition-all">
             <FaBuilding className="text-[#ff7010] shrink-0" />
             <select
               value={department}
@@ -148,7 +150,7 @@ export default function JobsFilter() {
             </select>
           </div>
 
-          <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 focus-within:border-[#ff7010] transition-colors">
+          <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 focus-within:border-[#ff7010] focus-within:ring-2 focus-within:ring-orange-100 hover:border-orange-200 transition-all">
             <FaMapMarkerAlt className="text-[#ff7010] shrink-0" />
             <select
               value={location}
@@ -163,7 +165,7 @@ export default function JobsFilter() {
             </select>
           </div>
 
-          <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 focus-within:border-[#ff7010] transition-colors">
+          <div className="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 focus-within:border-[#ff7010] focus-within:ring-2 focus-within:ring-orange-100 hover:border-orange-200 transition-all">
             <FaClock className="text-[#ff7010] shrink-0" />
             <select
               value={jobType}
@@ -180,7 +182,7 @@ export default function JobsFilter() {
 
           <button
             onClick={goToListings}
-            className="flex items-center justify-center gap-2 bg-[#ff7010] hover:bg-orange-600 text-white font-aptos-semibold px-6 py-2.5 rounded-xl transition-colors cursor-pointer whitespace-nowrap"
+            className="flex items-center justify-center gap-2 bg-[#ff7010] hover:bg-orange-600 text-white font-aptos-semibold px-6 py-2.5 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 cursor-pointer whitespace-nowrap"
           >
             <FaSearch />
             Search Jobs
@@ -189,43 +191,60 @@ export default function JobsFilter() {
 
         {/* Openings Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-          {openings.slice(0, visibleCount).map((job) => (
-            <a
-              href={JOB_LISTINGS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              key={job.id}
-              className="group block bg-white rounded-2xl shadow-md hover:shadow-xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
-            >
-              <div
-                className={`h-40 w-full relative flex items-center justify-center bg-gradient-to-br ${
-                  THEME_COLORS[job.department] || DEFAULT_THEME
-                }`}
+          {openings.slice(0, visibleCount).map((job, index) => (
+            <Reveal key={job.id} delay={(index % 3) * 100} className="h-full">
+              <TiltCard
+                as="a"
+                href={JOB_LISTINGS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                maxTilt={5}
+                className="group relative block h-full rounded-2xl p-[2px]"
               >
-                <job.icon className="text-5xl text-white/90" />
-                <span className="absolute top-3 left-3 bg-white/95 text-[#ff7010] font-aptos-semibold text-xs px-3 py-1 rounded-full shadow">
-                  {job.type}
-                </span>
-              </div>
-              <div className="p-5">
-                <span className="font-aptos-semibold uppercase tracking-wide text-xs text-[#ff7010]">
-                  {job.department}
-                </span>
-                <h3 className="font-aptos-semibold text-gray-900 mt-1.5 mb-3 line-clamp-2">
-                  {job.title}
-                </h3>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-gray-600 font-aptos-regular text-sm">
-                    <FaMapMarkerAlt className="text-[#ff7010]" />
-                    {job.location}
-                  </span>
-                  <span className="flex items-center gap-1 text-[#ff7010] font-aptos-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                    Apply
-                    <FaArrowRight className="text-xs" />
-                  </span>
+                {/* Flowing gradient border — invisible at rest, sweeps across
+                    the edge on hover, same treatment as the steps above. */}
+                <div
+                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{
+                    backgroundImage:
+                      'linear-gradient(90deg, #ff7010, #ffd08a, #ff7010, #ffd08a, #ff7010)',
+                    backgroundSize: '300% 100%',
+                    animation: 'borderFlow 2.5s linear infinite',
+                  }}
+                />
+                <div className="relative bg-white rounded-[14px] shadow-md group-hover:shadow-xl overflow-hidden transition-shadow duration-300 h-full flex flex-col">
+                  <div
+                    className={`h-40 w-full relative flex items-center justify-center overflow-hidden bg-gradient-to-br ${
+                      THEME_COLORS[job.department] || DEFAULT_THEME
+                    }`}
+                  >
+                    <job.icon className="absolute -bottom-3 -right-3 text-8xl text-white/10 rotate-12" />
+                    <job.icon className="relative text-5xl text-white/90 transition-transform duration-300 group-hover:scale-110" />
+                    <span className="absolute top-3 left-3 bg-white/95 text-[#ff7010] font-aptos-semibold text-xs px-3 py-1 rounded-full shadow transition-transform duration-300 group-hover:scale-105">
+                      {job.type}
+                    </span>
+                  </div>
+                  <div className="p-5 flex flex-col flex-1">
+                    <span className="font-aptos-semibold uppercase tracking-wide text-xs text-[#ff7010]">
+                      {job.department}
+                    </span>
+                    <h3 className="font-aptos-semibold text-gray-900 mt-1.5 mb-3 line-clamp-2">
+                      {job.title}
+                    </h3>
+                    <div className="flex items-center justify-between mt-auto">
+                      <span className="flex items-center gap-1.5 text-gray-600 font-aptos-regular text-sm">
+                        <FaMapMarkerAlt className="text-[#ff7010]" />
+                        {job.location}
+                      </span>
+                      <span className="flex items-center gap-1 text-[#ff7010] font-aptos-semibold text-sm opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">
+                        Apply
+                        <FaArrowRight className="text-xs" />
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </a>
+              </TiltCard>
+            </Reveal>
           ))}
         </div>
 
