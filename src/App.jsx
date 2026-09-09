@@ -40,6 +40,7 @@ const CreatePdf = lazy(() => import('./components/CreatePdf'))
 const SmartReports = lazy(() => import('./pages/SmartReports'))
 const SmartReportDetail = lazy(() => import('./pages/SmartReportDetail'))
 const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
+const Jobs = lazy(() => import('./pages/Jobs'))
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -487,6 +488,25 @@ const router = createBrowserRouter(
             }
           >
             <AboutUs />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="/jobs"
+        element={
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center min-h-[80vh]">
+                <img
+                  src={spinner}
+                  alt="Loading"
+                  className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
+                />
+              </div>
+            }
+          >
+            <Jobs />
           </Suspense>
         }
       />
