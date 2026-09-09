@@ -373,7 +373,7 @@ const NavbarDesktop = () => {
           />
         </Link>
 
-        <nav className="flex justify-center items-center sm:text-sm sm:gap-5 sm:mr-5 lg:gap-8 lg:mr-10 xl:gap-15 xl:mr-32">
+        <nav className="font-aptos-bold flex justify-center items-center sm:text-sm sm:gap-5 sm:mr-5 lg:gap-8 lg:mr-10 xl:gap-11 xl:mr-32">
           {/* Deals Dropdown */}
           <div
             className="relative group"
@@ -490,7 +490,7 @@ const NavbarDesktop = () => {
               {/* DSJ AI Report */}
               <Link
                 to="/smart-reports"
-                className="cursor-pointer hover:text-[#ff7010] transition-colors whitespace-nowrap font-medium"
+                className="cursor-pointer hover:text-[#ff7010] transition-colors whitespace-nowrap"
               >
                 DSJ AI Report
               </Link>
@@ -498,7 +498,7 @@ const NavbarDesktop = () => {
               {/* DSJ AI */}
               <Link
                 to="/company-ai"
-                className="cursor-pointer hover:text-[#ff7010] transition-colors whitespace-nowrap font-medium"
+                className="cursor-pointer hover:text-[#ff7010] transition-colors whitespace-nowrap"
               >
                 DSJ AI
               </Link>
