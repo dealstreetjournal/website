@@ -1310,7 +1310,11 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
                 className="text-indigo-400 hover:text-indigo-600"
                 text={
                   c.aiCalculation.compareMode
-                    ? c.aiCalculation.items?.map(it => `${it.label}: ${it.value}${it.unit || ''}`).join('\n')
+                    ? c.aiCalculation.itemsPerYear?.length > 0
+                      ? [c.aiCalculation.items.map(it => it.label).join('\t'),
+                         ...c.aiCalculation.itemsPerYear.map(y =>
+                           `FY ${y.year}: ` + y.values.map((v, ii) => `${v ?? '—'}${c.aiCalculation.items[ii]?.unit || ''}`).join(' | '))].join('\n')
+                      : c.aiCalculation.items?.map(it => `${it.label}: ${it.value}${it.unit || ''}`).join('\n')
                     : [
                         c.aiCalculation.value != null
                           ? `${c.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${c.aiCalculation.unit ? ` ${c.aiCalculation.unit}` : ''}`
@@ -1329,17 +1333,55 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
               // per-company comparison card only had the single value/formula branch
               // below, so the exact same response shape rendered a totally empty box
               // here (no value, no formula -- both undefined on a compareMode payload).
-              <div className="space-y-1">
-                {c.aiCalculation.items?.map((it, i) => (
-                  <div key={i} className="flex items-center justify-between gap-2 py-1 px-2 rounded-md bg-white/70 border border-indigo-100/70">
-                    <p className="text-[11px] text-gray-500 truncate">{it.label}</p>
-                    <p className="text-xs font-bold text-indigo-700 whitespace-nowrap">
-                      {typeof it.value === 'number' ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : it.value}
-                      {it.unit || ''}
-                    </p>
+              c.aiCalculation.itemsPerYear?.length > 0 ? (
+                // "...2022-23, 2023-24, 2024-25" — explicit years named, same
+                // graph+table shape the top-level single-company view already
+                // renders for this exact itemsPerYear payload, just scoped to
+                // this one company's own card instead of the whole-page answer.
+                <>
+                  <div className="mb-3" style={{ height: 160 }}>
+                    <Bar
+                      data={{
+                        labels: c.aiCalculation.itemsPerYear.map(y => y.year),
+                        datasets: c.aiCalculation.items.map((it, ii) => ({
+                          label: it.label,
+                          data: c.aiCalculation.itemsPerYear.map(y => y.values[ii]),
+                          backgroundColor: ['#ff7010', '#1a1f36', '#6366f1', '#10b981', '#f59e0b'][ii % 5],
+                          borderRadius: 4,
+                        })),
+                      }}
+                      options={{
+                        ...barOpts((v) => `${v?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${c.aiCalculation.items[0]?.unit || ''}`),
+                        plugins: {
+                          ...barOpts((v) => fmtMn(v, currencyUnit)).plugins,
+                          legend: { display: true, position: 'bottom', labels: { font: { size: 9 }, color: '#6b7280', boxWidth: 8, boxHeight: 8, borderRadius: 3, padding: 6, usePointStyle: true, pointStyle: 'circle' } },
+                        },
+                      }}
+                    />
                   </div>
-                ))}
-              </div>
+                  <SimpleTable
+                    headers={['Year', ...c.aiCalculation.items.map(it => it.label)]}
+                    rows={c.aiCalculation.itemsPerYear.map(y => ({
+                      label: `FY ${y.year}`,
+                      cells: y.values.map((v, ii) => v != null
+                        ? `${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${c.aiCalculation.items[ii]?.unit || ''}`
+                        : '—'),
+                    }))}
+                  />
+                </>
+              ) : (
+                <div className="space-y-1">
+                  {c.aiCalculation.items?.map((it, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 py-1 px-2 rounded-md bg-white/70 border border-indigo-100/70">
+                      <p className="text-[11px] text-gray-500 truncate">{it.label}</p>
+                      <p className="text-xs font-bold text-indigo-700 whitespace-nowrap">
+                        {typeof it.value === 'number' ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : it.value}
+                        {it.unit || ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )
             ) : (
               <>
                 {c.aiCalculation.value != null && (
