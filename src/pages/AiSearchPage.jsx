@@ -1308,16 +1308,38 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
               </p>
               <CopyButton
                 className="text-indigo-400 hover:text-indigo-600"
-                text={[
-                  c.aiCalculation.value != null
-                    ? `${c.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${c.aiCalculation.unit ? ` ${c.aiCalculation.unit}` : ''}`
-                    : null,
-                  c.aiCalculation.formula,
-                ].filter(Boolean).join('\n')}
+                text={
+                  c.aiCalculation.compareMode
+                    ? c.aiCalculation.items?.map(it => `${it.label}: ${it.value}${it.unit || ''}`).join('\n')
+                    : [
+                        c.aiCalculation.value != null
+                          ? `${c.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${c.aiCalculation.unit ? ` ${c.aiCalculation.unit}` : ''}`
+                          : null,
+                        c.aiCalculation.formula,
+                      ].filter(Boolean).join('\n')
+                }
               />
             </div>
             {c.aiCalculation.error ? (
               <p className="text-xs text-gray-500">{c.aiCalculation.answer}</p>
+            ) : c.aiCalculation.compareMode ? (
+              // "Employee cost and other expenses vs revenue"-style multi-metric ask --
+              // the top-level single-company view already renders this `items` shape in
+              // full (bar chart, itemDetails, ...) further down this same file; this
+              // per-company comparison card only had the single value/formula branch
+              // below, so the exact same response shape rendered a totally empty box
+              // here (no value, no formula -- both undefined on a compareMode payload).
+              <div className="space-y-1">
+                {c.aiCalculation.items?.map((it, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 py-1 px-2 rounded-md bg-white/70 border border-indigo-100/70">
+                    <p className="text-[11px] text-gray-500 truncate">{it.label}</p>
+                    <p className="text-xs font-bold text-indigo-700 whitespace-nowrap">
+                      {typeof it.value === 'number' ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : it.value}
+                      {it.unit || ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
             ) : (
               <>
                 {c.aiCalculation.value != null && (
