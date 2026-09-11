@@ -1312,7 +1312,27 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
             independently per company since compareCompanies() calls search()
             once for each, so a query like "CompanyA vs CompanyB revenue divided
             by employee count" gets its own computed answer per card here. */}
-        {c.aiCalculation && (
+        {c.aiCalculation && (() => {
+          // Normalize the OLD 2-operand "X vs Y" shape (leftLabel/rightLabel/leftValue/
+          // rightValue/perYearCompare) into the SAME items/itemsPerYear shape the N-operand
+          // ("X, Y and Z") case already sends, so this card only needs ONE rendering path
+          // below instead of two. Found live: a 2-metric multi-company comparison naming
+          // explicit years ("Climb Food vs Superfoods revenue vs cost of goods sold
+          // 2022-23, 2023-24, 2024-25") rendered a completely EMPTY box here -- this per-
+          // company card's compareMode branch only ever checked itemsPerYear/items (added
+          // for the 3+-operand case), never perYearCompare/leftLabel at all, even though
+          // calc_engine.py still sends the 2-operand shape under those field names
+          // specifically (kept for another, unrelated call site that still reads them).
+          const ac = c.aiCalculation
+          const compareItems = ac.items || (ac.leftLabel != null ? [
+            { label: ac.leftLabel, unit: ac.leftUnit, value: ac.leftValue },
+            { label: ac.rightLabel, unit: ac.rightUnit, value: ac.rightValue },
+          ] : null)
+          const compareItemsPerYear = ac.itemsPerYear?.length > 0 ? ac.itemsPerYear
+            : ac.perYearCompare?.length > 0
+              ? ac.perYearCompare.map(y => ({ year: y.year, values: [y.leftValue, y.rightValue] }))
+              : null
+          return (
           <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2.5">
             <div className="flex items-center justify-between mb-1">
               <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1">
@@ -1321,31 +1341,31 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
               <CopyButton
                 className="text-indigo-400 hover:text-indigo-600"
                 text={
-                  c.aiCalculation.compareMode
-                    ? c.aiCalculation.itemsPerYear?.length > 0
-                      ? [c.aiCalculation.items.map(it => it.label).join('\t'),
-                         ...c.aiCalculation.itemsPerYear.map(y =>
-                           `FY ${y.year}: ` + y.values.map((v, ii) => `${v ?? '—'}${c.aiCalculation.items[ii]?.unit || ''}`).join(' | '))].join('\n')
-                      : c.aiCalculation.items?.map(it => `${it.label}: ${it.value}${it.unit || ''}`).join('\n')
+                  ac.compareMode
+                    ? compareItemsPerYear
+                      ? [compareItems.map(it => it.label).join('\t'),
+                         ...compareItemsPerYear.map(y =>
+                           `FY ${y.year}: ` + y.values.map((v, ii) => `${v ?? '—'}${compareItems[ii]?.unit || ''}`).join(' | '))].join('\n')
+                      : compareItems?.map(it => `${it.label}: ${it.value}${it.unit || ''}`).join('\n')
                     : [
-                        c.aiCalculation.value != null
-                          ? `${c.aiCalculation.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${c.aiCalculation.unit ? ` ${c.aiCalculation.unit}` : ''}`
+                        ac.value != null
+                          ? `${ac.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${ac.unit ? ` ${ac.unit}` : ''}`
                           : null,
-                        c.aiCalculation.formula,
+                        ac.formula,
                       ].filter(Boolean).join('\n')
                 }
               />
             </div>
-            {c.aiCalculation.error ? (
-              <p className="text-xs text-gray-500">{c.aiCalculation.answer}</p>
-            ) : c.aiCalculation.compareMode ? (
+            {ac.error ? (
+              <p className="text-xs text-gray-500">{ac.answer}</p>
+            ) : ac.compareMode ? (
               // "Employee cost and other expenses vs revenue"-style multi-metric ask --
               // the top-level single-company view already renders this `items` shape in
               // full (bar chart, itemDetails, ...) further down this same file; this
               // per-company comparison card only had the single value/formula branch
               // below, so the exact same response shape rendered a totally empty box
               // here (no value, no formula -- both undefined on a compareMode payload).
-              c.aiCalculation.itemsPerYear?.length > 0 ? (
+              compareItemsPerYear ? (
                 // "...2022-23, 2023-24, 2024-25" — explicit years named, same
                 // graph+table shape the top-level single-company view already
                 // renders for this exact itemsPerYear payload, just scoped to
@@ -1354,16 +1374,16 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
                   <div className="mb-3" style={{ height: 160 }}>
                     <Bar
                       data={{
-                        labels: c.aiCalculation.itemsPerYear.map(y => y.year),
-                        datasets: c.aiCalculation.items.map((it, ii) => ({
+                        labels: compareItemsPerYear.map(y => y.year),
+                        datasets: compareItems.map((it, ii) => ({
                           label: it.label,
-                          data: c.aiCalculation.itemsPerYear.map(y => y.values[ii]),
+                          data: compareItemsPerYear.map(y => y.values[ii]),
                           backgroundColor: ['#ff7010', '#1a1f36', '#6366f1', '#10b981', '#f59e0b'][ii % 5],
                           borderRadius: 4,
                         })),
                       }}
                       options={{
-                        ...barOpts((v) => `${v?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${c.aiCalculation.items[0]?.unit || ''}`),
+                        ...barOpts((v) => `${v?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${compareItems[0]?.unit || ''}`),
                         plugins: {
                           ...barOpts((v) => fmtMn(v, currencyUnit)).plugins,
                           legend: { display: true, position: 'bottom', labels: { font: { size: 9 }, color: '#6b7280', boxWidth: 8, boxHeight: 8, borderRadius: 3, padding: 6, usePointStyle: true, pointStyle: 'circle' } },
@@ -1372,18 +1392,18 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
                     />
                   </div>
                   <SimpleTable
-                    headers={['Year', ...c.aiCalculation.items.map(it => it.label)]}
-                    rows={c.aiCalculation.itemsPerYear.map(y => ({
+                    headers={['Year', ...compareItems.map(it => it.label)]}
+                    rows={compareItemsPerYear.map(y => ({
                       label: `FY ${y.year}`,
                       cells: y.values.map((v, ii) => v != null
-                        ? `${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${c.aiCalculation.items[ii]?.unit || ''}`
+                        ? `${v.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${compareItems[ii]?.unit || ''}`
                         : '—'),
                     }))}
                   />
                 </>
               ) : (
                 <div className="space-y-1">
-                  {c.aiCalculation.items?.map((it, i) => (
+                  {compareItems?.map((it, i) => (
                     <div key={i} className="flex items-center justify-between gap-2 py-1 px-2 rounded-md bg-white/70 border border-indigo-100/70">
                       <p className="text-[11px] text-gray-500 truncate">{it.label}</p>
                       <p className="text-xs font-bold text-indigo-700 whitespace-nowrap">
@@ -1408,7 +1428,8 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
               </>
             )}
           </div>
-        )}
+          )
+        })()}
         {!c.success && (
           <p className="text-xs text-gray-400 italic">{c.message || 'No data available.'}</p>
         )}
