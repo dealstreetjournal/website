@@ -58,6 +58,16 @@ const fmtMn = (v, unit = 'Mn') => {
   return sign + scaled.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + unit
 }
 
+// Debtor/Payable/Inventory Days, Cash Conversion Cycle -- a raw day count, never a rupee
+// amount, so it must never go through fmtMn's own ÷1000-and-scale-to-currency-unit logic
+// (found live: "Cash Conversion Cycle" showed "-₹0.01 Mn" for a real -13.8-day value,
+// since every isPercent-vs-fmtMn formatting decision on this page checked ONLY for "%" in
+// the label, with no days case at all -- same gap NON_CURRENCY_ROW_RE below already had
+// to be given "days" to close for the full-statement table). Mirrors the backend's own
+// value_format.py DAYS_RE.
+const isDaysLabel = (label) => /\bdays\b/i.test(label || '')
+const fmtDays = (v) => (v == null ? '—' : `${v.toFixed(1)} days`)
+
 // ── Full financial statement helpers (Balance Sheet / P&L / Cash Flow) ───────
 // Backend rows are {label, isHeader, values} in exact Excel order. isHeader rows
 // (e.g. "Shareholders' Funds", "Non-Current Liabilities") carry no values — they
@@ -87,7 +97,7 @@ const groupStatementRows = (rows) => {
 // Deliberately no "/months]" check — a row like "Monthly cash sales ₹ [(vi)=(v)/Months]"
 // divides BY a month-count in its formula, but the RESULT is still a rupee amount; only
 // "in months" (the row's own unit being a duration, e.g. "Runway (In months)") disqualifies it.
-const NON_CURRENCY_ROW_RE = /\b(ratio|multiple|metrics|turnover|headcount)\b|%|number of|in months/i
+const NON_CURRENCY_ROW_RE = /\b(ratio|multiple|metrics|turnover|headcount|days)\b|%|number of|in months/i
 const isNonCurrencyStatementRow = (label) => NON_CURRENCY_ROW_RE.test(label || '')
 
 // Values are raw INR thousands (same convention as chart data). Currency rows convert to
@@ -309,13 +319,14 @@ const getSingleMetricConfig = (mode, result) => {
     // formatting it with fmtMn (₹ Mn) would print something like "-₹21.20 Mn" for a -21.2%
     // margin. Format as a percentage whenever the row's own (uncleaned) label says so.
     const isPercent = /%/.test(rawLabel)
+    const isDays = isDaysLabel(rawLabel)
     return {
       labelTest: new RegExp('^' + escapeRegex(cleanTitle || 'x'), 'i'),
       title: cleanTitle || 'Value', accent: '#8b5cf6',
       // Same raw-ratio-needs-×100 fix as FocusedMetricTurn's own yFmt above — this series'
       // values are the same unscaled chartData.singleMetricChart numbers.
-      fmt: isPercent ? (v) => `${(v * 100).toFixed(1)}%` : (v) => fmtMn(v, result.currencyUnit),
-      isCurrency: !isPercent,
+      fmt: isPercent ? (v) => `${(v * 100).toFixed(1)}%` : isDays ? fmtDays : (v) => fmtMn(v, result.currencyUnit),
+      isCurrency: !isPercent && !isDays,
       series,
     }
   }
@@ -1090,7 +1101,7 @@ const FocusedMetricTurn = ({ result, instant = false }) => {
   // where the user never typed "%" at all (a percent row was simply what they asked for, e.g.
   // "margin") still showed a plainly wrong number instead of no data being percent-scaled
   // until actually asked for.
-  const yFmt = isPercent ? (v) => `${(v * 100).toFixed(1)}%` : (v) => fmtMn(v, result.currencyUnit)
+  const yFmt = isPercent ? (v) => `${(v * 100).toFixed(1)}%` : isDaysLabel(metric?.label) ? fmtDays : (v) => fmtMn(v, result.currencyUnit)
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
       <div className="flex items-start gap-3">
@@ -1181,9 +1192,10 @@ const FocusedMetricTurn = ({ result, instant = false }) => {
               headers={['Particulars', ...(result.financialYears || []).map(yr => `FY ${yr}`)]}
               rows={result.chartData.singleMetricGroupStatement.map(row => {
                 const rowIsPercent = /%/.test(row.label || '')
+                const rowIsDays = isDaysLabel(row.label)
                 return {
                   label: cleanMetricLabel(row.label),
-                  cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v, result.currencyUnit)),
+                  cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : rowIsDays ? fmtDays(v) : fmtMn(v, result.currencyUnit)),
                 }
               })}
             />
@@ -1409,13 +1421,15 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
           const chartKey = ['singleMetricChart', 'revenueChart', 'profitChart', 'ebitdaChart']
             .find(k => (c.chartData?.[k] || []).length > 1)
           if (!chartKey) return null
-          const isPercent = /%/.test(c.focusedMetricLabel || c.keyMetrics?.[0]?.label || '')
+          const rowLabel = c.focusedMetricLabel || c.keyMetrics?.[0]?.label || ''
+          const isPercent = /%/.test(rowLabel)
+          const rowIsDays = isDaysLabel(rowLabel)
           return (
             <SimpleTable
               headers={['Year', 'Value']}
               rows={c.chartData[chartKey].map(p => ({
                 label: `FY ${p.year}`,
-                cells: [p.value == null ? '—' : isPercent ? `${(p.value * 100).toFixed(1)}%` : fmtMn(p.value, currencyUnit)],
+                cells: [p.value == null ? '—' : isPercent ? `${(p.value * 100).toFixed(1)}%` : rowIsDays ? fmtDays(p.value) : fmtMn(p.value, currencyUnit)],
               }))}
             />
           )
@@ -1442,9 +1456,10 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
             headers={['Particulars', ...(c.financialYears || []).map(yr => `FY ${yr}`)]}
             rows={c.chartData.singleMetricGroupStatement.map(row => {
               const rowIsPercent = /%/.test(row.label || '')
+              const rowIsDays = isDaysLabel(row.label)
               return {
                 label: cleanMetricLabel(row.label),
-                cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v, currencyUnit)),
+                cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : rowIsDays ? fmtDays(v) : fmtMn(v, currencyUnit)),
               }
             })}
           />
@@ -2042,9 +2057,10 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                           headers={['Particulars', ...(result.financialYears || []).map(yr => `FY ${yr}`)]}
                                           rows={d.rows.map(row => {
                                             const rowIsPercent = /%/.test(row.label || '')
+                                            const rowIsDays = isDaysLabel(row.label)
                                             return {
                                               label: cleanMetricLabel(row.label),
-                                              cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : fmtMn(v, result.currencyUnit)),
+                                              cells: (row.values || []).map(v => v == null ? '—' : rowIsPercent ? `${(v * 100).toFixed(1)}%` : rowIsDays ? fmtDays(v) : fmtMn(v, result.currencyUnit)),
                                             }
                                           })}
                                         />
