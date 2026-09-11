@@ -1402,17 +1402,44 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
                   />
                 </>
               ) : (
-                <div className="space-y-1">
-                  {compareItems?.map((it, i) => (
-                    <div key={i} className="flex items-center justify-between gap-2 py-1 px-2 rounded-md bg-white/70 border border-indigo-100/70">
-                      <p className="text-[11px] text-gray-500 truncate">{it.label}</p>
-                      <p className="text-xs font-bold text-indigo-700 whitespace-nowrap">
-                        {typeof it.value === 'number' ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : it.value}
-                        {it.unit || ''}
-                      </p>
+                // Single year, no per-year series -- just one number per item. Found
+                // live: "revenue and cost of sales 2023-24" (a single named year) showed
+                // the two values below fine but no chart at all, unlike the "all years"
+                // branch above (which always drew one) -- a bare value list reads as
+                // "the graph is missing" even though every number IS there. A one-point-
+                // per-item bar chart still gives the same at-a-glance visual comparison
+                // the multi-year case has, just without a year axis.
+                <>
+                  {compareItems?.some(it => typeof it.value === 'number') && (
+                    <div className="mb-3" style={{ height: 140 }}>
+                      <Bar
+                        data={{
+                          labels: compareItems.map(it => it.label),
+                          datasets: [{
+                            data: compareItems.map(it => it.value),
+                            backgroundColor: compareItems.map((_, ii) => ['#ff7010', '#1a1f36', '#6366f1', '#10b981', '#f59e0b'][ii % 5]),
+                            borderRadius: 4,
+                          }],
+                        }}
+                        options={{
+                          ...barOpts((v) => `${v?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}${compareItems[0]?.unit || ''}`),
+                          plugins: { ...barOpts((v) => fmtMn(v, currencyUnit)).plugins, legend: { display: false } },
+                        }}
+                      />
                     </div>
-                  ))}
-                </div>
+                  )}
+                  <div className="space-y-1">
+                    {compareItems?.map((it, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2 py-1 px-2 rounded-md bg-white/70 border border-indigo-100/70">
+                        <p className="text-[11px] text-gray-500 truncate">{it.label}</p>
+                        <p className="text-xs font-bold text-indigo-700 whitespace-nowrap">
+                          {typeof it.value === 'number' ? it.value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : it.value}
+                          {it.unit || ''}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )
             ) : (
               <>
