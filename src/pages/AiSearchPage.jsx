@@ -438,6 +438,17 @@ const _typingListeners = new Set()
 const _beginTypingActivity = () => { _activeTyperCount++; _typingListeners.forEach(fn => fn(_activeTyperCount)) }
 const _endTypingActivity = () => { _activeTyperCount = Math.max(0, _activeTyperCount - 1); _typingListeners.forEach(fn => fn(_activeTyperCount)) }
 
+// The Stop button's own signal, separate from the history-restore `instant` prop below --
+// every TypewriterText instance currently mid-reveal subscribes here and, on a freeze,
+// clears its own interval and holds `shown` at EXACTLY whatever it had already revealed --
+// no jump to the full text, no onDone (so a later block still waiting on `start` never
+// begins either). Found live: the old stopGeneration() forced `instant` on the whole
+// turn instead, which doesn't freeze anything -- it makes TypewriterText show its FULL
+// text immediately and fire onDone right away, so Stop looked like it did the opposite of
+// stopping: every remaining block flashed in across the whole card at once.
+const _freezeListeners = new Set()
+const freezeAllTyping = () => { _freezeListeners.forEach(fn => fn()); _freezeListeners.clear() }
+
 // Reveals AI-written text a character at a time — used for the summary paragraph and the
 // year-selection question, so those read as the AI actively composing its answer rather
 // than a static block of text just popping in fully-formed. Re-types from scratch whenever
@@ -478,7 +489,11 @@ const TypewriterText = ({ text, speed = 20, instant = false, start = true, onDon
         if (!firedRef.current) { firedRef.current = true; onDone && onDone() }
       }
     }, speed)
-    return () => { clearInterval(id); release() }
+    // Stop button: freeze `shown` at whatever's already revealed, right now — no jump to
+    // full text, no onDone (a later block still waiting on `start` simply never begins).
+    const onFreeze = () => { clearInterval(id); release() }
+    _freezeListeners.add(onFreeze)
+    return () => { clearInterval(id); release(); _freezeListeners.delete(onFreeze) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, speed, instant, start])
   return shown
@@ -4297,9 +4312,10 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
 const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
   // Turns restored from sidebar history (loadHistoryResult stamps every one of them with
   // the source item's id) show their saved text immediately — no replayed "typing" effect.
-  // forceInstant is the same skip-the-animation switch, flipped by the Stop button
-  // (stopGeneration) on whichever turn was actively typing when it was pressed.
-  const instant = !!turn.historyId || !!turn.forceInstant
+  // The Stop button does NOT set this (that would jump straight to the full text instead
+  // of stopping) — see freezeAllTyping()/TypewriterText's own onFreeze for how Stop
+  // actually works: freezing every currently-typing block exactly where it is.
+  const instant = !!turn.historyId
   return (
   <div className="space-y-3" ref={scrollAnchorRef}>
     <UserBubble text={turn.userQuery} onEdit={onEditQuery} />
@@ -4503,14 +4519,15 @@ export default function AiSearchPage() {
   const searchAbortRef = useRef(null)
 
   // Stop button — mirrors ChatGPT/Claude's own mid-answer stop: cancels the network
-  // request if one is still in flight, and force-completes the currently-typing turn's
-  // animation (via its own forceInstant flag, read by Turn's `instant` below) if the
-  // network already resolved and only the reveal animation is still running.
+  // request if one is still in flight, and FREEZES the reveal exactly where it currently
+  // is if the network already resolved and only the typing animation is still running.
+  // Found live: this used to set a forceInstant flag that made TypewriterText jump straight
+  // to its full text and fire onDone immediately — the opposite of stopping, since every
+  // later block queued behind it then started and finished the same way, dumping the
+  // whole rest of the card at once instead of halting.
   const stopGeneration = () => {
     searchAbortRef.current?.abort()
-    if (isTyping) {
-      setTurns(prev => prev.map((t, i) => i === prev.length - 1 ? { ...t, forceInstant: true } : t))
-    }
+    if (isTyping) freezeAllTyping()
   }
 
   // ── Load history ────────────────────────────────────────────────────────────
