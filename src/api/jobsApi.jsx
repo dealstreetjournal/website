@@ -1,10 +1,12 @@
-import axios from './axiosInstance'
+// Called directly from the browser, on request -- the job board's own public API, not
+// routed through websitebackend. Plain fetch(), not the shared axiosInstance: that
+// instance is scoped to THIS site's own backend (baseURL + withCredentials), neither of
+// which belongs on a request to a different, third-party domain.
+const JOBS_API_URL = 'https://jobs.dealstreetjournal.com/api/public/jobs'
 
-// Proxied through websitebackend (see JobsController/JobsService there), not called
-// directly from the browser -- the upstream job-board API's own CORS allowlist only
-// covers job.dealstreetjournal.com and local dev origins, not this site's production
-// domain, so a direct client-side fetch would be blocked in production.
 export const getJobs = async () => {
-  const response = await axios.get('/dsj/jobs')
-  return Array.isArray(response.data) ? response.data : []
+  const response = await fetch(JOBS_API_URL)
+  if (!response.ok) return []
+  const data = await response.json()
+  return Array.isArray(data) ? data : []
 }
