@@ -28,7 +28,7 @@ export default function JobsBoard() {
       <Link
         to="/"
         title="Back to website"
-        className="fixed top-28 left-3 z-10 flex items-center gap-1 bg-gray-900/60 hover:bg-gray-900/90 text-white text-[11px] font-aptos-semibold pl-2 pr-2.5 py-1.5 rounded-full shadow-md backdrop-blur-sm transition-colors"
+        className="fixed top-20 left-3 z-50 flex items-center gap-1 bg-gray-900/60 hover:bg-gray-900/90 text-white text-[11px] font-aptos-semibold pl-2 pr-2.5 py-1.5 rounded-full shadow-md backdrop-blur-sm transition-colors"
       >
         <FaArrowLeft className="text-[11px]" />
         Back to website
