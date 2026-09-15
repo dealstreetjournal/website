@@ -1,7 +1,7 @@
 import React from 'react'
 import JobsSlider from '../components/JobsSlider'
 import JobsSteps from '../components/JobsSteps'
-import JobsFilter from '../components/JobsFilter'
+import JobsBoard from '../components/JobsBoard'
 
 const Jobs = () => {
   document.title = 'Jobs | DealStreetJournal'
@@ -10,7 +10,7 @@ const Jobs = () => {
     <div className="w-full">
       <JobsSlider />
       <JobsSteps />
-      <JobsFilter />
+      <JobsBoard />
     </div>
   )
 }
