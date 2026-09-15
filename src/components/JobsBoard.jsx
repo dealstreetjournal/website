@@ -9,18 +9,24 @@ import { FaArrowLeft } from 'react-icons/fa'
 const JOB_BOARD_URL = 'https://job.dealstreetjournal.com/'
 
 // Full-screen, same as AiSearchPage.jsx -- this component IS the entire /jobs route
-// (see App.jsx: that route sits outside <Layout/>, no site header/footer), so the
-// embedded board gets the whole viewport.
+// (see App.jsx: that route sits outside <Layout/>, no site header/footer).
+//
+// The iframe is deliberately NOT height-constrained to the viewport (no h-screen/
+// h-full/flex-1) -- it's given a large fixed height instead, taller than any one
+// screen. That's what makes the scroll listener below actually work: with a
+// viewport-sized iframe, ALL scrolling happens inside the iframe's own internal
+// scrollbar, which parent-page JS categorically cannot read (no browser exposes a
+// cross-origin iframe's scroll position at all -- confirmed live that this board's
+// own bundle has no postMessage support to work around it either). Oversizing the
+// iframe means the embedded page rarely needs its own internal scrollbar at all --
+// the OUTER document scrolls instead, through completely ordinary page scrolling,
+// which window.scrollY reads just fine.
+const IFRAME_HEIGHT = '400vh'
+
 export default function JobsBoard() {
   // "Back to website" floats below the board's own logo at rest (top-20, clearing its
-  // header band -- top-3 sat on the logo directly), and snaps to top-0 the moment THIS
-  // page's own window scrolls, back to top-20 once it scrolls back to the top. IMPORTANT
-  // caveat, on request but worth stating plainly: this can only ever react to a scroll
-  // on window (this outer page) -- it structurally CANNOT react to scrolling inside the
-  // iframe itself (the job listings), because no browser lets parent-page JS read a
-  // cross-origin iframe's scroll position at all. If the visible scrolling is happening
-  // inside the embedded board, this button will stay parked at top-20 throughout, not a
-  // bug in this code, a hard security boundary every browser enforces the same way.
+  // header band -- top-3 sat on the logo directly), and snaps to top-0 once the page
+  // scrolls, back to top-20 once scrolled back to the top.
   const [scrolled, setScrolled] = useState(false)
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 0)
@@ -30,7 +36,7 @@ export default function JobsBoard() {
   }, [])
 
   return (
-    <div className="w-full h-screen relative bg-white">
+    <div className="w-full min-h-screen relative bg-white">
       <Link
         to="/"
         title="Back to website"
@@ -45,7 +51,8 @@ export default function JobsBoard() {
       <iframe
         src={JOB_BOARD_URL}
         title="DealStreetJournal Job Openings"
-        className="w-full h-full border-0 block"
+        className="w-full border-0 block"
+        style={{ height: IFRAME_HEIGHT }}
       />
     </div>
   )
