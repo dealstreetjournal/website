@@ -27,8 +27,6 @@ export default function JobsBoard() {
           <FaArrowLeft className="text-[11px]" />
           Back to website
         </Link>
-        <div className="w-px h-4 bg-white/10 flex-shrink-0" />
-        <span className="text-gray-400 text-xs font-aptos-semibold truncate">Careers at DealStreetJournal</span>
         <a
           href={JOB_BOARD_URL}
           target="_blank"
