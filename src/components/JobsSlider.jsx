@@ -260,7 +260,7 @@ export default function JobsSlider() {
             <Reveal y={14} duration={550}>
               <span className="inline-flex items-center gap-2 bg-orange-50 text-[#ff7010] font-aptos-semibold text-xs tracking-widest uppercase px-4 py-1.5 rounded-full mb-6">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#ff7010]" />
-                DealStreetJournal Careers
+                Job Street Journal 
               </span>
             </Reveal>
             <Reveal delay={120} y={18} duration={600}>
