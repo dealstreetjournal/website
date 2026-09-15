@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FaArrowLeft } from 'react-icons/fa'
 
@@ -8,29 +9,49 @@ import { FaArrowLeft } from 'react-icons/fa'
 const JOB_BOARD_URL = 'https://job.dealstreetjournal.com/'
 
 // Full-screen, same as AiSearchPage.jsx -- this component IS the entire /jobs route
-// (see App.jsx: that route sits outside <Layout/>, no site header/footer), so it
-// needs its own "Back to website" the same way that page does. Everything else
-// inside the iframe -- a specific job, "Apply", footer links -- opens wherever the
-// board's own HTML sends it (its own domain); that's the embedded site's own link
-// behavior and isn't something this page can see or control (cross-origin content).
+// (see App.jsx: that route sits outside <Layout/>, no site header/footer).
+//
+// The iframe is deliberately NOT height-constrained to exactly one screen (no
+// h-screen/h-full/flex-1) -- that's what makes the scroll listener below actually
+// work: a viewport-sized iframe would force ALL scrolling to happen inside its own
+// internal scrollbar, which parent-page JS categorically cannot read (no browser
+// exposes a cross-origin iframe's scroll position at all -- confirmed live that this
+// board's own bundle has no postMessage support to work around it either). Giving it
+// EXTRA height beyond one screen means the outer document scrolls too, through
+// completely ordinary page scrolling, which window.scrollY reads fine -- 100vh extra
+// on desktop (h-[200vh] total), 50vh extra on phone (h-[150vh] total, on request:
+// 400vh made the "scrolled" flip feel like it needed far more scrolling than it
+// actually did on a small phone screen, where 400vh is a much larger multiple of the
+// viewport than on desktop).
 export default function JobsBoard() {
+  // "Back to website" floats below the board's own logo at rest (top-20, clearing its
+  // header band -- top-3 sat on the logo directly), and snaps to top-0 once the page
+  // scrolls, back to top-20 once scrolled back to the top.
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 0)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
-    <div className="w-full h-screen flex flex-col bg-gray-900">
-      <div className="flex-shrink-0 px-4 py-3">
-        <Link
-          to="/"
-          title="Back to website"
-          className="inline-flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-xs font-aptos-semibold"
-        >
-          <FaArrowLeft className="text-[11px]" />
-          Back to website
-        </Link>
-      </div>
+    <div className="w-full min-h-screen relative bg-white">
+      <Link
+        to="/"
+        title="Back to website"
+        className={`fixed left-3 z-50 flex items-center gap-1 bg-gray-900/60 hover:bg-gray-900/90 text-white text-[11px] font-aptos-semibold pl-2 pr-2.5 py-1.5 rounded-full shadow-md backdrop-blur-sm transition-all ${
+          scrolled ? 'top-0' : 'top-20'
+        }`}
+      >
+        <FaArrowLeft className="text-[11px]" />
+        Back to website
+      </Link>
 
       <iframe
         src={JOB_BOARD_URL}
         title="DealStreetJournal Job Openings"
-        className="w-full flex-1 border-0 block"
+        className="w-full border-0 block h-[150vh] md:h-[200vh]"
       />
     </div>
   )
