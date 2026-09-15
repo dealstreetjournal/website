@@ -18,13 +18,16 @@ const JOB_BOARD_URL = 'https://job.dealstreetjournal.com/'
 // the board's own header band (top-3 collided with its logo there; top-right
 // collided with its own Login link instead) -- top-16 clears that header height and
 // sits just under the logo's own column, on request, without covering either.
+// `fixed`, not `absolute` -- found live: the button drifted off-screen while
+// scrolling. `fixed` pins it to the viewport itself regardless of any scrolling in
+// the page or the embedded board underneath it.
 export default function JobsBoard() {
   return (
     <div className="w-full h-screen relative bg-white">
       <Link
         to="/"
         title="Back to website"
-        className="absolute top-16 left-3 z-10 flex items-center gap-1.5 bg-gray-900/85 hover:bg-gray-900 text-white text-xs font-aptos-semibold pl-2.5 pr-3 py-2 rounded-full shadow-lg backdrop-blur-sm transition-colors"
+        className="fixed top-16 left-3 z-10 flex items-center gap-1.5 bg-gray-900/85 hover:bg-gray-900 text-white text-xs font-aptos-semibold pl-2.5 pr-3 py-2 rounded-full shadow-lg backdrop-blur-sm transition-colors"
       >
         <FaArrowLeft className="text-[11px]" />
         Back to website
