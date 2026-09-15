@@ -14,10 +14,11 @@ const JOB_BOARD_URL = 'https://job.dealstreetjournal.com/'
 // "Back to website" is a small FLOATING button over the iframe, not a full-width bar
 // above it -- found live: a full bar stacked right on top of the job board's own
 // header read as two navbars on top of each other, and it also ate into the "full
-// page" space the board was asked to have. Anchored top-left, but pushed down below
-// the board's own header band (top-3 collided with its logo there; top-right
-// collided with its own Login link instead) -- top-16 clears that header height and
-// sits just under the logo's own column, on request, without covering either.
+// page" space the board was asked to have. Anchored top-left, pushed further down
+// below the board's own header/logo band (top-3 and top-16 both still sat too close
+// to it, found live) -- top-28 gives it real clearance, and it's lighter/smaller
+// (reduced opacity, tighter padding) so it reads as a small utility button, not
+// another piece of chrome competing with the board's own header.
 // `fixed`, not `absolute` -- found live: the button drifted off-screen while
 // scrolling. `fixed` pins it to the viewport itself regardless of any scrolling in
 // the page or the embedded board underneath it.
@@ -27,7 +28,7 @@ export default function JobsBoard() {
       <Link
         to="/"
         title="Back to website"
-        className="fixed top-16 left-3 z-10 flex items-center gap-1.5 bg-gray-900/85 hover:bg-gray-900 text-white text-xs font-aptos-semibold pl-2.5 pr-3 py-2 rounded-full shadow-lg backdrop-blur-sm transition-colors"
+        className="fixed top-28 left-3 z-10 flex items-center gap-1 bg-gray-900/60 hover:bg-gray-900/90 text-white text-[11px] font-aptos-semibold pl-2 pr-2.5 py-1.5 rounded-full shadow-md backdrop-blur-sm transition-colors"
       >
         <FaArrowLeft className="text-[11px]" />
         Back to website
