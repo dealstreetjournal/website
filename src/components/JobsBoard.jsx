@@ -14,14 +14,16 @@ const JOB_BOARD_URL = 'https://job.dealstreetjournal.com/'
 // "Back to website" is a small FLOATING button over the iframe, not a full-width bar
 // above it -- found live: a full bar stacked right on top of the job board's own
 // header read as two navbars on top of each other, and it also ate into the "full
-// page" space the board was asked to have.
+// page" space the board was asked to have. Anchored top-RIGHT specifically (not
+// top-left) -- found live: the job board's own logo sits in ITS top-left corner, so a
+// left-anchored floating button sat directly on top of it, hiding it.
 export default function JobsBoard() {
   return (
     <div className="w-full h-screen relative bg-white">
       <Link
         to="/"
         title="Back to website"
-        className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-gray-900/85 hover:bg-gray-900 text-white text-xs font-aptos-semibold pl-2.5 pr-3 py-2 rounded-full shadow-lg backdrop-blur-sm transition-colors"
+        className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-gray-900/85 hover:bg-gray-900 text-white text-xs font-aptos-semibold pl-2.5 pr-3 py-2 rounded-full shadow-lg backdrop-blur-sm transition-colors"
       >
         <FaArrowLeft className="text-[11px]" />
         Back to website
