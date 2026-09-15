@@ -1,7 +1,3 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { FaArrowLeft } from 'react-icons/fa'
-
 // The job board's own site -- no X-Frame-Options / frame-ancestors restriction
 // (checked live), so it can be embedded directly instead of re-fetching and
 // re-rendering its own listings through the public jobs API, which the API's own
@@ -9,50 +5,18 @@ import { FaArrowLeft } from 'react-icons/fa'
 const JOB_BOARD_URL = 'https://job.dealstreetjournal.com/'
 
 // Full-screen, same as AiSearchPage.jsx -- this component IS the entire /jobs route
-// (see App.jsx: that route sits outside <Layout/>, no site header/footer).
-//
-// The iframe is deliberately NOT height-constrained to exactly one screen (no
-// h-screen/h-full/flex-1) -- that's what makes the scroll listener below actually
-// work: a viewport-sized iframe would force ALL scrolling to happen inside its own
-// internal scrollbar, which parent-page JS categorically cannot read (no browser
-// exposes a cross-origin iframe's scroll position at all -- confirmed live that this
-// board's own bundle has no postMessage support to work around it either). Giving it
-// EXTRA height beyond one screen means the outer document scrolls too, through
-// completely ordinary page scrolling, which window.scrollY reads fine -- 100vh extra
-// on desktop (h-[200vh] total), 50vh extra on phone (h-[150vh] total, on request:
-// 400vh made the "scrolled" flip feel like it needed far more scrolling than it
-// actually did on a small phone screen, where 400vh is a much larger multiple of the
-// viewport than on desktop).
+// (see App.jsx: that route sits outside <Layout/>, no site header/footer). No "Back
+// to website" button anymore (removed on request) -- just the board itself, filling
+// the whole viewport with its own natural internal scrolling. Whatever a visitor
+// clicks inside it (a specific job, "Apply", etc.) opens wherever the board's own
+// HTML sends it -- that's entirely the embedded site's own link behavior, not
+// something this page can see or control at all (cross-origin content).
 export default function JobsBoard() {
-  // "Back to website" floats below the board's own logo at rest (top-20, clearing its
-  // header band -- top-3 sat on the logo directly), and snaps to top-0 once the page
-  // scrolls, back to top-20 once scrolled back to the top.
-  const [scrolled, setScrolled] = useState(false)
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 0)
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
   return (
-    <div className="w-full min-h-screen relative bg-white">
-      <Link
-        to="/"
-        title="Back to website"
-        className={`fixed left-3 z-50 flex items-center gap-1 bg-gray-900/60 hover:bg-gray-900/90 text-white text-[11px] font-aptos-semibold pl-2 pr-2.5 py-1.5 rounded-full shadow-md backdrop-blur-sm transition-all ${
-          scrolled ? 'top-0' : 'top-20'
-        }`}
-      >
-        <FaArrowLeft className="text-[11px]" />
-        Back to website
-      </Link>
-
-      <iframe
-        src={JOB_BOARD_URL}
-        title="DealStreetJournal Job Openings"
-        className="w-full border-0 block h-[150vh] md:h-[200vh]"
-      />
-    </div>
+    <iframe
+      src={JOB_BOARD_URL}
+      title="DealStreetJournal Job Openings"
+      className="w-full h-screen border-0 block"
+    />
   )
 }
