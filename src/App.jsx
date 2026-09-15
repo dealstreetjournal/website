@@ -56,6 +56,17 @@ const router = createBrowserRouter(
         </Suspense>
       }
     />
+    {/* Jobs runs full-screen too, same reasoning as /company-ai above — the embedded
+        job board (JobsBoard.jsx) should fill the whole viewport instead of sitting in
+        a constrained section below the site's own header/hero/footer chrome. */}
+    <Route
+      path="/jobs"
+      element={
+        <Suspense fallback={<div className="flex items-center justify-center min-h-[80vh]"><img src={spinner} alt="Loading" className="w-12 h-12 animate-spin mb-2 mix-blend-multiply" /></div>}>
+          <Jobs />
+        </Suspense>
+      }
+    />
     <Route element={<Layout />}>
       <Route
         index
@@ -492,24 +503,6 @@ const router = createBrowserRouter(
         }
       />
 
-      <Route
-        path="/jobs"
-        element={
-          <Suspense
-            fallback={
-              <div className="flex items-center justify-center min-h-[80vh]">
-                <img
-                  src={spinner}
-                  alt="Loading"
-                  className="w-12 h-12 animate-spin mb-2 mix-blend-multiply"
-                />
-              </div>
-            }
-          >
-            <Jobs />
-          </Suspense>
-        }
-      />
 
       <Route
         path="/contact-us"
