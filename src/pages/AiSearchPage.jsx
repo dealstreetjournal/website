@@ -47,6 +47,17 @@ import { logout as logoutApi } from '../api/authApi'
 // the "in crore"/"in lakh"/etc. query-requested-unit feature to the chart/table numbers too,
 // not just the headline/insight text the backend itself formats).
 const MN_TO_UNIT_MULTIPLIER = { Mn: 1, Thousand: 1000, Hundred: 10000, Lakh: 10, Cr: 0.1, Bn: 0.001 }
+// 2 decimal places by default — extended (up to 6) only when the value is genuinely
+// non-zero but would otherwise round away to "0.00", indistinguishable from an actual
+// zero. Mirrors the backend's own value_format.format_scaled_amount() exactly, so the
+// same figure never disagrees between a backend-built Notes sentence and this page's
+// own chart/table formatting. Found live: a real ₹1,000 amount (0.001 Mn) displayed as
+// "₹0.00 Mn" with nothing to show it wasn't literally zero.
+const scaledDecimals = (scaled) => {
+  let decimals = 2
+  while (decimals < 6 && scaled !== 0 && Number(scaled.toFixed(decimals)) === 0) decimals++
+  return decimals
+}
 // unit defaults to 'Mn' so every EXISTING call site (which never passed one) keeps behaving
 // exactly as before — only call sites that explicitly have a turn's own result.currencyUnit in
 // scope pass it through.
@@ -54,8 +65,9 @@ const fmtMn = (v, unit = 'Mn') => {
   if (v == null || v === 0) return `₹0.00 ${unit}`
   const millions = Math.abs(v) / 1000
   const scaled = millions * (MN_TO_UNIT_MULTIPLIER[unit] ?? 1)
+  const decimals = scaledDecimals(scaled)
   const sign = v < 0 ? '-₹' : '₹'
-  return sign + scaled.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + unit
+  return sign + scaled.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' ' + unit
 }
 
 // Debtor/Payable/Inventory Days, Cash Conversion Cycle -- a raw day count, never a rupee
@@ -119,7 +131,8 @@ const fmtStatementNum = (v, label, unit = 'Mn') => {
   // page. unit defaults to 'Mn' (see fmtMn's own comment) — StatementBlock passes its
   // currencyUnit prop through when the query asked for a different one.
   const scaled = (Math.abs(v) / 1000) * (MN_TO_UNIT_MULTIPLIER[unit] ?? 1)
-  const formatted = scaled.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + unit
+  const decimals = scaledDecimals(scaled)
+  const formatted = scaled.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' ' + unit
   return v < 0 ? `(${formatted})` : formatted
 }
 
