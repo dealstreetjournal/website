@@ -1540,9 +1540,38 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
             })}
           />
         )}
+        {/* Shareholding pattern (cap table) — a compact table version of the single-
+            company view's own rich Shareholding Pattern section (category filter
+            chips and pie charts omitted here; this card is one narrow column in a
+            side-by-side comparison, not the full-width single-company page). Found
+            live: "compare shareholding structure of X and Y" already returned real
+            shareholderTable/preferenceShareholderTable data per company (misc_views_
+            engine.build_cap_table(), reached via answer_engine.py's own compare-mode
+            cap-table routing fix), but this card had no renderer for either field at
+            all -- fell straight to the "No specific data found" fallback below
+            despite the data being right there in the response. */}
+        {c.success && !c.aiCalculation && c.chartData?.shareholderTable?.length > 0 && (
+          <SimpleTable
+            headers={['Shareholder', 'Category', 'Shares', '%']}
+            rows={c.chartData.shareholderTable.map(r => ({
+              label: r.name,
+              cells: [r.category || '—', r.shares || '—', r.percentage || '—'],
+            }))}
+          />
+        )}
+        {c.success && !c.aiCalculation && c.chartData?.preferenceShareholderTable?.length > 0 && (
+          <SimpleTable
+            headers={['Pref. Shareholder', 'Category', 'Shares', '%']}
+            rows={c.chartData.preferenceShareholderTable.map(r => ({
+              label: r.name,
+              cells: [r.category || '—', r.shares || '—', r.percentage || '—'],
+            }))}
+          />
+        )}
         {c.success && !c.aiCalculation
           && !['singleMetricChart', 'revenueChart', 'profitChart', 'ebitdaChart'].some(k => (c.chartData?.[k] || []).length > 1)
-          && !(c.keyMetrics?.length > 0) && !(c.chartData?.singleMetricGroupStatement?.length > 0) && (
+          && !(c.keyMetrics?.length > 0) && !(c.chartData?.singleMetricGroupStatement?.length > 0)
+          && !(c.chartData?.shareholderTable?.length > 0) && !(c.chartData?.preferenceShareholderTable?.length > 0) && (
           <p className="text-xs text-gray-400 italic">No specific data found for this query.</p>
         )}
         {/* Same "How this was calculated"/Notes treatment the single-company
