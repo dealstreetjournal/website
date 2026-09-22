@@ -83,7 +83,7 @@ const normalizeShareholderRows = (rows) => {
   if (!rows?.length) return rows || []
   const malformed = rows.every(row => parseShareholderNumber(row.shares) === 0)
     && rows.some(row => Math.abs(parseShareholderNumber(row.percentage)) > 100)
-  if (!malformed) return rows.map(row => ({ ...row, faceValue: row.faceValue ?? 10 }))
+  if (!malformed) return rows
 
   const rawCounts = rows.map(row => parseShareholderNumber(row.percentage))
   const total = rawCounts.reduce((sum, value) => sum + value, 0)
@@ -91,15 +91,19 @@ const normalizeShareholderRows = (rows) => {
 
   return rows.map((row, index) => ({
     ...row,
-    faceValue: row.faceValue ?? 10,
     shares: rawCounts[index].toLocaleString('en-IN', { maximumFractionDigits: 2 }),
     percentage: `${(rawCounts[index] / total * 100).toFixed(4)}%`,
   }))
 }
 
-const preferenceFaceValueLabel = (rows, fallback = 10) => {
+// No company on record has a real face-value field for its preference/CCPS holders --
+// only real groups (row.faceValue actually set by the backend, once that data exists)
+// ever produce a label here. Returns null (never a guessed number) when it isn't known,
+// so a caption/heading can fall back to plain "Preference Shareholders" instead of
+// silently claiming every company's face value is ₹10.
+const preferenceFaceValueLabel = (rows) => {
   const faceValues = [...new Set((rows || []).map(row => row.faceValue).filter(Boolean))]
-  return faceValues.length === 1 ? `Face Value ₹${faceValues[0]}` : `Face Value ₹${fallback}`
+  return faceValues.length === 1 ? `Face Value ₹${faceValues[0]}` : null
 }
 
 // Debtor/Payable/Inventory Days, Cash Conversion Cycle -- a raw day count, never a rupee
@@ -3269,11 +3273,18 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(/[,%]/g, '')); return Number.isFinite(n) ? n : 0 }
                             const totalPrefShares = filteredPrefRows.reduce((sum, r) => sum + numOf(r.shares), 0)
                             const totalPrefPct    = filteredPrefRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
-                            const prefGroups = [...new Set(filteredPrefRows.map(row => row.faceValue || 10))]
-                              .sort((a, b) => Number(b) - Number(a))
+                            // Grouped/subtotaled-by-face-value rendering only ever activates once a
+                            // row genuinely carries its own faceValue (real backend data, not yet
+                            // populated for any company) -- otherwise this is exactly the same
+                            // single flat group the table always rendered as, no fabricated ₹10.
+                            const prefFaceValueLabel = preferenceFaceValueLabel(filteredPrefRows)
+                            const prefGroups = filteredPrefRows.some(row => row.faceValue)
+                              ? [...new Set(filteredPrefRows.map(row => row.faceValue).filter(Boolean))]
+                                  .sort((a, b) => Number(b) - Number(a))
+                              : [null]
                             return (
                             <div className="mt-4">
-                              <p className="text-xs font-bold text-gray-800 mb-0.5">{prefCaption || `Preference Shareholders — ${preferenceFaceValueLabel(filteredPrefRows)}`}</p>
+                              <p className="text-xs font-bold text-gray-800 mb-0.5">{prefCaption || (prefFaceValueLabel ? `Preference Shareholders — ${prefFaceValueLabel}` : 'Preference Shareholders')}</p>
                               <p className="text-[10px] text-gray-400 mb-3">{filteredPrefRows.length} holder(s) on record</p>
 
                               {prefCategories.length > 1 && (
@@ -3341,27 +3352,33 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                       </thead>
                                       <tbody>
                                         {prefGroups.map(faceValue => {
-                                          const groupRows = filteredPrefRows.filter(row => Number(row.faceValue || 10) === Number(faceValue))
+                                          const groupRows = faceValue == null
+                                            ? filteredPrefRows
+                                            : filteredPrefRows.filter(row => Number(row.faceValue) === Number(faceValue))
                                           const groupShares = groupRows.reduce((sum, row) => sum + numOf(row.shares), 0)
                                           const groupPct = groupRows.reduce((sum, row) => sum + numOf(row.percentage), 0)
                                           return (
-                                            <Fragment key={faceValue}>
-                                              <tr className="bg-purple-50 border-y border-purple-100">
-                                                <td colSpan={4} className="py-2 px-3 font-black text-purple-700">Preference Shares — Face Value ₹{faceValue}</td>
-                                              </tr>
+                                            <Fragment key={faceValue ?? 'all'}>
+                                              {faceValue != null && (
+                                                <tr className="bg-purple-50 border-y border-purple-100">
+                                                  <td colSpan={4} className="py-2 px-3 font-black text-purple-700">Preference Shares — Face Value ₹{faceValue}</td>
+                                                </tr>
+                                              )}
                                               {groupRows.map((r, i) => (
-                                                <tr key={`${faceValue}-${i}`} className={`border-b border-gray-100 ${i%2===1?'bg-gray-50/50':''}`}>
+                                                <tr key={`${faceValue ?? 'all'}-${i}`} className={`border-b border-gray-100 ${i%2===1?'bg-gray-50/50':''}`}>
                                                   <td className="py-2 px-3 font-semibold text-gray-800">{r.name}</td>
                                                   <td className="py-2 px-3 text-gray-500">{r.category || '—'}</td>
                                                   <td className="py-2 px-3 text-right tabular-nums text-gray-700">{r.shares || '—'}</td>
                                                   <td className="py-2 px-3 text-right tabular-nums font-black text-purple-600">{r.percentage || '—'}</td>
                                                 </tr>
                                               ))}
+                                              {faceValue != null && (
                                               <tr className="border-b-2 border-purple-200 bg-purple-50/40">
                                                 <td colSpan={2} className="py-2 px-3 font-bold text-purple-800">Subtotal — ₹{faceValue} face value</td>
                                                 <td className="py-2 px-3 text-right tabular-nums font-bold text-purple-800">{groupShares.toLocaleString('en-IN')}</td>
                                                 <td className="py-2 px-3 text-right tabular-nums font-bold text-purple-800">{groupPct.toFixed(2)}%</td>
                                               </tr>
+                                              )}
                                             </Fragment>
                                           )
                                         })}
@@ -3530,9 +3547,12 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                     {pfRows.length > 0 && (() => {
                                       const totalPfShares = pfRows.reduce((sum, r) => sum + numOf(r.shares), 0)
                                       const totalPfPct    = pfRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
+                                      const pfFaceValueLabel = preferenceFaceValueLabel(pfRows)
+                                      const pfHeading = pfCaption
+                                        || (pfFaceValueLabel ? `Preference Shareholders — ${pfFaceValueLabel} (${pfRows.length})` : `Preference Shareholders (${pfRows.length})`)
                                       return (
                                         <div className={`grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start ${eqRows.length > 0 ? 'mt-4 pt-4 border-t border-gray-100' : ''}`}>
-                                          {renderTable(pfRows, pfCaption || `Preference Shareholders — ${preferenceFaceValueLabel(pfRows)} (${pfRows.length})`, `${pfRows.length} holder(s) on record`, 'text-purple-600', 'bg-purple-50', totalPfShares, totalPfPct)}
+                                          {renderTable(pfRows, pfHeading, `${pfRows.length} holder(s) on record`, 'text-purple-600', 'bg-purple-50', totalPfShares, totalPfPct)}
                                           {renderPie(pfPie, 'Preference Shareholding')}
                                         </div>
                                       )
