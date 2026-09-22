@@ -70,6 +70,32 @@ const fmtMn = (v, unit = 'Mn') => {
   return sign + scaled.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' ' + unit
 }
 
+// Some preference-shareholder records arrive with shares as 0 and the raw
+// share counts multiplied by 100 in the percentage field (for example,
+// 5500.0000% instead of 55 shares). Recover the cap table from that shape;
+// correctly populated rows pass through unchanged.
+const parseShareholderNumber = (value) => {
+  const number = parseFloat(String(value ?? '').replace(/[,%]/g, ''))
+  return Number.isFinite(number) ? number : 0
+}
+
+const normalizeShareholderRows = (rows) => {
+  if (!rows?.length) return rows || []
+  const malformed = rows.every(row => parseShareholderNumber(row.shares) === 0)
+    && rows.some(row => Math.abs(parseShareholderNumber(row.percentage)) > 100)
+  if (!malformed) return rows
+
+  const rawCounts = rows.map(row => parseShareholderNumber(row.percentage) / 100)
+  const total = rawCounts.reduce((sum, value) => sum + value, 0)
+  if (!total) return rows
+
+  return rows.map((row, index) => ({
+    ...row,
+    shares: rawCounts[index].toLocaleString('en-IN', { maximumFractionDigits: 2 }),
+    percentage: `${(rawCounts[index] / total * 100).toFixed(4)}%`,
+  }))
+}
+
 // Debtor/Payable/Inventory Days, Cash Conversion Cycle -- a raw day count, never a rupee
 // amount, so it must never go through fmtMn's own ÷1000-and-scale-to-currency-unit logic
 // (found live: "Cash Conversion Cycle" showed "-₹0.01 Mn" for a real -13.8-day value,
@@ -2909,8 +2935,10 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     // ── intent-specific rich data ──
                     const shareholderPie  = cd.shareholderPieChart     // {name: pct%}
                     const shareholderRows = cd.shareholderTable         // [{name,category,shares,percentage}]
-                    const prefRows        = cd.preferenceShareholderTable
-                    const prefPie         = cd.preferenceShareholderPieChart  // {name: pct%}
+                    const prefRows        = normalizeShareholderRows(cd.preferenceShareholderTable)
+                    const prefPie         = prefRows?.length > 0
+                      ? Object.fromEntries(prefRows.map(row => [row.name, parseShareholderNumber(row.percentage)]))
+                      : cd.preferenceShareholderPieChart  // {name: pct%}
                     const prefCaption     = cd.preferenceShareholderCaption   // verbatim Excel section title, e.g. "Compulsorily Convertible Preference Shares (CCPS) shareholding structure as on 31 March 2024"
                     const shareholderYearPanels = cd.shareholderYearPanels   // "shareholder all"/"year wise" — [{year, shareholderTable, shareholderPieChart, preferenceShareholderTable, preferenceShareholderPieChart, preferenceShareholderCaption}], one entry per FY that has its own cap-table block on record
                     const rptRows         = cd.rptTable                 // [{party,relationship,nature,amount}]
@@ -3384,8 +3412,10 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                               const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(/[,%]/g, '')); return Number.isFinite(n) ? n : 0 }
                               const eqRows   = panel.shareholderTable || []
                               const eqPie    = panel.shareholderPieChart
-                              const pfRows   = panel.preferenceShareholderTable || []
-                              const pfPie    = panel.preferenceShareholderPieChart
+                              const pfRows   = normalizeShareholderRows(panel.preferenceShareholderTable)
+                              const pfPie    = pfRows.length > 0
+                                ? Object.fromEntries(pfRows.map(row => [row.name, parseShareholderNumber(row.percentage)]))
+                                : panel.preferenceShareholderPieChart
                               const pfCaption = panel.preferenceShareholderCaption
                               const totalEqShares = eqRows.reduce((sum, r) => sum + numOf(r.shares), 0)
                               const totalEqPct    = eqRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
