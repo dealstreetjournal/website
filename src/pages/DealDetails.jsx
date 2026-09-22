@@ -439,6 +439,10 @@ const DealDetails = () => {
                     industry={deal.companyInfo?.industry}
                     netProfitLoss={deal.companyInfo?.netProfitLoss}
                     yearIncorporation={deal.companyInfo?.yearIncorporation}
+                    incorporationDate={
+                      deal.companyInfo?.incorporationDate ||
+                      deal.companyInfo?.dateOfIncorporation
+                    }
                   />
                 </div>
               )}

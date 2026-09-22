@@ -71,8 +71,8 @@ const fmtMn = (v, unit = 'Mn') => {
 }
 
 // Some preference-shareholder records arrive with shares as 0 and the raw
-// share counts multiplied by 100 in the percentage field (for example,
-// 5500.0000% instead of 55 shares). Recover the cap table from that shape;
+// share counts in the percentage field (for example, 5500.0000% means 5,500
+// shares). Recover the cap table from that shape;
 // correctly populated rows pass through unchanged.
 const parseShareholderNumber = (value) => {
   const number = parseFloat(String(value ?? '').replace(/[,%]/g, ''))
@@ -83,17 +83,23 @@ const normalizeShareholderRows = (rows) => {
   if (!rows?.length) return rows || []
   const malformed = rows.every(row => parseShareholderNumber(row.shares) === 0)
     && rows.some(row => Math.abs(parseShareholderNumber(row.percentage)) > 100)
-  if (!malformed) return rows
+  if (!malformed) return rows.map(row => ({ ...row, faceValue: row.faceValue ?? 10 }))
 
-  const rawCounts = rows.map(row => parseShareholderNumber(row.percentage) / 100)
+  const rawCounts = rows.map(row => parseShareholderNumber(row.percentage))
   const total = rawCounts.reduce((sum, value) => sum + value, 0)
   if (!total) return rows
 
   return rows.map((row, index) => ({
     ...row,
+    faceValue: row.faceValue ?? 10,
     shares: rawCounts[index].toLocaleString('en-IN', { maximumFractionDigits: 2 }),
     percentage: `${(rawCounts[index] / total * 100).toFixed(4)}%`,
   }))
+}
+
+const preferenceFaceValueLabel = (rows, fallback = 10) => {
+  const faceValues = [...new Set((rows || []).map(row => row.faceValue).filter(Boolean))]
+  return faceValues.length === 1 ? `Face Value ₹${faceValues[0]}` : `Face Value ₹${fallback}`
 }
 
 // Debtor/Payable/Inventory Days, Cash Conversion Cycle -- a raw day count, never a rupee
@@ -1588,7 +1594,7 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
         {c.success && !c.aiCalculation && c.chartData?.preferenceShareholderTable?.length > 0 && (
           <SimpleTable
             headers={['Pref. Shareholder', 'Category', 'Shares', '%']}
-            rows={c.chartData.preferenceShareholderTable.map(r => ({
+            rows={normalizeShareholderRows(c.chartData.preferenceShareholderTable).map(r => ({
               label: r.name,
               cells: [r.category || '—', r.shares || '—', r.percentage || '—'],
             }))}
@@ -2935,7 +2941,11 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                     // ── intent-specific rich data ──
                     const shareholderPie  = cd.shareholderPieChart     // {name: pct%}
                     const shareholderRows = cd.shareholderTable         // [{name,category,shares,percentage}]
-                    const prefRows        = normalizeShareholderRows(cd.preferenceShareholderTable)
+                    const rawPreferenceGroups = Array.isArray(cd.preferenceShareholderGroups)
+                      ? cd.preferenceShareholderGroups.flatMap(group =>
+                          (group.rows || []).map(row => ({ ...row, faceValue: group.faceValue })))
+                      : cd.preferenceShareholderTable
+                    const prefRows        = normalizeShareholderRows(rawPreferenceGroups)
                     const prefPie         = prefRows?.length > 0
                       ? Object.fromEntries(prefRows.map(row => [row.name, parseShareholderNumber(row.percentage)]))
                       : cd.preferenceShareholderPieChart  // {name: pct%}
@@ -3259,9 +3269,11 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                             const numOf = (v) => { const n = parseFloat(String(v ?? '').replace(/[,%]/g, '')); return Number.isFinite(n) ? n : 0 }
                             const totalPrefShares = filteredPrefRows.reduce((sum, r) => sum + numOf(r.shares), 0)
                             const totalPrefPct    = filteredPrefRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
+                            const prefGroups = [...new Set(filteredPrefRows.map(row => row.faceValue || 10))]
+                              .sort((a, b) => Number(b) - Number(a))
                             return (
                             <div className="mt-4">
-                              <p className="text-xs font-bold text-gray-800 mb-0.5">{prefCaption || 'Preference Shareholders'}</p>
+                              <p className="text-xs font-bold text-gray-800 mb-0.5">{prefCaption || `Preference Shareholders — ${preferenceFaceValueLabel(filteredPrefRows)}`}</p>
                               <p className="text-[10px] text-gray-400 mb-3">{filteredPrefRows.length} holder(s) on record</p>
 
                               {prefCategories.length > 1 && (
@@ -3328,14 +3340,31 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {filteredPrefRows.map((r, i) => (
-                                          <tr key={i} className={`border-b border-gray-100 ${i%2===1?'bg-gray-50/50':''}`}>
-                                            <td className="py-2 px-3 font-semibold text-gray-800">{r.name}</td>
-                                            <td className="py-2 px-3 text-gray-500">{r.category || '—'}</td>
-                                            <td className="py-2 px-3 text-right tabular-nums text-gray-700">{r.shares || '—'}</td>
-                                            <td className="py-2 px-3 text-right tabular-nums font-black text-purple-600">{r.percentage || '—'}</td>
-                                          </tr>
-                                        ))}
+                                        {prefGroups.map(faceValue => {
+                                          const groupRows = filteredPrefRows.filter(row => Number(row.faceValue || 10) === Number(faceValue))
+                                          const groupShares = groupRows.reduce((sum, row) => sum + numOf(row.shares), 0)
+                                          const groupPct = groupRows.reduce((sum, row) => sum + numOf(row.percentage), 0)
+                                          return (
+                                            <Fragment key={faceValue}>
+                                              <tr className="bg-purple-50 border-y border-purple-100">
+                                                <td colSpan={4} className="py-2 px-3 font-black text-purple-700">Preference Shares — Face Value ₹{faceValue}</td>
+                                              </tr>
+                                              {groupRows.map((r, i) => (
+                                                <tr key={`${faceValue}-${i}`} className={`border-b border-gray-100 ${i%2===1?'bg-gray-50/50':''}`}>
+                                                  <td className="py-2 px-3 font-semibold text-gray-800">{r.name}</td>
+                                                  <td className="py-2 px-3 text-gray-500">{r.category || '—'}</td>
+                                                  <td className="py-2 px-3 text-right tabular-nums text-gray-700">{r.shares || '—'}</td>
+                                                  <td className="py-2 px-3 text-right tabular-nums font-black text-purple-600">{r.percentage || '—'}</td>
+                                                </tr>
+                                              ))}
+                                              <tr className="border-b-2 border-purple-200 bg-purple-50/40">
+                                                <td colSpan={2} className="py-2 px-3 font-bold text-purple-800">Subtotal — ₹{faceValue} face value</td>
+                                                <td className="py-2 px-3 text-right tabular-nums font-bold text-purple-800">{groupShares.toLocaleString('en-IN')}</td>
+                                                <td className="py-2 px-3 text-right tabular-nums font-bold text-purple-800">{groupPct.toFixed(2)}%</td>
+                                              </tr>
+                                            </Fragment>
+                                          )
+                                        })}
                                       </tbody>
                                       <tfoot>
                                         <tr className="border-t-2 border-gray-800">
@@ -3503,7 +3532,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                       const totalPfPct    = pfRows.reduce((sum, r) => sum + numOf(r.percentage), 0)
                                       return (
                                         <div className={`grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start ${eqRows.length > 0 ? 'mt-4 pt-4 border-t border-gray-100' : ''}`}>
-                                          {renderTable(pfRows, pfCaption || `Preference Shareholders (${pfRows.length})`, `${pfRows.length} holder(s) on record`, 'text-purple-600', 'bg-purple-50', totalPfShares, totalPfPct)}
+                                          {renderTable(pfRows, pfCaption || `Preference Shareholders — ${preferenceFaceValueLabel(pfRows)} (${pfRows.length})`, `${pfRows.length} holder(s) on record`, 'text-purple-600', 'bg-purple-50', totalPfShares, totalPfPct)}
                                           {renderPie(pfPie, 'Preference Shareholding')}
                                         </div>
                                       )

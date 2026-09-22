@@ -17,7 +17,21 @@ const CompanyProfileSection = ({
   industry,
   netProfitLoss,
   yearIncorporation,
+  incorporationDate,
 }) => {
+  const displayIncorporationDate = incorporationDate
+    ? (() => {
+        const parsedDate = new Date(incorporationDate)
+        return Number.isNaN(parsedDate.getTime())
+          ? incorporationDate
+          : new Intl.DateTimeFormat('en-IN', {
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric',
+            }).format(parsedDate)
+      })()
+    : yearIncorporation
+
   return (
     <div className="max-w-2xl mx-auto bg-slate-100 border border-gray-200 rounded-lg shadow p-5">
       {/* Header */}
@@ -46,14 +60,14 @@ const CompanyProfileSection = ({
           </div>
         </div>
 
-        {/* Incorporation Year */}
+        {/* Incorporation date, with the old year-only field as fallback */}
         <div className="flex gap-2">
           <FaCalendarAlt size={18} className="text-[#ff7010] mt-1 shrink-0" />
           <div>
             <p className="text-gray-500 font-aptos-regular">
-              Incorporation Year
+              Date of Incorporation
             </p>
-            <p className="font-aptos-bold">{yearIncorporation}</p>
+            <p className="font-aptos-bold">{displayIncorporationDate}</p>
           </div>
         </div>
 
