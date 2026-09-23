@@ -2688,7 +2688,7 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                       adsRow  && { label: 'Advertisement Cost', value: fmtMn(adsRow.latest, result.currencyUnit) },
                     ].filter(Boolean)
 
-                    const hasCompanyInfo = meta.ceo || meta.incorporationDate || meta.boardOfDirectors?.length ||
+                    const hasCompanyInfo = meta.ceo || meta.incorporationDate || meta.brandName || meta.boardOfDirectors?.length ||
                       meta.investors?.length || result.industry || result.cin
                     // Key Highlights deliberately excluded from this snapshot -- the dedicated
                     // Key Highlights section further down (result.insights, unconditional on
@@ -2730,6 +2730,12 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                                   <div>
                                     <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Industry</p>
                                     <p className="text-sm font-bold text-gray-900 mt-0.5">{result.industry}</p>
+                                  </div>
+                                )}
+                                {meta.brandName && (
+                                  <div>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Brand</p>
+                                    <p className="text-sm font-bold text-gray-900 mt-0.5">{meta.brandName}</p>
                                   </div>
                                 )}
                                 {meta.incorporationDate && (
