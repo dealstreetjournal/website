@@ -4926,7 +4926,15 @@ export default function AiSearchPage() {
     const isUnattributedGlossary = result.ok && result.data?.glossary
       && [...turns].reverse().find(t => t.result?.companyName)?.result?.companyName
       && !apiQ.toLowerCase().includes([...turns].reverse().find(t => t.result?.companyName).result.companyName.toLowerCase())
-    if (!result.ok || isUnattributedGlossary) {
+    // The backend's own looksLikeUnresolvedCompanyName tells us whether the query
+    // genuinely named no company at all (safe to assume "continuing about the same
+    // company") or DID attempt one that just didn't match (e.g. a typo) -- found live:
+    // "climfoods EBITDA margin 2023-24" silently got stitched onto an unrelated
+    // PREVIOUS company in the thread and confidently showed that company's real
+    // numbers under a query that was clearly asking about a different one, with
+    // nothing telling the user a substitution happened. Only stitch when the backend
+    // has confirmed there was no attempted name to begin with.
+    if ((!result.ok && !result.data?.looksLikeUnresolvedCompanyName) || isUnattributedGlossary) {
       const lastCompanyName = [...turns].reverse().find(t => t.result?.companyName)?.result?.companyName
       if (lastCompanyName && !apiQ.toLowerCase().includes(lastCompanyName.toLowerCase())) {
         const retry = await trySearch(`${lastCompanyName} ${apiQ}`.trim())
