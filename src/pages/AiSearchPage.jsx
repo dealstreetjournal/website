@@ -1504,6 +1504,141 @@ const MarginComparisonTurn = ({ result, instant = false }) => {
   )
 }
 
+// A comparison where every company answered with its own plain calculation (e.g.
+// "Climb Food and Superfoods advertising to revenue 2022-23, 2023-24, 2024-25"): shown as one
+// normal answer card — title, a years × companies chart, a companies × years table, and each
+// company's own calculation trail — rather than one small card per company.
+const calcSeriesOf = (ac) => {
+  if (!ac || ac.error || ac.compareMode) return null
+  if (ac.perYear?.length > 0) return ac.perYear.map(p => ({ year: p.year, value: p.value, formula: p.formula }))
+  if (typeof ac.value === 'number') return [{ year: null, value: ac.value, formula: ac.formula }]
+  return null
+}
+
+const isCalcComparison = (result) => {
+  const ok = (result?.companies || []).filter(c => c.success)
+  return ok.length >= 2 && !result.crossCompanyCalculation && ok.every(c => calcSeriesOf(c.aiCalculation))
+}
+
+const calcTitle = (query) => {
+  const q = String(query || '').replace(/\b(all years?|year[\s-]*wise|detail(s)?)\b/gi, ' ').replace(/\s+/g, ' ').trim()
+  return q ? q.charAt(0).toUpperCase() + q.slice(1) : 'Comparison'
+}
+
+const CalcComparisonTurn = ({ result, instant = false }) => {
+  const { startAt, advance } = useTypeSequence(instant)
+  const companies = (result.companies || []).filter(c => c.success && calcSeriesOf(c.aiCalculation))
+  const failed = (result.companies || []).filter(c => !c.success || !calcSeriesOf(c.aiCalculation))
+  const names = companies.map(c => c.companyName)
+  const unit = companies[0]?.aiCalculation?.unit || ''
+  const fmt = (v) => (v == null ? '—' : `${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 })}${unit}`)
+  const years = [...new Set(companies.flatMap(c => calcSeriesOf(c.aiCalculation).map(p => p.year)).filter(Boolean))].sort()
+  const byYear = years.length > 0
+  const valueOf = (c, year) => {
+    const pts = calcSeriesOf(c.aiCalculation)
+    const pt = byYear ? pts.find(p => p.year === year) : pts[0]
+    return pt ? pt.value : null
+  }
+  const companyColor = (i) => COMPANY_SERIES_COLORS[i % COMPANY_SERIES_COLORS.length]
+  const trails = companies.flatMap(c => calcSeriesOf(c.aiCalculation)
+    .filter(p => p.formula)
+    .map(p => `${c.companyName}${p.year ? ` (FY ${p.year})` : ''}: ${p.formula}`))
+  const notes = companies.flatMap(c => (c.insights || []).map(n => `${c.companyName}: ${n}`))
+  const baseStage = 3
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+          <FaChartBar className="text-[#ff7010] text-xs" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-800">
+            <TypewriterText instant={instant} text={calcTitle(result.query)} start={startAt(0)} onDone={advance(0)} />
+          </p>
+          {startAt(1) && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              <TypewriterText instant={instant} text={names.join('  •  ')} start={startAt(1)} onDone={advance(1)} />
+            </p>
+          )}
+          {startAt(2) && (
+            <>
+              <div className="mt-4" style={{ height: 220 }}>
+                <Bar
+                  data={byYear ? {
+                    labels: years.map(y => `FY ${y}`),
+                    datasets: companies.map((c, i) => ({
+                      label: c.companyName, data: years.map(y => valueOf(c, y)),
+                      backgroundColor: companyColor(i), borderRadius: 4,
+                    })),
+                  } : {
+                    labels: names,
+                    datasets: [{
+                      label: calcTitle(result.query), data: companies.map(c => valueOf(c, null)),
+                      backgroundColor: companies.map((_, i) => companyColor(i)), borderRadius: 5,
+                    }],
+                  }}
+                  options={{
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                      legend: byYear
+                        ? { position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 10, padding: 8 } }
+                        : { display: false },
+                      tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label || ctx.label}: ${fmt(ctx.raw)}` } },
+                    },
+                    scales: {
+                      x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
+                      y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: (v) => fmt(v) } },
+                    },
+                  }}
+                />
+              </div>
+              <SimpleTable
+                headers={['Company', ...(byYear ? years.map(y => `FY ${y}`) : ['Value'])]}
+                rows={companies.map(c => ({
+                  label: c.companyName,
+                  cells: byYear ? years.map(y => fmt(valueOf(c, y))) : [fmt(valueOf(c, null))],
+                }))}
+              />
+              {failed.length > 0 && (
+                <p className="mt-2 text-xs text-gray-400 italic">
+                  {failed.map(c => `${c.companyName || 'A company'}: ${c.message || 'no data available for this.'}`).join(' ')}
+                </p>
+              )}
+            </>
+          )}
+          {trails.length > 0 && startAt(baseStage - 1) && (
+            <div className="mt-3 border-t border-gray-100 pt-2">
+              <p className="text-[11px] font-bold text-gray-500 mb-1">How this was calculated</p>
+              <div className="space-y-0.5">
+                {trails.map((t, i) => (
+                  <p key={i} className="text-[11px] text-gray-400 leading-relaxed break-words">{t}</p>
+                ))}
+              </div>
+            </div>
+          )}
+          {notes.length > 0 && startAt(baseStage - 1) && (
+            <div className="mt-3 border-t border-gray-100 pt-2.5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Notes</p>
+              <div className="space-y-1.5">
+                {notes.map((n, i) => {
+                  const stageNum = baseStage + i - 1
+                  if (!startAt(stageNum)) return null
+                  return (
+                    <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
+                      <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+                      <span><TypewriterText instant={instant} text={n} start={startAt(stageNum)} onDone={advance(stageNum)} /></span>
+                    </p>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const RankingTurn = ({ result, onFollowUp }) => (
               <div>
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
@@ -1604,8 +1739,8 @@ const CompareCompanyCard = ({ c, ci, currencyUnit, instant }) => {
           return (
           <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2.5">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[9px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-1">
-                <FaRobot className="text-[9px]" /> Calculated Answer
+              <p className="text-[11px] font-bold text-gray-600 truncate">
+                {ac.label || ''}
               </p>
               <CopyButton
                 className="text-indigo-400 hover:text-indigo-600"
@@ -1875,8 +2010,10 @@ const ComparisonTurn = ({ result, instant = false }) => (
                   {result.crossCompanyCalculation && (
                     <div className="px-6 py-5 border-t border-gray-100 bg-indigo-50/40">
                       <div className="flex items-center gap-2 mb-2">
-                        <FaRobot className="text-indigo-500 text-xs" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Cross-Company Calculated Answer</p>
+                        <FaChartBar className="text-[#ff7010] text-xs" />
+                        <p className="text-xs font-bold text-gray-700">
+                          {result.companies.map(c => c.companyName).filter(Boolean).join(' vs ')}
+                        </p>
                       </div>
                       {result.crossCompanyCalculation.error ? (
                         <p className="text-sm text-gray-500">{result.crossCompanyCalculation.answer}</p>
@@ -4660,7 +4797,9 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
     {turn.kind === 'comparison' && (isMarginComparison(turn.result)
       ? <MarginComparisonTurn result={turn.result} instant={instant} />
-      : <ComparisonTurn result={turn.result} instant={instant} />)}
+      : isCalcComparison(turn.result)
+        ? <CalcComparisonTurn result={turn.result} instant={instant} />
+        : <ComparisonTurn result={turn.result} instant={instant} />)}
     {turn.kind === 'metric'     && (turn.result?.marginSummary
       ? <MarginSummaryTurn result={turn.result} instant={instant} />
       : <FocusedMetricTurn result={turn.result} instant={instant} />)}
