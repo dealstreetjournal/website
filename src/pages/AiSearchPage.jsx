@@ -1299,6 +1299,211 @@ const FocusedMetricTurn = ({ result, instant = false }) => {
   )
 }
 
+// A bare "margin" ask (no specific margin named) — the backend's marginSummary response: Gross,
+// EBITDA, EBIT and PAT margin in that fixed order. Values arrive as raw ratios (0.184 = 18.4%).
+const MARGIN_SERIES_COLORS = ['#ff7010', '#1a1f36', '#10b981', '#6366f1']
+const COMPANY_SERIES_COLORS = ['#ff7010', '#1a1f36', '#10b981', '#6366f1', '#f59e0b', '#ec4899']
+const fmtMarginPct = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
+const toMarginPct = (v) => (v == null ? null : Number((v * 100).toFixed(2)))
+const marginChartOpts = (showLegend) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: {
+    legend: showLegend
+      ? { position: 'bottom', labels: { font: { size: 10 }, color: '#6b7280', boxWidth: 10, padding: 8 } }
+      : { display: false },
+    // Bars are plotted in %, but the tooltip shows the backend's own "₹X Mn (Y%)" text for
+    // the hovered point when the dataset carries it.
+    tooltip: { callbacks: { label: (c) => {
+      const text = c.dataset.displays?.[c.dataIndex] ?? (c.raw == null ? '—' : `${c.raw}%`)
+      return ` ${c.dataset.label || c.label}: ${text}`
+    } } },
+  },
+  scales: {
+    x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#9ca3af' } },
+    y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, color: '#9ca3af', callback: (v) => `${v}%` } },
+  },
+})
+
+const MarginSummaryTurn = ({ result, instant = false }) => {
+  const { startAt, advance } = useTypeSequence(instant)
+  const metrics = result.keyMetrics || []
+  const series = result.chartData?.marginSummary || []
+  const years = result.financialYears || []
+  const multiYear = years.length > 1
+  const chartStage = metrics.length * 2
+  // One year: one bar per margin. Several years: years on the x-axis, one coloured bar per margin.
+  const chartData = multiYear
+    ? {
+        labels: years.map(y => `FY ${y}`),
+        datasets: series.map((row, i) => ({
+          label: row.label, data: (row.values || []).map(toMarginPct), displays: row.displays,
+          backgroundColor: MARGIN_SERIES_COLORS[i % MARGIN_SERIES_COLORS.length], borderRadius: 4,
+        })),
+      }
+    : {
+        labels: series.map(row => row.label),
+        datasets: [{
+          label: years[0] ? `FY ${years[0]}` : 'Margin', data: series.map(row => toMarginPct(row.values?.[0])),
+          displays: series.map(row => row.displays?.[0]),
+          backgroundColor: series.map((_, i) => MARGIN_SERIES_COLORS[i % MARGIN_SERIES_COLORS.length]), borderRadius: 5,
+        }],
+      }
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+          <FaChartBar className="text-[#ff7010] text-xs" />
+        </div>
+        <div className="flex-1 min-w-0">
+          {/* Headline rows: the requested year, or the latest of several requested years. */}
+          <div className="divide-y divide-gray-100">
+            {metrics.map((m, i) => startAt(i * 2) && (
+              <div key={m.label} className="flex items-baseline justify-between gap-4 py-2">
+                <p className="text-sm font-bold text-gray-800">
+                  <TypewriterText instant={instant} text={`${m.label} (${years[years.length - 1] || ''})`}
+                    start={startAt(i * 2)} onDone={advance(i * 2)} />
+                </p>
+                {startAt(i * 2 + 1) && (
+                  <p className={`text-xl font-black ${valueColor(m.value)}`}>
+                    <TypewriterText instant={instant} text={String(m.value ?? '—')}
+                      start={startAt(i * 2 + 1)} onDone={advance(i * 2 + 1)} />
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          {startAt(chartStage) && series.length > 0 && (
+            <>
+              <div className="mt-4" style={{ height: 200 }}>
+                <Bar data={chartData} options={marginChartOpts(multiYear)} />
+              </div>
+              {multiYear && (
+                <SimpleTable
+                  headers={['Margin', ...years.map(y => `FY ${y}`)]}
+                  rows={series.map(row => ({
+                    label: row.label,
+                    cells: (row.values || []).map((v, j) => row.displays?.[j] ?? fmtMarginPct(v)),
+                    colorCells: true,
+                  }))}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// A bare "margin" comparison — every compared company answered with its own marginSummary.
+// One year: a single grouped chart (margins on the x-axis, one bar per company) plus a
+// margin × company table. Several years: one section per margin (Gross, EBITDA, EBIT, PAT),
+// each with a years × companies chart and table, so every margin can be read across both
+// time and companies.
+const isMarginComparison = (result) => {
+  const ok = (result?.companies || []).filter(c => c.success)
+  return ok.length >= 2 && ok.every(c => c.marginSummary)
+}
+
+const MarginComparisonTurn = ({ result, instant = false }) => {
+  const { startAt, advance } = useTypeSequence(instant)
+  const companies = (result.companies || []).filter(c => c.success && c.marginSummary)
+  const failed = (result.companies || []).filter(c => !c.success)
+  const names = companies.map(c => c.companyName)
+  const years = [...new Set(companies.flatMap(c => c.financialYears || []))]
+    .sort()
+  const marginLabels = ['Gross Margin', 'EBITDA Margin', 'EBIT Margin', 'PAT Margin']
+    .filter(l => companies.some(c => (c.chartData?.marginSummary || []).some(r => r.label === l)))
+  // A company's value for one margin in one year, or null when that company has no such
+  // year on record or that margin could not be computed for it.
+  const valueOf = (c, label, year) => {
+    const row = (c.chartData?.marginSummary || []).find(r => r.label === label)
+    const idx = (c.financialYears || []).indexOf(year)
+    return row && idx >= 0 ? row.values?.[idx] ?? null : null
+  }
+  // Same lookup, returning the backend's "₹X Mn (Y%)" text for that cell.
+  const displayOf = (c, label, year) => {
+    const row = (c.chartData?.marginSummary || []).find(r => r.label === label)
+    const idx = (c.financialYears || []).indexOf(year)
+    if (!row || idx < 0) return '—'
+    return row.displays?.[idx] ?? fmtMarginPct(row.values?.[idx])
+  }
+  const companyColor = (i) => COMPANY_SERIES_COLORS[i % COMPANY_SERIES_COLORS.length]
+  const multiYear = years.length > 1
+  const title = `Margin comparison — ${multiYear ? `FY ${years[0]} to FY ${years[years.length - 1]}` : `FY ${years[0] || ''}`}`
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+          <FaChartBar className="text-[#ff7010] text-xs" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-800">
+            <TypewriterText instant={instant} text={title} start={startAt(0)} onDone={advance(0)} />
+          </p>
+          {startAt(1) && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              <TypewriterText instant={instant} text={names.join('  •  ')} start={startAt(1)} onDone={advance(1)} />
+            </p>
+          )}
+          {startAt(2) && !multiYear && (
+            <>
+              <div className="mt-4" style={{ height: 220 }}>
+                <Bar
+                  data={{
+                    labels: marginLabels,
+                    datasets: companies.map((c, i) => ({
+                      label: c.companyName, data: marginLabels.map(l => toMarginPct(valueOf(c, l, years[0]))),
+                      displays: marginLabels.map(l => displayOf(c, l, years[0])),
+                      backgroundColor: companyColor(i), borderRadius: 4,
+                    })),
+                  }}
+                  options={marginChartOpts(true)}
+                />
+              </div>
+              <SimpleTable
+                headers={['Margin', ...names]}
+                rows={marginLabels.map(l => ({
+                  label: l, cells: companies.map(c => displayOf(c, l, years[0])), colorCells: true,
+                }))}
+              />
+            </>
+          )}
+          {startAt(2) && multiYear && marginLabels.map(l => (
+            <div key={l} className="mt-5 border-t border-gray-100 pt-3">
+              <p className="text-[11px] font-black uppercase tracking-widest text-gray-500">{l}</p>
+              <div className="mt-2" style={{ height: 200 }}>
+                <Bar
+                  data={{
+                    labels: years.map(y => `FY ${y}`),
+                    datasets: companies.map((c, i) => ({
+                      label: c.companyName, data: years.map(y => toMarginPct(valueOf(c, l, y))),
+                      displays: years.map(y => displayOf(c, l, y)),
+                      backgroundColor: companyColor(i), borderRadius: 4,
+                    })),
+                  }}
+                  options={marginChartOpts(true)}
+                />
+              </div>
+              <SimpleTable
+                headers={['Company', ...years.map(y => `FY ${y}`)]}
+                rows={companies.map(c => ({
+                  label: c.companyName, cells: years.map(y => displayOf(c, l, y)), colorCells: true,
+                }))}
+              />
+            </div>
+          ))}
+          {startAt(2) && failed.length > 0 && (
+            <p className="mt-3 text-xs text-gray-400 italic">
+              {failed.map(c => `${c.companyName || 'A company'}: ${c.message || 'no data available.'}`).join(' ')}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const RankingTurn = ({ result, onFollowUp }) => (
               <div>
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
@@ -4453,8 +4658,12 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
     {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'yearRangePrompt' && <YearRangePromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
-    {turn.kind === 'comparison' && <ComparisonTurn result={turn.result} instant={instant} />}
-    {turn.kind === 'metric'     && <FocusedMetricTurn result={turn.result} instant={instant} />}
+    {turn.kind === 'comparison' && (isMarginComparison(turn.result)
+      ? <MarginComparisonTurn result={turn.result} instant={instant} />
+      : <ComparisonTurn result={turn.result} instant={instant} />)}
+    {turn.kind === 'metric'     && (turn.result?.marginSummary
+      ? <MarginSummaryTurn result={turn.result} instant={instant} />
+      : <FocusedMetricTurn result={turn.result} instant={instant} />)}
     {turn.kind === 'answer'     && <AssistantAnswerTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
   </div>
   )
