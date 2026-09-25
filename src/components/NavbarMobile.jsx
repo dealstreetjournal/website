@@ -427,9 +427,9 @@ const NavbarMobile = () => {
               <Link
                 to="/jobs"
                 onClick={closeAllMenus}
-                className="cursor-pointer border-b border-gray-600 pb-2 ml-2 font-semibold whitespace-nowrap"
+                className="cursor-pointer border-b border-gray-600 pb-2 ml-2 whitespace-nowrap"
               >
-                <span className="dsj-jobs-gradient-text">Jobs</span>
+                <span className="dsj-jobs-gradient-btn inline-block font-semibold px-4 py-1 rounded shadow-sm">Jobs</span>
               </Link>
 
               {/* DSJ Insights Dropdown */}
