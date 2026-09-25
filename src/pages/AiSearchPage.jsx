@@ -1639,6 +1639,107 @@ const CalcComparisonTurn = ({ result, instant = false }) => {
   )
 }
 
+// Industry-wide answers (DSJ-AI's industry_engine): the companies in an industry, or the
+// industry's average margins with each company's own figure — one plain answer card.
+const IndustryTurn = ({ result, instant = false }) => {
+  const { startAt, advance } = useTypeSequence(instant)
+  const companies = result.companies || []
+  const metrics = result.metrics || []
+  const averages = result.averages || []
+  const isMargin = result.mode === 'margin'
+  const label = result.industryLabel || 'Industry'
+  const title = result.mode === 'none'
+    ? `${label} industry`
+    : isMargin
+      ? `${label} industry — average ${metrics.length === 1 ? metrics[0] : 'margins'}`
+      : `Companies in the ${label} industry`
+  const subtitle = result.mode === 'none' ? (result.message || '')
+    : `${companies.length} compan${companies.length === 1 ? 'y' : 'ies'}${result.year ? ` · FY ${result.year}` : ' · latest year on record for each'}`
+  const nameOf = (c) => (c.brandName ? `${c.companyName} (${c.brandName})` : c.companyName)
+  const shortName = (c) => c.brandName || c.companyName.replace(/\s+private\s+limited.*$/i, '')
+  const pct = (v) => (v == null ? null : Number((v * 100).toFixed(2)))
+  const notes = result.insights || []
+  const notesStage = 2 + averages.length
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+          <FaChartBar className="text-[#ff7010] text-xs" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-800">
+            <TypewriterText instant={instant} text={title} start={startAt(0)} onDone={advance(0)} />
+          </p>
+          {startAt(1) && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              <TypewriterText instant={instant} text={subtitle} start={startAt(1)} onDone={advance(1)} />
+            </p>
+          )}
+          {isMargin && averages.length > 0 && (
+            <div className="divide-y divide-gray-100 mt-2">
+              {averages.map((a, i) => startAt(2 + i) && (
+                <div key={a.label} className="flex items-baseline justify-between gap-4 py-2">
+                  <p className="text-sm font-bold text-gray-800">Average {a.label}</p>
+                  <p className={`text-xl font-black ${valueColor(a.display)}`}>
+                    <TypewriterText instant={instant} text={a.display} start={startAt(2 + i)} onDone={advance(2 + i)} />
+                    <span className="text-xs font-semibold text-gray-400"> · median {a.medianDisplay}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          {result.mode !== 'none' && startAt(notesStage) && companies.length > 0 && (
+            <>
+              {isMargin && (
+                <div className="mt-4" style={{ height: 220 }}>
+                  <Bar
+                    data={{
+                      labels: companies.map(shortName),
+                      datasets: metrics.map((m, i) => ({
+                        label: m,
+                        data: companies.map(c => pct(c.margins?.[m]?.value)),
+                        displays: companies.map(c => c.margins?.[m]?.display),
+                        backgroundColor: MARGIN_SERIES_COLORS[i % MARGIN_SERIES_COLORS.length],
+                        borderRadius: 4,
+                      })),
+                    }}
+                    options={marginChartOpts(metrics.length > 1)}
+                  />
+                </div>
+              )}
+              <SimpleTable
+                headers={['Company', 'Industry', 'Year', 'Revenue', ...(isMargin ? metrics : [])]}
+                rows={companies.map(c => ({
+                  label: nameOf(c),
+                  cells: [c.industry || '—', c.year ? `FY ${c.year}` : '—', c.revenue || '—',
+                    ...(isMargin ? metrics.map(m => c.margins?.[m]?.display || '—') : [])],
+                }))}
+              />
+            </>
+          )}
+          {notes.length > 0 && startAt(notesStage) && (
+            <div className="mt-3 border-t border-gray-100 pt-2.5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Notes</p>
+              <div className="space-y-1.5">
+                {notes.map((n, i) => {
+                  const stageNum = notesStage + i
+                  if (!startAt(stageNum)) return null
+                  return (
+                    <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
+                      <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+                      <span><TypewriterText instant={instant} text={n} start={startAt(stageNum)} onDone={advance(stageNum)} /></span>
+                    </p>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const RankingTurn = ({ result, onFollowUp }) => (
               <div>
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
@@ -4795,6 +4896,7 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
     {turn.kind === 'yearPrompt' && <YearPromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'yearRangePrompt' && <YearRangePromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
+    {turn.kind === 'industry'   && <IndustryTurn result={turn.result} instant={instant} />}
     {turn.kind === 'comparison' && (isMarginComparison(turn.result)
       ? <MarginComparisonTurn result={turn.result} instant={instant} />
       : isCalcComparison(turn.result)
@@ -5111,6 +5213,7 @@ export default function AiSearchPage() {
     if (data.needsYearCorrection) return { id, userQuery, kind: 'yearCorrection', result: data }
     if (data.needsYearSelection) return { id, userQuery, kind: 'yearPrompt', result: data }
     if (data.needsYearRangeSelection) return { id, userQuery, kind: 'yearRangePrompt', result: data }
+    if (data.industryMode)       return { id, userQuery, kind: 'industry',   result: data }
     if (data.rankingMode)        return { id, userQuery, kind: 'ranking',    result: data }
     if (data.comparisonMode)     return { id, userQuery, kind: 'comparison', result: data }
     if (data.focusedMetric && !data.aiCalculation) return { id, userQuery, kind: 'metric', result: data }
