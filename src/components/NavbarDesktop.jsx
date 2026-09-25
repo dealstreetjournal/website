@@ -508,7 +508,7 @@ const NavbarDesktop = () => {
           {/* Jobs -- live for every visitor, no longer behind the DSJ AI access list. */}
           <Link
             to="/jobs"
-            className="cursor-pointer hover:text-[#ff7010] transition-colors whitespace-nowrap"
+            className="cursor-pointer whitespace-nowrap font-semibold dsj-jobs-gradient-text hover:brightness-110"
           >
             Jobs
           </Link>

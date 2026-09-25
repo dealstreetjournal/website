@@ -427,9 +427,9 @@ const NavbarMobile = () => {
               <Link
                 to="/jobs"
                 onClick={closeAllMenus}
-                className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2 font-medium whitespace-nowrap"
+                className="cursor-pointer border-b border-gray-600 pb-2 ml-2 font-semibold whitespace-nowrap"
               >
-                Jobs
+                <span className="dsj-jobs-gradient-text">Jobs</span>
               </Link>
 
               {/* DSJ Insights Dropdown */}

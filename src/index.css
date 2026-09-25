@@ -99,3 +99,23 @@ li {
 li::before {
   content: none !important;
 } */
+
+/* "Jobs" nav link — same orange → purple brand colours and the same flowing gradient
+   text animation as job.dealstreetjournal.com (its .dsj-gradient-text, used on the
+   welcome popup's "Members Only." line), so the link reads as the job board's own brand. */
+.dsj-jobs-gradient-text {
+  background: linear-gradient(90deg, #e6632c, #ffa45a, #e6632c, #7e22ce, #e6632c);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: dsj-jobs-gradient-flow 6s linear infinite;
+}
+
+@keyframes dsj-jobs-gradient-flow {
+  to { background-position: 300% center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsj-jobs-gradient-text { animation: none; }
+}
