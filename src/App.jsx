@@ -56,9 +56,7 @@ const router = createBrowserRouter(
         </Suspense>
       }
     />
-    {/* Jobs runs full-screen too, same reasoning as /company-ai above — the embedded
-        job board (JobsBoard.jsx) should fill the whole viewport instead of sitting in
-        a constrained section below the site's own header/hero/footer chrome. */}
+    {/* /jobs only forwards to job.dealstreetjournal.com (see pages/Jobs.jsx). */}
     <Route
       path="/jobs"
       element={

@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { fetchSearch } from '../api/homeApi'
 import { hasAiAccess } from '../utils/aiAccess'
+import { JOBS_SITE_URL, jobsSiteUrl } from '../utils/jobsLink'
 
 const NavbarDesktop = () => {
   const [activeDropdown, setActiveDropdown] = useState(null)
@@ -505,13 +506,15 @@ const NavbarDesktop = () => {
             </>
           )}
 
-          {/* Jobs -- live for every visitor, no longer behind the DSJ AI access list. */}
-          <Link
-            to="/jobs"
+          {/* Jobs -- opens job.dealstreetjournal.com itself; the link built at click time
+              carries this page's address so the board's "Back to website" returns here. */}
+          <a
+            href={JOBS_SITE_URL}
+            onClick={(e) => { e.preventDefault(); window.location.assign(jobsSiteUrl()) }}
             className="dsj-jobs-gradient-btn cursor-pointer whitespace-nowrap font-semibold px-4 py-1 rounded shadow-sm hover:brightness-110 transition"
           >
             Jobs
-          </Link>
+          </a>
 
           {/* Shopping Cart */}
           <Link

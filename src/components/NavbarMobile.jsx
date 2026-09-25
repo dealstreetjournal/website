@@ -14,6 +14,7 @@ import { useAuth } from '../hooks/useAuth'
 import { fetchSearch } from '../api/homeApi'
 import { useQuery } from '@tanstack/react-query'
 import { hasAiAccess } from '../utils/aiAccess'
+import { JOBS_SITE_URL, jobsSiteUrl } from '../utils/jobsLink'
 
 const NavbarMobile = () => {
   const [activeDropdown, setActiveDropdown] = useState(null)
@@ -423,14 +424,14 @@ const NavbarMobile = () => {
                 </>
               )}
 
-              {/* Jobs -- live for every visitor, same as the desktop navbar. */}
-              <Link
-                to="/jobs"
-                onClick={closeAllMenus}
+              {/* Jobs -- opens job.dealstreetjournal.com itself, same as the desktop navbar. */}
+              <a
+                href={JOBS_SITE_URL}
+                onClick={(e) => { e.preventDefault(); closeAllMenus(); window.location.assign(jobsSiteUrl()) }}
                 className="cursor-pointer border-b border-gray-600 pb-2 ml-2 whitespace-nowrap"
               >
                 <span className="dsj-jobs-gradient-btn inline-block font-semibold px-4 py-1 rounded shadow-sm">Jobs</span>
-              </Link>
+              </a>
 
               {/* DSJ Insights Dropdown */}
               <div
