@@ -502,17 +502,16 @@ const NavbarDesktop = () => {
               >
                 DSJ AI
               </Link>
-
-              {/* Jobs -- not ready to go live to everyone yet, gated behind
-                  the same access-list check as DSJ AI until then. */}
-              <Link
-                to="/jobs"
-                className="cursor-pointer hover:text-[#ff7010] transition-colors whitespace-nowrap"
-              >
-                Jobs
-              </Link>
             </>
           )}
+
+          {/* Jobs -- live for every visitor, no longer behind the DSJ AI access list. */}
+          <Link
+            to="/jobs"
+            className="cursor-pointer hover:text-[#ff7010] transition-colors whitespace-nowrap"
+          >
+            Jobs
+          </Link>
 
           {/* Shopping Cart */}
           <Link

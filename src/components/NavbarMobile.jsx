@@ -423,6 +423,15 @@ const NavbarMobile = () => {
                 </>
               )}
 
+              {/* Jobs -- live for every visitor, same as the desktop navbar. */}
+              <Link
+                to="/jobs"
+                onClick={closeAllMenus}
+                className="cursor-pointer hover:text-[#ff7010] transition-colors border-b border-gray-600 pb-2 ml-2 font-medium whitespace-nowrap"
+              >
+                Jobs
+              </Link>
+
               {/* DSJ Insights Dropdown */}
               <div
                 className="relative group"
