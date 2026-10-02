@@ -1690,6 +1690,96 @@ const CalcComparisonTurn = ({ result, instant = false }) => {
   )
 }
 
+// EBITDA-margin driver analysis (DSJ-AI's margin_analysis_engine): what moved the margin,
+// which cost weighs on it most, or how one named cost affects it. Every block types in
+// order — title, headline figures, each table's heading (its rows appear once the heading
+// is done), notes, improvement notes, then the formula line.
+const NoteList = ({ heading, notes, firstStage, startAt, advance, instant }) => (
+  notes.length > 0 && startAt(firstStage) && (
+    <div className="mt-3 border-t border-gray-100 pt-2.5">
+      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">{heading}</p>
+      <div className="space-y-1.5">
+        {notes.map((n, i) => {
+          const stageNum = firstStage + i
+          if (!startAt(stageNum)) return null
+          return (
+            <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
+              <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+              <span><TypewriterText instant={instant} text={n} start={startAt(stageNum)} onDone={advance(stageNum)} /></span>
+            </p>
+          )
+        })}
+      </div>
+    </div>
+  )
+)
+
+const MarginAnalysisTurn = ({ result, instant = false }) => {
+  const { startAt, advance } = useTypeSequence(instant)
+  const headline = result.headline || []
+  const tables = result.tables || []
+  const notes = result.insights || []
+  const improve = result.improvementNotes || []
+  const headStage = 2
+  const tableStage = headStage + headline.length
+  const notesStage = tableStage + tables.length
+  const improveStage = notesStage + notes.length
+  const formulaStage = improveStage + improve.length
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+          <FaChartBar className="text-[#ff7010] text-xs" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-800">
+            <TypewriterText instant={instant} text={result.title || ''} start={startAt(0)} onDone={advance(0)} />
+          </p>
+          {startAt(1) && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              <TypewriterText instant={instant} text={result.subtitle || ''} start={startAt(1)} onDone={advance(1)} />
+            </p>
+          )}
+          {headline.length > 0 && startAt(headStage) && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+              {headline.map((h, i) => startAt(headStage + i) && (
+                <div key={h.label} className="bg-white border border-slate-200 rounded-xl px-3 py-2.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{h.label}</p>
+                  <p className={`text-sm font-bold mt-0.5 ${valueColor(h.display)}`}>
+                    <TypewriterText instant={instant} text={h.display} start={startAt(headStage + i)} onDone={advance(headStage + i)} />
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          {tables.map((t, i) => startAt(tableStage + i) && (
+            <div key={t.title} className="mt-4">
+              <p className="text-[11px] font-bold text-gray-600">
+                <TypewriterText instant={instant} text={t.title} start={startAt(tableStage + i)} onDone={advance(tableStage + i)} />
+              </p>
+              {startAt(tableStage + i + 1) && (
+                <SimpleTable headers={t.headers} rows={t.rows.map(r => ({ label: r.label, cells: r.cells, colorCells: r.colorCells }))} />
+              )}
+            </div>
+          ))}
+          <NoteList heading="Notes" notes={notes} firstStage={notesStage}
+            startAt={startAt} advance={advance} instant={instant} />
+          <NoteList heading="How the EBITDA margin can improve" notes={improve} firstStage={improveStage}
+            startAt={startAt} advance={advance} instant={instant} />
+          {result.computedFrom && startAt(formulaStage) && (
+            <div className="mt-3 border-t border-gray-100 pt-2">
+              <p className="text-[11px] font-bold text-gray-500 mb-1">How this was calculated</p>
+              <p className="text-[11px] text-gray-400 leading-relaxed break-words">
+                <TypewriterText instant={instant} text={result.computedFrom} start={startAt(formulaStage)} onDone={advance(formulaStage)} />
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Industry-wide answers (DSJ-AI's industry_engine): the companies in an industry, or the
 // industry's average margins with each company's own figure — one plain answer card.
 const IndustryTurn = ({ result, instant = false }) => {
@@ -4956,6 +5046,7 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
     {turn.kind === 'yearRangePrompt' && <YearRangePromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
     {turn.kind === 'industry'   && <IndustryTurn result={turn.result} instant={instant} />}
+    {turn.kind === 'marginAnalysis' && <MarginAnalysisTurn result={turn.result} instant={instant} />}
     {turn.kind === 'comparison' && (isMarginComparison(turn.result)
       ? <MarginComparisonTurn result={turn.result} instant={instant} />
       : isCalcComparison(turn.result)
@@ -5285,6 +5376,7 @@ export default function AiSearchPage() {
     if (data.needsYearSelection) return { id, userQuery, kind: 'yearPrompt', result: data }
     if (data.needsYearRangeSelection) return { id, userQuery, kind: 'yearRangePrompt', result: data }
     if (data.industryMode)       return { id, userQuery, kind: 'industry',   result: data }
+    if (data.marginAnalysisMode) return { id, userQuery, kind: 'marginAnalysis', result: data }
     if (data.rankingMode)        return { id, userQuery, kind: 'ranking',    result: data }
     if (data.comparisonMode)     return { id, userQuery, kind: 'comparison', result: data }
     if (data.focusedMetric && !data.aiCalculation) return { id, userQuery, kind: 'metric', result: data }
