@@ -23,6 +23,7 @@ import SmartImage from '../components/SmartImage'
 import { fetchBlogById } from '../api/blogApi'
 import BlogSubCard from '../components/BlogSubCard'
 import ErrorPage from './ErrorPages'
+import config from '../config'
 
 const BlogDetails = () => {
   const { slug } = useParams()
@@ -33,9 +34,11 @@ const BlogDetails = () => {
   const leftColRef = useRef(null)
   const unlockRef = useRef(null)
 
-  // Get current URL after component mounts
+  // Share the backend's OG page rather than the SPA URL: crawlers (LinkedIn, Facebook,
+  // WhatsApp) don't run JS, so only that page carries the article's title and image.
+  // Visitors who click the shared link are redirected to /blog/:slug.
   useEffect(() => {
-    setCurrentUrl(`https://dealstreetjournal.com/blog/${slug}`)
+    setCurrentUrl(`${config.API_BASE_URL}/dsj/blog/${slug}`)
   }, [slug])
 
   const {
