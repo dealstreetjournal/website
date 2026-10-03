@@ -1890,6 +1890,7 @@ const RankingTurn = ({ result, onFollowUp }) => (
                     <span className="inline-flex items-center gap-1.5 text-[#ff7010] text-[10px] font-black uppercase tracking-widest">
                       <FaChartBar className="text-[10px]" />
                       {result.direction === 'bottom' ? 'Bottom' : 'Top'} {result.count} by {result.metric}
+                      {result.year && <> · FY {result.year}</>}
                     </span>
                     <h1 className="text-gray-900 font-bold text-lg mt-1.5 capitalize">
                       {result.query}
@@ -1897,6 +1898,7 @@ const RankingTurn = ({ result, onFollowUp }) => (
                     <p className="text-gray-400 text-xs mt-1">
                       Ranked locally across {result.totalMatched} compan{result.totalMatched === 1 ? 'y' : 'ies'} with data for {result.metric}
                     </p>
+                    {result.yearNote && <p className="text-amber-700 text-xs mt-1">{result.yearNote}</p>}
                   </div>
 
                   {(!result.companies || result.companies.length === 0) ? (
@@ -1927,7 +1929,7 @@ const RankingTurn = ({ result, onFollowUp }) => (
                                   : /[%]/.test(c.matchedLabel || '') || /margin|growth|roe|roce|roa|rate/i.test(result.metric)
                                   ? `${c.value.toFixed(2)}%`
                                   : fmtMn(c.value, result.currencyUnit)}
-                                <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{c.matchedLabel}</span>
+                                <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{c.matchedLabel}{c.year && ` · FY ${c.year}`}</span>
                               </td>
                             </tr>
                           ))}
