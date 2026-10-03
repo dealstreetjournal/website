@@ -27,6 +27,7 @@ import FinancialChart from '../components/FinancialChart'
 import DetailsDealsSubCard from '../components/DetailsDealsSubCard'
 import SmartImage from '../components/SmartImage'
 import ErrorPage from './ErrorPages'
+import config from '../config'
 
 const DealDetails = () => {
   const location = useLocation()
@@ -45,9 +46,11 @@ const DealDetails = () => {
   const compareBoxRef = useRef(null)
   const BoxRef = useRef(null)
 
-  // Get current URL after component mounts
+  // Share the backend's OG page rather than the SPA URL: crawlers (LinkedIn, Facebook,
+  // WhatsApp) don't run JS, so only that page carries the deal's title and image.
+  // Visitors who click the shared link are redirected to /:dealType/:slug.
   useEffect(() => {
-    setCurrentUrl(`https://dealstreetjournal.com/${path}/${slug}`)
+    setCurrentUrl(`${config.API_BASE_URL}/dsj/deal/${path}/${slug}`)
   }, [path, slug])
 
   // Mapping

@@ -845,7 +845,11 @@ const ThinkingBubble = ({ step }) => (
 // Same assistant-card shell (avatar circle + TypewriterText) every other turn kind uses —
 // this used to be a plain static red box that skipped the typing effect entirely, the one
 // card on the page that didn't match how every other response renders.
-const ErrorTurn = ({ message, instant = false }) => (
+// `didYouMean`: rewrites of the failed query that DSJ-AI has already confirmed get an
+// answer — shown as one-click chips once the message has typed out.
+const ErrorTurn = ({ message, didYouMean = [], onFollowUp, instant = false }) => {
+  const { startAt, advance } = useTypeSequence(instant)
+  return (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-red-500/15 border border-red-500/25 flex items-center justify-center flex-shrink-0">
@@ -854,12 +858,59 @@ const ErrorTurn = ({ message, instant = false }) => (
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 mb-0.5">Not found</p>
                     <p className="text-sm text-gray-700 leading-relaxed">
-                      <TypewriterText instant={instant} text={message} />
+                      <TypewriterText instant={instant} text={message} start={startAt(0)} onDone={advance(0)} />
                     </p>
+                    {didYouMean.length > 0 && startAt(1) && (
+                      <p className="text-sm text-gray-700 leading-relaxed mt-3">
+                        <TypewriterText instant={instant} text="Did you mean:" start={startAt(1)} onDone={advance(1)} />
+                      </p>
+                    )}
+                    {didYouMean.length > 0 && startAt(2) && (
+                      <div className="flex flex-wrap gap-2 mt-2" style={{ animation: 'aiRevealIn 0.3s ease-out both' }}>
+                        {didYouMean.map((suggestion) => (
+                          <button key={suggestion}
+                            onClick={() => onFollowUp?.(suggestion)}
+                            className="px-3.5 py-2 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-xs font-bold text-[#ff7010] transition-colors">
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-)
+  )
+}
+
+// "Showing results for <corrected>" above an answer whose query DSJ-AI spell-corrected,
+// with a way back to the words as typed. Types out BEFORE the answer card starts
+// (onDone), same one-thing-at-a-time sequence as every other part of a turn.
+const SpellCorrectionNote = ({ correction, onFollowUp, instant = false, onDone }) => {
+  const { startAt, advance } = useTypeSequence(instant)
+  const finish = advance(1)
+  return (
+              <div className="px-1 text-sm text-gray-500 leading-relaxed">
+                <p>
+                  <TypewriterText instant={instant} text="Showing results for " start={startAt(0)} onDone={advance(0)} />
+                  {startAt(1) && (
+                    <span className="font-semibold italic text-gray-800">
+                      <TypewriterText instant={instant} text={correction.corrected} start={startAt(1)}
+                        onDone={() => { finish(); onDone && onDone() }} />
+                    </span>
+                  )}
+                </p>
+                {startAt(2) && (
+                  <p className="text-xs mt-0.5" style={{ animation: 'aiRevealIn 0.3s ease-out both' }}>
+                    Search instead for{' '}
+                    <button onClick={() => onFollowUp?.(correction.typed, { exact: true })}
+                      className="text-[#ff7010] hover:underline font-medium">
+                      {correction.typed}
+                    </button>
+                  </p>
+                )}
+              </div>
+  )
+}
 
 const YearPromptTurn = ({ result, instant = false }) => (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
@@ -1631,6 +1682,96 @@ const CalcComparisonTurn = ({ result, instant = false }) => {
                   )
                 })}
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// EBITDA-margin driver analysis (DSJ-AI's margin_analysis_engine): what moved the margin,
+// which cost weighs on it most, or how one named cost affects it. Every block types in
+// order — title, headline figures, each table's heading (its rows appear once the heading
+// is done), notes, improvement notes, then the formula line.
+const NoteList = ({ heading, notes, firstStage, startAt, advance, instant }) => (
+  notes.length > 0 && startAt(firstStage) && (
+    <div className="mt-3 border-t border-gray-100 pt-2.5">
+      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">{heading}</p>
+      <div className="space-y-1.5">
+        {notes.map((n, i) => {
+          const stageNum = firstStage + i
+          if (!startAt(stageNum)) return null
+          return (
+            <p key={i} className="flex items-start gap-1.5 text-xs text-gray-600 leading-relaxed">
+              <span className="w-1 h-1 rounded-full bg-[#ff7010] flex-shrink-0 mt-1.5" />
+              <span><TypewriterText instant={instant} text={n} start={startAt(stageNum)} onDone={advance(stageNum)} /></span>
+            </p>
+          )
+        })}
+      </div>
+    </div>
+  )
+)
+
+const MarginAnalysisTurn = ({ result, instant = false }) => {
+  const { startAt, advance } = useTypeSequence(instant)
+  const headline = result.headline || []
+  const tables = result.tables || []
+  const notes = result.insights || []
+  const improve = result.improvementNotes || []
+  const headStage = 2
+  const tableStage = headStage + headline.length
+  const notesStage = tableStage + tables.length
+  const improveStage = notesStage + notes.length
+  const formulaStage = improveStage + improve.length
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
+          <FaChartBar className="text-[#ff7010] text-xs" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-800">
+            <TypewriterText instant={instant} text={result.title || ''} start={startAt(0)} onDone={advance(0)} />
+          </p>
+          {startAt(1) && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              <TypewriterText instant={instant} text={result.subtitle || ''} start={startAt(1)} onDone={advance(1)} />
+            </p>
+          )}
+          {headline.length > 0 && startAt(headStage) && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+              {headline.map((h, i) => startAt(headStage + i) && (
+                <div key={h.label} className="bg-white border border-slate-200 rounded-xl px-3 py-2.5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{h.label}</p>
+                  <p className={`text-sm font-bold mt-0.5 ${valueColor(h.display)}`}>
+                    <TypewriterText instant={instant} text={h.display} start={startAt(headStage + i)} onDone={advance(headStage + i)} />
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          {tables.map((t, i) => startAt(tableStage + i) && (
+            <div key={t.title} className="mt-4">
+              <p className="text-[11px] font-bold text-gray-600">
+                <TypewriterText instant={instant} text={t.title} start={startAt(tableStage + i)} onDone={advance(tableStage + i)} />
+              </p>
+              {startAt(tableStage + i + 1) && (
+                <SimpleTable headers={t.headers} rows={t.rows.map(r => ({ label: r.label, cells: r.cells, colorCells: r.colorCells }))} />
+              )}
+            </div>
+          ))}
+          <NoteList heading="Notes" notes={notes} firstStage={notesStage}
+            startAt={startAt} advance={advance} instant={instant} />
+          <NoteList heading="How the EBITDA margin can improve" notes={improve} firstStage={improveStage}
+            startAt={startAt} advance={advance} instant={instant} />
+          {result.computedFrom && startAt(formulaStage) && (
+            <div className="mt-3 border-t border-gray-100 pt-2">
+              <p className="text-[11px] font-bold text-gray-500 mb-1">How this was calculated</p>
+              <p className="text-[11px] text-gray-400 leading-relaxed break-words">
+                <TypewriterText instant={instant} text={result.computedFrom} start={startAt(formulaStage)} onDone={advance(formulaStage)} />
+              </p>
             </div>
           )}
         </div>
@@ -4886,10 +5027,18 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
   // of stopping) — see freezeAllTyping()/TypewriterText's own onFreeze for how Stop
   // actually works: freezing every currently-typing block exactly where it is.
   const instant = !!turn.historyId
+  const correction = turn.result?.spellCorrection
+  const [noteDone, setNoteDone] = useState(instant || !correction)
   return (
   <div className="space-y-3" ref={scrollAnchorRef}>
     <UserBubble text={turn.userQuery} onEdit={onEditQuery} />
-    {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} instant={instant} />}
+    {correction && (
+      <SpellCorrectionNote correction={correction} onFollowUp={onFollowUp} instant={instant}
+        onDone={() => setNoteDone(true)} />
+    )}
+    {noteDone && <>
+    {turn.kind === 'error'      && <ErrorTurn message={turn.errorMessage} didYouMean={turn.didYouMean}
+                                     onFollowUp={onFollowUp} instant={instant} />}
     {turn.kind === 'glossary'   && <GlossaryTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
     {turn.kind === 'companyDisambiguation' && <CompanyDisambiguationTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
     {turn.kind === 'yearCorrection' && <YearCorrectionTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
@@ -4897,6 +5046,7 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
     {turn.kind === 'yearRangePrompt' && <YearRangePromptTurn result={turn.result} instant={instant} />}
     {turn.kind === 'ranking'    && <RankingTurn result={turn.result} onFollowUp={onFollowUp} />}
     {turn.kind === 'industry'   && <IndustryTurn result={turn.result} instant={instant} />}
+    {turn.kind === 'marginAnalysis' && <MarginAnalysisTurn result={turn.result} instant={instant} />}
     {turn.kind === 'comparison' && (isMarginComparison(turn.result)
       ? <MarginComparisonTurn result={turn.result} instant={instant} />
       : isCalcComparison(turn.result)
@@ -4906,6 +5056,7 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
       ? <MarginSummaryTurn result={turn.result} instant={instant} />
       : <FocusedMetricTurn result={turn.result} instant={instant} />)}
     {turn.kind === 'answer'     && <AssistantAnswerTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
+    </>}
   </div>
   )
 }
@@ -5062,6 +5213,7 @@ export default function AiSearchPage() {
   const [activeSugIdx,    setActiveSugIdx]    = useState(-1)
   const suggestTimer = useRef(null)
   const suggestRef   = useRef(null)
+  const latestSuggestInputRef = useRef('')
 
   const inputRef          = useRef(null)
   // ChatGPT/Claude-style scroll anchoring: instead of chasing the bottom of the
@@ -5125,10 +5277,16 @@ export default function AiSearchPage() {
 
   const fetchSuggestions = (val) => {
     clearTimeout(suggestTimer.current)
+    latestSuggestInputRef.current = val
     if (val.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return }
     suggestTimer.current = setTimeout(async () => {
       try {
-        const data = await getAiSuggestions(val.trim())
+        // Sent untrimmed: a trailing space tells DSJ-AI the last word is finished, so it
+        // suggests what can follow ("astrotalk " -> "astrotalk revenue") instead of
+        // completing a partial word.
+        const data = await getAiSuggestions(val)
+        // A slower response for text the user has already typed past is dropped.
+        if (latestSuggestInputRef.current !== val) return
         setSuggestions(Array.isArray(data) ? data : [])
         setShowSuggestions(true)
         setActiveSugIdx(-1)
@@ -5148,11 +5306,15 @@ export default function AiSearchPage() {
   }, [])
 
   const pickSuggestion = (name) => {
-    setQuery(name)
+    // Picked with a trailing space so the next suggestions offer what can follow it
+    // ("Astrotalk " -> "astrotalk revenue", ...); the space is trimmed on search.
+    const picked = `${name} `
+    setQuery(picked)
     setSuggestions([])
     setShowSuggestions(false)
     setActiveSugIdx(-1)
     inputRef.current?.focus()
+    fetchSuggestions(picked)
   }
 
   // Loads a past question back into the composer for editing, instead of resubmitting it
@@ -5214,6 +5376,7 @@ export default function AiSearchPage() {
     if (data.needsYearSelection) return { id, userQuery, kind: 'yearPrompt', result: data }
     if (data.needsYearRangeSelection) return { id, userQuery, kind: 'yearRangePrompt', result: data }
     if (data.industryMode)       return { id, userQuery, kind: 'industry',   result: data }
+    if (data.marginAnalysisMode) return { id, userQuery, kind: 'marginAnalysis', result: data }
     if (data.rankingMode)        return { id, userQuery, kind: 'ranking',    result: data }
     if (data.comparisonMode)     return { id, userQuery, kind: 'comparison', result: data }
     if (data.focusedMetric && !data.aiCalculation) return { id, userQuery, kind: 'metric', result: data }
@@ -5255,12 +5418,14 @@ export default function AiSearchPage() {
     return { id, userQuery, kind: 'answer', result: data }
   }
 
-  const makeErrorTurn = (userQuery, message) => ({
+  const makeErrorTurn = (userQuery, message, didYouMean = []) => ({
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    userQuery, kind: 'error', result: null, errorMessage: message,
+    userQuery, kind: 'error', result: null, errorMessage: message, didYouMean,
   })
 
-  const doSearch = async (q) => {
+  // `exact`: answer the words exactly as typed, with no spelling correction — sent by the
+  // "Search instead for ..." link under a corrected answer.
+  const doSearch = async (q, { exact = false } = {}) => {
     const typedQ = (q || query).trim()
     if (!typedQ) return
     // A query submitted (Enter key, the Search button, or a follow-up chip click) while
@@ -5342,7 +5507,7 @@ export default function AiSearchPage() {
     // the catch block, past any success:false check placed after the await.
     const trySearch = async (q) => {
       try {
-        const data = await aiFreeSearch(q, user, conversationIdRef.current, controller.signal)
+        const data = await aiFreeSearch(q, user, conversationIdRef.current, controller.signal, exact)
         return { ok: data.success !== false, data, message: data.message }
       } catch (e) {
         // Cancelled by stopGeneration() below, not a real failure — don't show an error
@@ -5354,6 +5519,9 @@ export default function AiSearchPage() {
 
     let result = await trySearch(apiQ)
     if (result.aborted) { setPendingQuery(null); return }
+    // Kept from the first attempt: the company-stitched retry below searches a different
+    // query, so only this one's suggestions describe what the user actually typed.
+    const didYouMean = result.data?.didYouMean || []
     // A "not found" on a query that didn't itself name a company almost always
     // means the user is continuing to ask about whatever company this thread
     // was already about — e.g. typing just "financial statement 2022-23" right
@@ -5395,7 +5563,7 @@ export default function AiSearchPage() {
     }
 
     if (!result.ok) {
-      setTurns(prev => [...prev, makeErrorTurn(typedQ, result.message || 'No results found.')])
+      setTurns(prev => [...prev, makeErrorTurn(typedQ, result.message || 'No results found.', didYouMean)])
       setPendingQuery(null)
       return
     }
@@ -5686,7 +5854,7 @@ export default function AiSearchPage() {
               className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${
                 i === activeSugIdx ? 'bg-orange-50 text-[#ff7010]' : 'text-gray-800 hover:bg-gray-50'
               }`}>
-              <FaBuilding className={`flex-shrink-0 text-xs ${i === activeSugIdx ? 'text-[#ff7010]' : 'text-gray-300'}`} />
+              <FaSearch className={`flex-shrink-0 text-xs ${i === activeSugIdx ? 'text-[#ff7010]' : 'text-gray-300'}`} />
               <span className="truncate">{name}</span>
             </li>
           ))}

@@ -2,8 +2,11 @@ import axios from './axiosInstance'
 import plainAxios from 'axios'
 import config from '../config'
 
+// Search-box autocomplete from DSJ-AI (query_suggester.py): completes the word being typed
+// into a company name or a phrase the engine understands, and fixes typos in the words
+// already typed. `q` is sent untrimmed — a trailing space means the last word is finished.
 export const getAiSuggestions = async (q) => {
-  const res = await axios.get('/api/ai/suggest', { params: { q } })
+  const res = await plainAxios.get(`${config.DSJ_AI_URL}/suggest`, { params: { q } })
   return res.data
 }
 
@@ -26,9 +29,10 @@ export const aiSearchCompany = async (companyId, query) => {
 // cancel an in-flight search the same way ChatGPT/Claude's stop button does — axios
 // rejects the promise with a cancel error the caller checks for instead of treating it
 // as a real failure.
-export const aiFreeSearch = async (query, userEmail, conversationId, signal) => {
+// `exact` skips DSJ-AI's spelling correction ("Search instead for <what was typed>").
+export const aiFreeSearch = async (query, userEmail, conversationId, signal, exact = false) => {
   const res = await plainAxios.post(`${config.DSJ_AI_URL}/free-search`, {
-    query, user_email: userEmail || null, conversation_id: conversationId || null,
+    query, user_email: userEmail || null, conversation_id: conversationId || null, exact,
   }, { signal })
   return res.data
 }
