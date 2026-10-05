@@ -37,6 +37,14 @@ export const aiFreeSearch = async (query, userEmail, conversationId, signal, exa
   return res.data
 }
 
+// 👍 / 👎 on an answer, reviewed in the admin dashboard (adminai.dealstreetjournal.com).
+export const sendAiFeedback = async ({ query, rating, reason, comment, companyId, answer, userEmail }) => {
+  await plainAxios.post(`${config.DSJ_AI_URL}/feedback`, {
+    query, rating, reason: reason || null, comment: comment || null,
+    company_id: companyId ?? null, answer: answer || null, user_email: userEmail || null,
+  })
+}
+
 // History now lives in DSJ-AI (see history_engine.py) alongside the search that populates
 // it, not websitebackend — that Java table/service still exist and still hold everything
 // saved before this moved, but nothing on the frontend calls them anymore. DSJ-AI has no

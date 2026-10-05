@@ -18,7 +18,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointEleme
 import { useAuth } from '../hooks/useAuth'
 import {
   aiFreeSearch, getAiHistory, getAiHistoryDetail,
-  deleteAiHistoryItem, clearAiHistory, getAiSuggestions,
+  deleteAiHistoryItem, clearAiHistory, getAiSuggestions, sendAiFeedback,
 } from '../api/aiSearchApi'
 import config from '../config'
 import CopyButton from '../components/CopyButton'
@@ -1890,6 +1890,7 @@ const RankingTurn = ({ result, onFollowUp }) => (
                     <span className="inline-flex items-center gap-1.5 text-[#ff7010] text-[10px] font-black uppercase tracking-widest">
                       <FaChartBar className="text-[10px]" />
                       {result.direction === 'bottom' ? 'Bottom' : 'Top'} {result.count} by {result.metric}
+                      {result.year && <> · FY {result.year}</>}
                     </span>
                     <h1 className="text-gray-900 font-bold text-lg mt-1.5 capitalize">
                       {result.query}
@@ -1897,6 +1898,7 @@ const RankingTurn = ({ result, onFollowUp }) => (
                     <p className="text-gray-400 text-xs mt-1">
                       Ranked locally across {result.totalMatched} compan{result.totalMatched === 1 ? 'y' : 'ies'} with data for {result.metric}
                     </p>
+                    {result.yearNote && <p className="text-amber-700 text-xs mt-1">{result.yearNote}</p>}
                   </div>
 
                   {(!result.companies || result.companies.length === 0) ? (
@@ -1927,7 +1929,7 @@ const RankingTurn = ({ result, onFollowUp }) => (
                                   : /[%]/.test(c.matchedLabel || '') || /margin|growth|roe|roce|roa|rate/i.test(result.metric)
                                   ? `${c.value.toFixed(2)}%`
                                   : fmtMn(c.value, result.currencyUnit)}
-                                <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{c.matchedLabel}</span>
+                                <span className="block text-[9px] font-normal text-gray-400 mt-0.5">{c.matchedLabel}{c.year && ` · FY ${c.year}`}</span>
                               </td>
                             </tr>
                           ))}
@@ -5020,7 +5022,73 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
               )
 }
 
-const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
+// Asking for a year/company is a question back, not an answer - nothing to rate.
+const UNRATED_KINDS = new Set(['yearPrompt', 'yearRangePrompt', 'companyDisambiguation', 'yearCorrection'])
+const FEEDBACK_REASONS = [
+  ['WRONG_NUMBER', 'Wrong number'],
+  ['WRONG_COMPANY', 'Wrong company'],
+  ['NOT_UNDERSTOOD', "Didn't understand my question"],
+  ['INCOMPLETE', 'Incomplete'],
+  ['OTHER', 'Other'],
+]
+
+const FeedbackBar = ({ turn, userEmail, typing }) => {
+  // Shown only once the answer has finished typing (and stayed finished briefly), so it
+  // never appears ahead of the content it rates.
+  const [settled, setSettled] = useState(!!turn.historyId)
+  useEffect(() => {
+    if (typing) { setSettled(!!turn.historyId); return }
+    const t = setTimeout(() => setSettled(true), 400)
+    return () => clearTimeout(t)
+  }, [typing, turn.historyId])
+  const [rating, setRating] = useState(null)
+  const [reason, setReason] = useState(null)
+  const [comment, setComment] = useState('')
+  const [sent, setSent] = useState(false)
+
+  if (!settled) return null
+  const send = (r, why = null, text = '') => {
+    sendAiFeedback({
+      query: turn.userQuery, rating: r, reason: why, comment: text, userEmail,
+      companyId: turn.result?.companyId, answer: turn.result || { error: turn.errorMessage },
+    }).catch(() => {})
+    setSent(true)
+  }
+  if (sent) return <p className="text-xs text-gray-400 font-aptos pl-1">Thanks for the feedback.</p>
+  return (
+    <div className="pl-1 font-aptos">
+      <div className="flex items-center gap-1 text-gray-400">
+        <span className="text-xs mr-1">Was this helpful?</span>
+        <button type="button" aria-label="Helpful" onClick={() => { setRating('UP'); send('UP') }}
+          className="w-7 h-7 rounded-md hover:bg-orange-50 hover:text-[#ff7010] flex items-center justify-center">👍</button>
+        <button type="button" aria-label="Not helpful" onClick={() => setRating('DOWN')}
+          className={`w-7 h-7 rounded-md hover:bg-orange-50 flex items-center justify-center ${rating === 'DOWN' ? 'bg-orange-50' : ''}`}>👎</button>
+      </div>
+      {rating === 'DOWN' && (
+        <div className="mt-2 max-w-lg rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+          <p className="text-xs text-gray-600 mb-2">What went wrong?</p>
+          <div className="flex flex-wrap gap-1.5">
+            {FEEDBACK_REASONS.map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setReason(value)}
+                className={`text-xs rounded-full border px-2.5 py-1 ${reason === value ? 'border-[#ff7010] text-[#ff7010] bg-orange-50' : 'border-gray-300 text-gray-600 hover:border-[#ff7010]'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2} maxLength={1000}
+            placeholder="Optional: what was the right answer?"
+            className="mt-2 w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#ff7010]" />
+          <div className="mt-2 flex justify-end">
+            <button type="button" onClick={() => send('DOWN', reason, comment)}
+              className="text-xs font-aptos-semibold rounded-lg bg-[#ff7010] hover:bg-[#e66000] text-white px-3 py-1.5">Send</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef, userEmail, typing }) => {
   // Turns restored from sidebar history (loadHistoryResult stamps every one of them with
   // the source item's id) show their saved text immediately — no replayed "typing" effect.
   // The Stop button does NOT set this (that would jump straight to the full text instead
@@ -5056,6 +5124,7 @@ const Turn = ({ turn, onFollowUp, onEditQuery, scrollAnchorRef }) => {
       ? <MarginSummaryTurn result={turn.result} instant={instant} />
       : <FocusedMetricTurn result={turn.result} instant={instant} />)}
     {turn.kind === 'answer'     && <AssistantAnswerTurn result={turn.result} onFollowUp={onFollowUp} instant={instant} />}
+    {!UNRATED_KINDS.has(turn.kind) && <FeedbackBar turn={turn} userEmail={userEmail} typing={typing} />}
     </>}
   </div>
   )
@@ -6007,7 +6076,8 @@ export default function AiSearchPage() {
 
             {turns.map((turn, idx) => (
               <Turn key={turn.id} turn={turn} onFollowUp={doSearch} onEditQuery={handleEditQuery}
-                scrollAnchorRef={idx === turns.length - 1 ? scrollAnchorRef : undefined} />
+                scrollAnchorRef={idx === turns.length - 1 ? scrollAnchorRef : undefined}
+                userEmail={user} typing={idx === turns.length - 1 && isTyping} />
             ))}
 
             {isSearching && (
