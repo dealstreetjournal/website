@@ -205,7 +205,7 @@ const Footer = () => {
                   409, World Trade Centre, Babar Road, Connaught Place,
                   Delhi-110001
                 </p>
-                <p>+91 9560 - 7143 - 99</p>
+                <p>+91 9711 - 7760 - 36</p>
                 <p>(10am - 6pm, Monday - Saturday)</p>
                 <p>support@dealstreetjournal.com</p>
               </div>

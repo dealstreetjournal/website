@@ -197,7 +197,7 @@ const ContactUs = () => {
                 <MdPhone size={24} className="text-[#ff7010]" />
                 <div>
                   <h5 className="font-aptos-bold text-gray-700">Phone</h5>
-                  <p>+91 9560-7143-99</p>
+                  <p>+91 9711-7760-36</p>
                 </div>
               </div>
               <div className="font-aptos-regular flex gap-3 mt-8">
