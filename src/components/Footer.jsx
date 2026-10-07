@@ -206,7 +206,7 @@ const Footer = () => {
                   Delhi-110001
                 </p>
                 <p>+91 9711 - 7760 - 36</p>
-                <p>(10am - 6pm, Monday - Saturday)</p>
+                <p>(10am - 5pm, Monday - Saturday)</p>
                 <p>support@dealstreetjournal.com</p>
               </div>
 
