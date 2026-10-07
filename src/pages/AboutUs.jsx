@@ -192,7 +192,7 @@ const PRODUCTS = [
     cta: { label: 'Explore Insights', to: '/dsj-insight' },
   },
   {
-    title: 'Job Street Journal',
+    title: 'Jobs',
     text: 'Connecting talent with opportunities at startups and new-age companies, with meaningful company context.',
     icon: HiOutlineUsers,
     color: COLORS.violet,
