@@ -12,11 +12,8 @@ import {
   HiOutlineAcademicCap,
 } from 'react-icons/hi2'
 
-// Serif display face for headings; React 19 hoists this stylesheet into <head>
-// and loads it only when the About page is rendered.
-const SERIF_FONT_URL =
-  'https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap'
-const SERIF = { fontFamily: "'Source Serif 4', Georgia, 'Times New Roman', serif" }
+// Headings use the site-wide Aptos face (declared in index.css).
+const HEADING = { fontFamily: "'Aptos', sans-serif" }
 const NAVY = 'text-[#0f1b3d]'
 const ORANGE = '#ff7010'
 
@@ -81,7 +78,7 @@ const LayerCard = ({ layer }) => {
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-3xl font-bold leading-none" style={{ ...SERIF, color: layer.color }}>
+          <h3 className="text-3xl font-bold leading-none" style={{ ...HEADING, color: layer.color }}>
             {layer.title}
           </h3>
           <p className="font-aptos-semibold text-xs uppercase tracking-wider text-slate-500 mt-2">
@@ -144,7 +141,7 @@ const EcosystemDiagram = () => (
     </svg>
 
     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[40%] aspect-square rounded-full bg-white shadow-[0_0_50px_rgba(255,112,16,0.15)] flex flex-col items-center justify-center text-center">
-      <p className={`${NAVY} text-base sm:text-xl font-semibold leading-tight`} style={SERIF}>
+      <p className={`${NAVY} text-base sm:text-xl font-semibold leading-tight`} style={HEADING}>
         One
         <br />
         ecosystem
@@ -225,7 +222,7 @@ const ProductCard = ({ product }) => {
         >
           <Icon />
         </span>
-        <h3 className="text-2xl font-bold" style={{ ...SERIF, color }}>
+        <h3 className="text-2xl font-bold" style={{ ...HEADING, color }}>
           {title}
         </h3>
       </div>
@@ -290,7 +287,6 @@ const AboutUs = () => {
   document.title = 'About Us | DealStreetJournal'
   return (
     <div className="w-full bg-[#fbfbfd] overflow-hidden">
-      <link rel="stylesheet" href={SERIF_FONT_URL} precedence="default" />
 
       {/* Intro + founder note */}
       <section className="relative">
@@ -303,7 +299,7 @@ const AboutUs = () => {
           <div className="grid lg:grid-cols-[1.15fr_1fr] gap-10 lg:gap-16 items-center">
             <div>
               <Eyebrow>About Deal Street Journal</Eyebrow>
-              <h1 className={`${NAVY} text-4xl sm:text-5xl lg:text-[56px] font-bold leading-[1.08] tracking-tight`} style={SERIF}>
+              <h1 className={`${NAVY} text-4xl sm:text-5xl lg:text-[56px] font-bold leading-[1.08] tracking-tight`} style={HEADING}>
                 The intelligence layer for India’s{' '}
                 <span className="relative whitespace-nowrap">
                   new-age economy
@@ -345,7 +341,7 @@ const AboutUs = () => {
               <span className="absolute top-0 left-9 right-9 h-[3px] rounded-b-full bg-gradient-to-r from-[#ff7010] to-[#e8336f]" aria-hidden="true" />
               <span
                 className="block text-7xl leading-[0.6] text-[#ff7010] mb-3"
-                style={SERIF}
+                style={HEADING}
                 aria-hidden="true"
               >
                 “
@@ -371,7 +367,7 @@ const AboutUs = () => {
               <figcaption className="flex items-center gap-4 mt-7 pt-6 border-t border-slate-100">
                 <span
                   className="w-12 h-12 shrink-0 rounded-full bg-gradient-to-br from-[#ff7010] to-[#e8336f] text-white flex items-center justify-center text-lg font-semibold"
-                  style={SERIF}
+                  style={HEADING}
                   aria-hidden="true"
                 >
                   NS
@@ -396,7 +392,7 @@ const AboutUs = () => {
           <div className="grid lg:grid-cols-2 gap-6 items-end mb-12">
             <div>
               <Eyebrow>How it all connects</Eyebrow>
-              <h2 className={`${NAVY} text-3xl sm:text-[42px] font-bold leading-[1.12] tracking-tight`} style={SERIF}>
+              <h2 className={`${NAVY} text-3xl sm:text-[42px] font-bold leading-[1.12] tracking-tight`} style={HEADING}>
                 One ecosystem.
                 <br />
                 Four intelligence layers.
@@ -426,7 +422,7 @@ const AboutUs = () => {
       <section className="max-w-6xl mx-auto w-[90%] py-16 lg:py-20">
         <div className="mb-10">
           <Eyebrow>Three products. One ecosystem.</Eyebrow>
-          <h2 className={`${NAVY} text-3xl sm:text-[42px] font-bold tracking-tight`} style={SERIF}>
+          <h2 className={`${NAVY} text-3xl sm:text-[42px] font-bold tracking-tight`} style={HEADING}>
             Our Products
           </h2>
         </div>
@@ -446,7 +442,7 @@ const AboutUs = () => {
         />
         <div className="relative max-w-4xl mx-auto w-[90%] text-center">
           <Eyebrow>Our purpose</Eyebrow>
-          <h2 className={`${NAVY} text-3xl sm:text-5xl font-bold leading-[1.1] tracking-tight`} style={SERIF}>
+          <h2 className={`${NAVY} text-3xl sm:text-5xl font-bold leading-[1.1] tracking-tight`} style={HEADING}>
             Creating one ecosystem for a new age Economy
             {/* <br className="hidden sm:block" /> easier to understand. */}
           </h2>
