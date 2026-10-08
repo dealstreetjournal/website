@@ -847,8 +847,13 @@ const ThinkingBubble = ({ step }) => (
 // card on the page that didn't match how every other response renders.
 // `didYouMean`: rewrites of the failed query that DSJ-AI has already confirmed get an
 // answer — shown as one-click chips once the message has typed out.
+// Said under every "no data" answer: the search is saved and the data is on its way.
+const COMING_SOON_LINE = "We're working on adding this data — it's coming soon."
+
 const ErrorTurn = ({ message, didYouMean = [], onFollowUp, instant = false }) => {
   const { startAt, advance } = useTypeSequence(instant)
+  // Not for a failed request or history load ("Search failed. Please try again.").
+  const comingSoon = !/try again|load/i.test(message || '')
   return (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
                 <div className="flex items-start gap-3">
@@ -856,16 +861,21 @@ const ErrorTurn = ({ message, didYouMean = [], onFollowUp, instant = false }) =>
                     <FaBuilding className="text-red-500 text-xs" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 mb-0.5">Not found</p>
+                    <p className="text-sm font-semibold text-gray-900 mb-0.5">{comingSoon ? 'Data not available' : 'Not found'}</p>
                     <p className="text-sm text-gray-700 leading-relaxed">
                       <TypewriterText instant={instant} text={message} start={startAt(0)} onDone={advance(0)} />
                     </p>
-                    {didYouMean.length > 0 && startAt(1) && (
-                      <p className="text-sm text-gray-700 leading-relaxed mt-3">
-                        <TypewriterText instant={instant} text="Did you mean:" start={startAt(1)} onDone={advance(1)} />
+                    {startAt(1) && (
+                      <p className="text-sm text-gray-700 leading-relaxed mt-1">
+                        <TypewriterText instant={instant} text={comingSoon ? COMING_SOON_LINE : ''} start={startAt(1)} onDone={advance(1)} />
                       </p>
                     )}
                     {didYouMean.length > 0 && startAt(2) && (
+                      <p className="text-sm text-gray-700 leading-relaxed mt-3">
+                        <TypewriterText instant={instant} text="Did you mean:" start={startAt(2)} onDone={advance(2)} />
+                      </p>
+                    )}
+                    {didYouMean.length > 0 && startAt(3) && (
                       <div className="flex flex-wrap gap-2 mt-2" style={{ animation: 'aiRevealIn 0.3s ease-out both' }}>
                         {didYouMean.map((suggestion) => (
                           <button key={suggestion}
@@ -966,11 +976,17 @@ const YearCorrectionTurn = ({ result, onFollowUp, instant = false }) => {
   const { startAt, advance } = useTypeSequence(instant)
   const line1 = `Data for ${result.requestedYear || 'that year'} is not available`
     + (result.companyName ? ` for ${result.companyName}` : '') + '.'
+  // A year after the newest one on record ("2026-27") hasn't been published yet: said
+  // as "coming soon", not as a wrong year. DSJ-AI saves these searches for review.
   const line2 = result.yearIsMalformed
     ? `"${result.requestedYear}" isn't a valid financial year — the financial year you're asking for is incorrect.`
-    : `The financial year you're asking for isn't one this company has data for.`
+    : result.yearNotYetAvailable
+      ? `Data for FY ${result.requestedYear} hasn't come in yet. We're working on it — coming soon.`
+      : `The financial year you're asking for isn't one this company has data for.`
   const line3 = result.suggestedYear
-    ? `We have data for the financial year ${result.suggestedYear}. Do you want to see that data?`
+    ? (result.yearNotYetAvailable
+      ? `The latest data we have is for FY ${result.suggestedYear}. Do you want to see that data?`
+      : `We have data for the financial year ${result.suggestedYear}. Do you want to see that data?`)
     : null
   return (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100/60 px-6 py-5">
