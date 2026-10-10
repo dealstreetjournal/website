@@ -10,6 +10,13 @@ export const getAiSuggestions = async (q) => {
   return res.data
 }
 
+// Autocorrect while typing (DSJ-AI spell_corrector.autocorrect_typed): the text with its
+// finished words' typos fixed, plus what changed. `keep` = words the user undid a correction of.
+export const getAiAutocorrect = async (q, keep = []) => {
+  const res = await plainAxios.get(`${config.DSJ_AI_URL}/autocorrect`, { params: { q, keep: keep.join(',') } })
+  return res.data
+}
+
 export const aiSearchCompany = async (companyId, query) => {
   const res = await axios.post('/api/ai/search', { companyId, query })
   return res.data

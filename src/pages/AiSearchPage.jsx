@@ -18,7 +18,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointEleme
 import { useAuth } from '../hooks/useAuth'
 import {
   aiFreeSearch, getAiHistory, getAiHistoryDetail,
-  deleteAiHistoryItem, clearAiHistory, getAiSuggestions, sendAiFeedback,
+  deleteAiHistoryItem, clearAiHistory, getAiSuggestions, getAiAutocorrect, sendAiFeedback,
 } from '../api/aiSearchApi'
 import config from '../config'
 import CopyButton from '../components/CopyButton'
@@ -1391,6 +1391,13 @@ const marginChartOpts = (showLegend) => ({
   },
 })
 
+// Same as marginChartOpts, for bars in a currency unit ("₹ Mn") instead of %.
+const amountChartOpts = (showLegend, unit) => {
+  const opts = marginChartOpts(showLegend)
+  opts.scales.y.ticks.callback = (v) => `₹${v} ${unit}`
+  return opts
+}
+
 const MarginSummaryTurn = ({ result, instant = false }) => {
   const { startAt, advance } = useTypeSequence(instant)
   const metrics = result.keyMetrics || []
@@ -1804,12 +1811,20 @@ const IndustryTurn = ({ result, instant = false }) => {
   const metrics = result.metrics || []
   const averages = result.averages || []
   const isMargin = result.mode === 'margin'
+  // A figure asked for itself ("EBITDA of fashion industry companies"): each company's
+  // amount, plotted in the unit its text uses, with the industry average on top.
+  const isAmount = result.mode === 'amount'
+  const hasAverages = isMargin || isAmount
+  // Revenue already has its own column.
+  const amountColumns = isAmount ? metrics.filter(m => m !== 'Revenue') : []
   const label = result.industryLabel || 'Industry'
   const title = result.mode === 'none'
     ? `${label} industry`
     : isMargin
       ? `${label} industry — average ${metrics.length === 1 ? metrics[0] : 'margins'}`
-      : `Companies in the ${label} industry`
+      : isAmount
+        ? `${label} industry — ${metrics.join(', ')}`
+        : `Companies in the ${label} industry`
   const subtitle = result.mode === 'none' ? (result.message || '')
     : `${companies.length} compan${companies.length === 1 ? 'y' : 'ies'}${result.year ? ` · FY ${result.year}` : ' · latest year on record for each'}`
   const nameOf = (c) => (c.brandName ? `${c.companyName} (${c.brandName})` : c.companyName)
@@ -1832,14 +1847,14 @@ const IndustryTurn = ({ result, instant = false }) => {
               <TypewriterText instant={instant} text={subtitle} start={startAt(1)} onDone={advance(1)} />
             </p>
           )}
-          {isMargin && averages.length > 0 && (
+          {hasAverages && averages.length > 0 && (
             <div className="divide-y divide-gray-100 mt-2">
               {averages.map((a, i) => startAt(2 + i) && (
                 <div key={a.label} className="flex items-baseline justify-between gap-4 py-2">
                   <p className="text-sm font-bold text-gray-800">Average {a.label}</p>
                   <p className={`text-xl font-black ${valueColor(a.display)}`}>
                     <TypewriterText instant={instant} text={a.display} start={startAt(2 + i)} onDone={advance(2 + i)} />
-                    <span className="text-xs font-semibold text-gray-400"> · median {a.medianDisplay}</span>
+                    <span className="text-xs font-semibold text-gray-400"> · median {a.medianDisplay}{a.totalDisplay && a.count > 1 ? ` · total ${a.totalDisplay}` : ''}</span>
                   </p>
                 </div>
               ))}
@@ -1864,12 +1879,30 @@ const IndustryTurn = ({ result, instant = false }) => {
                   />
                 </div>
               )}
+              {isAmount && (
+                <div className="mt-4" style={{ height: 220 }}>
+                  <Bar
+                    data={{
+                      labels: companies.map(shortName),
+                      datasets: metrics.map((m, i) => ({
+                        label: m,
+                        data: companies.map(c => c.amounts?.[m]?.chartValue ?? null),
+                        displays: companies.map(c => c.amounts?.[m]?.display),
+                        backgroundColor: MARGIN_SERIES_COLORS[i % MARGIN_SERIES_COLORS.length],
+                        borderRadius: 4,
+                      })),
+                    }}
+                    options={amountChartOpts(metrics.length > 1, result.chartUnit || 'Mn')}
+                  />
+                </div>
+              )}
               <SimpleTable
-                headers={['Company', 'Industry', 'Year', 'Revenue', ...(isMargin ? metrics : [])]}
+                headers={['Company', 'Industry', 'Year', 'Revenue', ...(isMargin ? metrics : []), ...amountColumns]}
                 rows={companies.map(c => ({
                   label: nameOf(c),
                   cells: [c.industry || '—', c.year ? `FY ${c.year}` : '—', c.revenue || '—',
-                    ...(isMargin ? metrics.map(m => c.margins?.[m]?.display || '—') : [])],
+                    ...(isMargin ? metrics.map(m => c.margins?.[m]?.display || '—') : []),
+                    ...amountColumns.map(m => c.amounts?.[m]?.display || '—')],
                 }))}
               />
             </>
@@ -5299,6 +5332,11 @@ export default function AiSearchPage() {
   const suggestTimer = useRef(null)
   const suggestRef   = useRef(null)
   const latestSuggestInputRef = useRef('')
+  // Autocorrect while typing: the last correction made ({before, after, changes}), so
+  // Backspace right after it puts the words back as typed, and the words the user undid,
+  // which are never corrected again in this session.
+  const [autocorrectNote, setAutocorrectNote] = useState(null)
+  const keptWordsRef = useRef(new Set())
 
   const inputRef          = useRef(null)
   // ChatGPT/Claude-style scroll anchoring: instead of chasing the bottom of the
@@ -5412,13 +5450,40 @@ export default function AiSearchPage() {
     inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
+  // Runs once a word is finished (a space or punctuation typed after it): typos in the
+  // finished words are fixed in the box itself, like a phone keyboard. The answer is
+  // dropped if the user has meanwhile changed the text it was asked about.
+  const autocorrectTyped = async (val) => {
+    try {
+      const data = await getAiAutocorrect(val, [...keptWordsRef.current])
+      if (!data?.changes?.length || data.text === val) return
+      const current = latestSuggestInputRef.current
+      if (!current.startsWith(val)) return
+      const next = data.text + current.slice(val.length)
+      setQuery(next)
+      setAutocorrectNote({ before: current, after: next, changes: data.changes })
+      fetchSuggestions(next)
+    } catch { /* autocorrect is optional */ }
+  }
+
   const handleInputChange = (e) => {
     const val = e.target.value
     setQuery(val)
+    setAutocorrectNote(null)
     fetchSuggestions(val)
+    const caretAtEnd = e.target.selectionStart === val.length
+    if (caretAtEnd && val.length > query.length && /[A-Za-z][\s,.?!]$/.test(val)) autocorrectTyped(val)
   }
 
   const handleInputKeyDown = (e) => {
+    if (e.key === 'Backspace' && autocorrectNote && query === autocorrectNote.after) {
+      e.preventDefault()
+      autocorrectNote.changes.forEach(c => keptWordsRef.current.add(c.from.toLowerCase()))
+      setQuery(autocorrectNote.before)
+      setAutocorrectNote(null)
+      fetchSuggestions(autocorrectNote.before)
+      return
+    }
     if (!showSuggestions || suggestions.length === 0) {
       if (e.key === 'Enter') doSearch()
       return
@@ -5532,6 +5597,7 @@ export default function AiSearchPage() {
     // so it's immediately ready for whatever's asked next, whether that's a
     // follow-up on the same company or a brand new one.
     setQuery('')
+    setAutocorrectNote(null)
 
     // If the previous turn asked "which year?" and this one is a BARE year answer
     // ("2024-25", "all", ...) with no company name in it, the box was left empty on
@@ -5703,6 +5769,7 @@ export default function AiSearchPage() {
     setTurns([])
     setActiveHistoryId(null)
     setQuery('')
+    setAutocorrectNote(null)
     inputRef.current?.focus()
   }
 
@@ -5904,8 +5971,15 @@ export default function AiSearchPage() {
         autoFocus
         autoComplete="off"
       />
+      {autocorrectNote && !(showSuggestions && suggestions.length > 0) && (
+        <p className={`absolute left-11 text-[11px] text-gray-400 pointer-events-none ${
+          turns.length === 0 && !isSearching ? 'top-full mt-1' : 'bottom-full mb-1'
+        }`}>
+          Corrected {autocorrectNote.changes.map(c => `“${c.from}” → “${c.to}”`).join(', ')} · Backspace to undo
+        </p>
+      )}
       {query && (
-        <button onClick={() => { setQuery(''); setSuggestions([]); setShowSuggestions(false); inputRef.current?.focus() }}
+        <button onClick={() => { setQuery(''); setAutocorrectNote(null); setSuggestions([]); setShowSuggestions(false); inputRef.current?.focus() }}
           className="absolute right-24 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" style={{zIndex:2}}>
           <FaTimes className="text-sm" />
         </button>
