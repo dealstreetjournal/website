@@ -5023,6 +5023,25 @@ const AssistantAnswerTurn = ({ result, onFollowUp, instant = false }) => {
                       inside that block's own IIFE scope, not this one. */}
                   {(() => { const isSingleRatioAnswer = result.intent === 'investorMetrics' && result.chartData?.ratiosTable?.length === 1; return (
                   <Reveal index={7}>
+                  {/* ── Highlights — an overview's ratios as small cards (value + one-line
+                      verdict) instead of a paragraph each. ── */}
+                  {!result.aiCalculation && !singleMetricMode && result.highlights?.length > 0 && (
+                    <div className="px-6 pt-6">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Highlights</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        {result.highlights.map((h, i) => {
+                          const tone = { good: 'text-emerald-600 bg-emerald-50', ok: 'text-amber-600 bg-amber-50', bad: 'text-red-600 bg-red-50' }[h.tone] || 'text-gray-600 bg-gray-50'
+                          return (
+                            <div key={i} className="rounded-xl border border-gray-100 bg-white px-3.5 py-3">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 truncate">{h.label}</p>
+                              <p className="text-lg font-black text-gray-900 mt-0.5">{h.value}</p>
+                              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${tone}`}>{h.verdict}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {!result.aiCalculation && !isFinancialStatementQuery && !singleMetricMode && result.insights?.length > 0
                     && startAt(result.summary ? 1 : 0) && (
                     <div className="px-6 py-6 border-b border-gray-100">
